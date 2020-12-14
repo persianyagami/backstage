@@ -12,7 +12,7 @@
   var headingsCache;
 
   var findHeadings = function findHeadings() {
-    return headingsCache || document.querySelectorAll('.toc-headings > li > a');
+    return headingsCache || document.querySelectorAll(".toc-headings > li > a");
   };
 
   var onScroll = function onScroll() {
@@ -45,14 +45,14 @@
 
         if (currNavActive && i < headings.length - 1) {
           var heading = headings[i + 1];
-          var next = decodeURIComponent(heading.href.split('#')[1]);
+          var next = decodeURIComponent(heading.href.split("#")[1]);
           var nextHeader = document.getElementById(next);
 
           if (nextHeader) {
             var top = nextHeader.getBoundingClientRect().top;
             currNavActive = top > OFFSET;
           } else {
-            console.error('Can not find header element', {
+            console.error("Can not find header element", {
               id: next,
               heading: heading,
             });
@@ -65,17 +65,17 @@
 
         if (currNavActive) {
           activeNavFound = true;
-          headings[i].classList.add('active');
+          headings[i].classList.add("active");
         } else {
-          headings[i].classList.remove('active');
+          headings[i].classList.remove("active");
         }
       }
     }, 100);
   };
 
-  document.addEventListener('scroll', onScroll);
-  document.addEventListener('resize', onScroll);
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener("scroll", onScroll);
+  document.addEventListener("resize", onScroll);
+  document.addEventListener("DOMContentLoaded", function () {
     // Cache the headings once the page has fully loaded.
     headingsCache = findHeadings();
     onScroll();
