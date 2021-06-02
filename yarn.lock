@@ -3681,9 +3681,9 @@
     read-yaml-file "^1.1.0"
 
 "@material-icons/font@^1.0.2":
-  version "1.0.3"
-  resolved "https://registry.npmjs.org/@material-icons/font/-/font-1.0.3.tgz#f722e5a69a03f20ef47d015cb69420bebeeaabe5"
-  integrity sha512-aIRd0Z9b/HJ/O24KOaP7dNsXypMnXhpWrpLVYvQB/JesVqXYSbioYND200sR+C14a0LSCp+qWnWCnSXmN1hWGw==
+  version "1.0.10"
+  resolved "https://registry.npmjs.org/@material-icons/font/-/font-1.0.10.tgz#de14211d30bac80592137ef3a8a4a69dd5be208e"
+  integrity sha512-aen930vAkhawimt3uwJdZ0sqW3ceeJo1Im3NGVtSSJBJNc2VOfSLgxsz9RQZYinTaIX9cAoVVAhICAm2dVS1Og==
 
 "@material-ui/core@^4.11.0", "@material-ui/core@^4.9.1":
   version "4.11.0"
