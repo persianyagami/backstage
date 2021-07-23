@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,11 @@ export function getGitHubFileFetchUrl(
       !owner ||
       !name ||
       !ref ||
-      (filepathtype !== 'blob' && filepathtype !== 'raw')
+      // GitHub is automatically redirecting tree urls to blob urls so it's
+      // fine to pass a tree url.
+      (filepathtype !== 'blob' &&
+        filepathtype !== 'raw' &&
+        filepathtype !== 'tree')
     ) {
       throw new Error('Invalid GitHub URL or file path');
     }

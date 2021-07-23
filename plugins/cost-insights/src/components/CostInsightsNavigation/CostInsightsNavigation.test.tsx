@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import { default as HappyFace } from '@material-ui/icons/SentimentSatisfiedAlt';
 import { renderInTestApp } from '@backstage/test-utils';
 import { CostInsightsNavigation } from './CostInsightsNavigation';
 import { Product, Icon } from '../../types';
-import { MockConfigProvider, MockScrollProvider } from '../../utils/tests';
+import { MockConfigProvider, MockScrollProvider } from '../../testUtils';
 import { getDefaultNavigationItems } from '../../utils/navigation';
 
 const mockIcons: Icon[] = [

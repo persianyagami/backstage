@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@ describe('compileConfigSchemas', () => {
       },
     ]);
     expect(validate([{ data: { a: 1 }, context: 'test' }])).toEqual({
-      errors: ['Config should be string { type=string } at .a'],
+      errors: ['Config should be string { type=string } at /a'],
       visibilityByPath: new Map(),
     });
     expect(validate([{ data: { b: 'b' }, context: 'test' }])).toEqual({
-      errors: ['Config should be number { type=number } at .b'],
+      errors: ['Config should be number { type=number } at /b'],
       visibilityByPath: new Map(),
     });
   });
@@ -80,10 +80,10 @@ describe('compileConfigSchemas', () => {
     ).toEqual({
       visibilityByPath: new Map(
         Object.entries({
-          '.a': 'frontend',
-          '.b': 'secret',
-          '.d': 'secret',
-          '.d.0': 'frontend',
+          '/a': 'frontend',
+          '/b': 'secret',
+          '/d': 'secret',
+          '/d/0': 'frontend',
         }),
       ),
     });

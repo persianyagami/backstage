@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import React from 'react';
 import { CostInsightsTabs } from './CostInsightsTabs';
 import UserEvent from '@testing-library/user-event';
 import { Group } from '../../types';
-import { MockFilterProvider, MockLoadingProvider } from '../../utils/tests';
+import { MockFilterProvider, MockLoadingProvider } from '../../testUtils';
 import { renderInTestApp } from '@backstage/test-utils';
 
 const mockSetPageFilters = jest.fn();

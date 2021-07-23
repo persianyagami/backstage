@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,19 @@
  * limitations under the License.
  */
 
-import { Entity } from '@backstage/catalog-model';
-import { renderWithEffects, wrapInTestApp } from '@backstage/test-utils';
+import {
+  Entity,
+  VIEW_URL_ANNOTATION,
+  EDIT_URL_ANNOTATION,
+} from '@backstage/catalog-model';
+import { act, fireEvent } from '@testing-library/react';
+import { renderInTestApp } from '@backstage/test-utils';
 import * as React from 'react';
 import { CatalogTable } from './CatalogTable';
+import {
+  MockEntityListContextProvider,
+  UserListFilter,
+} from '@backstage/plugin-catalog-react';
 
 const entities: Entity[] = [
   {
@@ -38,36 +47,92 @@ const entities: Entity[] = [
 ];
 
 describe('CatalogTable component', () => {
-  it('should render error message when error is passed in props', async () => {
-    const rendered = await renderWithEffects(
-      wrapInTestApp(
-        <CatalogTable
-          titlePreamble="Owned"
-          entities={[]}
-          loading={false}
-          error={{ code: 'error' }}
-        />,
-      ),
+  beforeEach(() => {
+    window.open = jest.fn();
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('should render error message', async () => {
+    const rendered = await renderInTestApp(
+      <MockEntityListContextProvider value={{ error: new Error('error') }}>
+        <CatalogTable />
+      </MockEntityListContextProvider>,
     );
     const errorMessage = await rendered.findByText(
-      /Error encountered while fetching catalog entities./,
+      /Could not fetch catalog entities./,
     );
     expect(errorMessage).toBeInTheDocument();
   });
 
   it('should display entity names when loading has finished and no error occurred', async () => {
-    const rendered = await renderWithEffects(
-      wrapInTestApp(
-        <CatalogTable
-          titlePreamble="Owned"
-          entities={entities}
-          loading={false}
-        />,
-      ),
+    const rendered = await renderInTestApp(
+      <MockEntityListContextProvider
+        value={{
+          entities,
+          filters: {
+            user: new UserListFilter('owned', undefined, () => false),
+          },
+        }}
+      >
+        <CatalogTable />
+      </MockEntityListContextProvider>,
     );
     expect(rendered.getByText(/Owned \(3\)/)).toBeInTheDocument();
     expect(rendered.getByText(/component1/)).toBeInTheDocument();
     expect(rendered.getByText(/component2/)).toBeInTheDocument();
     expect(rendered.getByText(/component3/)).toBeInTheDocument();
+  });
+
+  it('should use specified edit URL if in annotation', async () => {
+    const entity = {
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Component',
+      metadata: {
+        name: 'component1',
+        annotations: { [EDIT_URL_ANNOTATION]: 'https://other.place' },
+      },
+    };
+
+    const { getByTitle } = await renderInTestApp(
+      <MockEntityListContextProvider value={{ entities: [entity] }}>
+        <CatalogTable />
+      </MockEntityListContextProvider>,
+    );
+
+    const editButton = getByTitle('Edit');
+
+    await act(async () => {
+      fireEvent.click(editButton);
+    });
+
+    expect(window.open).toHaveBeenCalledWith('https://other.place', '_blank');
+  });
+
+  it('should use specified view URL if in annotation', async () => {
+    const entity = {
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Component',
+      metadata: {
+        name: 'component1',
+        annotations: { [VIEW_URL_ANNOTATION]: 'https://other.place' },
+      },
+    };
+
+    const { getByTitle } = await renderInTestApp(
+      <MockEntityListContextProvider value={{ entities: [entity] }}>
+        <CatalogTable />
+      </MockEntityListContextProvider>,
+    );
+
+    const viewButton = getByTitle('View');
+
+    await act(async () => {
+      fireEvent.click(viewButton);
+    });
+
+    expect(window.open).toHaveBeenCalledWith('https://other.place', '_blank');
   });
 });

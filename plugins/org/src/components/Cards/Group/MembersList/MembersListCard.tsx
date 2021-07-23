@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import Alert from '@material-ui/lab/Alert';
+import {
+  ENTITY_DEFAULT_NAMESPACE,
+  GroupEntity,
+  RELATION_MEMBER_OF,
+  UserEntity,
+} from '@backstage/catalog-model';
+import {
+  catalogApiRef,
+  entityRouteParams,
+  useEntity,
+} from '@backstage/plugin-catalog-react';
 import {
   Box,
   createStyles,
@@ -24,16 +33,18 @@ import {
   Theme,
   Typography,
 } from '@material-ui/core';
-import { InfoCard, Progress, useApi } from '@backstage/core';
-import {
-  UserEntity,
-  RELATION_MEMBER_OF,
-  Entity,
-} from '@backstage/catalog-model';
-import { Link as RouterLink, generatePath } from 'react-router-dom';
-import { catalogApiRef, entityRouteParams } from '@backstage/plugin-catalog';
+import Pagination from '@material-ui/lab/Pagination';
+import React from 'react';
+import { generatePath, Link as RouterLink } from 'react-router-dom';
 import { useAsync } from 'react-use';
-import { Avatar } from '../../../Avatar';
+
+import {
+  Avatar,
+  InfoCard,
+  Progress,
+  ResponseErrorPanel,
+} from '@backstage/core-components';
+import { useApi } from '@backstage/core-plugin-api';
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -43,25 +54,23 @@ const useStyles = makeStyles((theme: Theme) =>
       borderRadius: '4px',
       overflow: 'visible',
       position: 'relative',
-      margin: theme.spacing(3, 0, 0),
+      margin: theme.spacing(4, 1, 1),
+      flex: '1',
+      minWidth: '0px',
     },
   }),
 );
 
-const MemberComponent = ({
-  member,
-  groupEntity,
-}: {
-  member: UserEntity;
-  groupEntity: Entity;
-}) => {
+const MemberComponent = ({ member }: { member: UserEntity }) => {
   const classes = useStyles();
-  const { name: metaName } = member.metadata;
-  const { profile } = member.spec;
+  const {
+    metadata: { name: metaName },
+    spec: { profile },
+  } = member;
   const displayName = profile?.displayName ?? metaName;
 
   return (
-    <Grid item xs={12} sm={6} md={3} xl={2}>
+    <Grid item container xs={12} sm={6} md={4} xl={2}>
       <Box className={classes.card}>
         <Box
           display="flex"
@@ -84,7 +93,7 @@ const MemberComponent = ({
                 component={RouterLink}
                 to={generatePath(
                   `/catalog/:namespace/user/${metaName}`,
-                  entityRouteParams(groupEntity),
+                  entityRouteParams(member),
                 )}
               >
                 {displayName}
@@ -98,53 +107,78 @@ const MemberComponent = ({
   );
 };
 
-export const MembersListCard = ({
-  entity: groupEntity,
-}: {
-  entity: Entity;
+export const MembersListCard = (_props: {
+  /** @deprecated The entity is now grabbed from context instead */
+  entity?: GroupEntity;
 }) => {
+  const { entity: groupEntity } = useEntity<GroupEntity>();
   const {
-    metadata: { name: groupName },
+    metadata: { name: groupName, namespace: grpNamespace },
+    spec: { profile },
   } = groupEntity;
   const catalogApi = useApi(catalogApiRef);
 
+  const displayName = profile?.displayName ?? groupName;
+
+  const groupNamespace = grpNamespace || ENTITY_DEFAULT_NAMESPACE;
+
+  const [page, setPage] = React.useState(1);
+  const pageChange = (_: React.ChangeEvent<unknown>, pageIndex: number) => {
+    setPage(pageIndex);
+  };
+  const pageSize = 50;
+
   const { loading, error, value: members } = useAsync(async () => {
     const membersList = await catalogApi.getEntities({
-      filter: {
-        kind: 'User',
-      },
+      filter: { kind: 'User' },
     });
-    const groupMembersList = ((membersList.items as unknown) as Array<
-      UserEntity
-    >).filter(member =>
-      member?.relations?.some(
-        r => r.type === RELATION_MEMBER_OF && r.target.name === groupName,
-      ),
+    const groupMembersList = (membersList.items as UserEntity[]).filter(
+      member =>
+        member?.relations?.some(
+          r =>
+            r.type === RELATION_MEMBER_OF &&
+            r.target.name.toLocaleLowerCase('en-US') ===
+              groupName.toLocaleLowerCase('en-US') &&
+            r.target.namespace.toLocaleLowerCase('en-US') ===
+              groupNamespace.toLocaleLowerCase('en-US'),
+        ),
     );
     return groupMembersList;
-  }, [catalogApi]);
+  }, [catalogApi, groupEntity]);
 
   if (loading) {
     return <Progress />;
   } else if (error) {
-    return <Alert severity="error">{error.message}</Alert>;
+    return <ResponseErrorPanel error={error} />;
   }
+
+  const nbPages = Math.ceil((members?.length || 0) / pageSize);
+  const paginationLabel = nbPages < 2 ? '' : `, page ${page} of ${nbPages}`;
+
+  const pagination = (
+    <Pagination
+      count={nbPages}
+      page={page}
+      onChange={pageChange}
+      showFirstButton
+      showLastButton
+    />
+  );
 
   return (
     <Grid item>
       <InfoCard
-        title={`Members (${members?.length || 0})`}
-        subheader={`of ${groupName}`}
+        title={`Members (${members?.length || 0}${paginationLabel})`}
+        subheader={`of ${displayName}`}
+        actions={pagination}
       >
         <Grid container spacing={3}>
-          {members && members.length ? (
-            members.map(member => (
-              <MemberComponent
-                member={member}
-                groupEntity={groupEntity}
-                key={member.metadata.uid}
-              />
-            ))
+          {members && members.length > 0 ? (
+            members
+              .slice(pageSize * (page - 1), pageSize * page)
+              .map(member => (
+                <MemberComponent member={member} key={member.metadata.uid} />
+              ))
           ) : (
             <Box p={2}>
               <Typography>This group has no members.</Typography>

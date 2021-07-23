@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,34 @@
  * limitations under the License.
  */
 
-import { ClusterDetails, ClusterLocatorMethod } from '..';
 import { Config } from '@backstage/config';
+import { ClusterDetails } from '../types/types';
 import { ConfigClusterLocator } from './ConfigClusterLocator';
-
-export { ConfigClusterLocator } from './ConfigClusterLocator';
+import { GkeClusterLocator } from './GkeClusterLocator';
 
 export const getCombinedClusterDetails = async (
-  clusterLocatorMethods: ClusterLocatorMethod[],
   rootConfig: Config,
 ): Promise<ClusterDetails[]> => {
   return Promise.all(
-    clusterLocatorMethods.map(clusterLocatorMethod => {
-      switch (clusterLocatorMethod) {
-        case 'config':
-          return ConfigClusterLocator.fromConfig(
-            rootConfig.getConfigArray('kubernetes.clusters'),
-          ).getClusters();
-        default:
-          throw new Error(
-            `Unsupported kubernetes.clusterLocatorMethods: "${clusterLocatorMethod}"`,
-          );
-      }
-    }),
+    rootConfig
+      .getConfigArray('kubernetes.clusterLocatorMethods')
+      .map(clusterLocatorMethod => {
+        const type = clusterLocatorMethod.getString('type');
+        switch (type) {
+          case 'config':
+            return ConfigClusterLocator.fromConfig(
+              clusterLocatorMethod,
+            ).getClusters();
+          case 'gke':
+            return GkeClusterLocator.fromConfig(
+              clusterLocatorMethod,
+            ).getClusters();
+          default:
+            throw new Error(
+              `Unsupported kubernetes.clusterLocatorMethods: "${type}"`,
+            );
+        }
+      }),
   )
     .then(res => {
       return res.flat();

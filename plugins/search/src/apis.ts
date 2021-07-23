@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,48 +14,50 @@
  * limitations under the License.
  */
 
-import { CatalogApi } from '@backstage/plugin-catalog';
-import { Entity, ENTITY_DEFAULT_NAMESPACE } from '@backstage/catalog-model';
+import {
+  createApiRef,
+  DiscoveryApi,
+  IdentityApi,
+} from '@backstage/core-plugin-api';
+import { ResponseError } from '@backstage/errors';
+import { SearchQuery, SearchResultSet } from '@backstage/search-common';
+import qs from 'qs';
 
-export type Result = {
-  name: string;
-  description: string | undefined;
-  owner: string | undefined;
-  kind: string;
-  lifecycle: string | undefined;
-  url: string;
-};
+export const searchApiRef = createApiRef<SearchApi>({
+  id: 'plugin.search.queryservice',
+  description: 'Used to make requests against the search API',
+});
 
-export type SearchResults = Array<Result>;
-
-class SearchApi {
-  private catalogApi: CatalogApi;
-
-  constructor(catalogApi: CatalogApi) {
-    this.catalogApi = catalogApi;
-  }
-
-  private async entities() {
-    const entities = await this.catalogApi.getEntities();
-    return entities.items.map((entity: Entity) => ({
-      name: entity.metadata.name,
-      description: entity.metadata.description,
-      owner:
-        typeof entity.spec?.owner === 'string' ? entity.spec?.owner : undefined,
-      kind: entity.kind,
-      lifecycle:
-        typeof entity.spec?.lifecycle === 'string'
-          ? entity.spec?.lifecycle
-          : undefined,
-      url: `/catalog/${
-        entity.metadata.namespace?.toLowerCase() || ENTITY_DEFAULT_NAMESPACE
-      }/${entity.kind.toLowerCase()}/${entity.metadata.name}`,
-    }));
-  }
-
-  public getSearchResult(): Promise<SearchResults> {
-    return this.entities();
-  }
+export interface SearchApi {
+  query(query: SearchQuery): Promise<SearchResultSet>;
 }
 
-export default SearchApi;
+export class SearchClient implements SearchApi {
+  private readonly discoveryApi: DiscoveryApi;
+  private readonly identityApi: IdentityApi;
+
+  constructor(options: {
+    discoveryApi: DiscoveryApi;
+    identityApi: IdentityApi;
+  }) {
+    this.discoveryApi = options.discoveryApi;
+    this.identityApi = options.identityApi;
+  }
+
+  async query(query: SearchQuery): Promise<SearchResultSet> {
+    const token = await this.identityApi.getIdToken();
+    const queryString = qs.stringify(query);
+    const url = `${await this.discoveryApi.getBaseUrl(
+      'search/query',
+    )}?${queryString}`;
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!response.ok) {
+      throw await ResponseError.fromResponse(response);
+    }
+
+    return response.json();
+  }
+}

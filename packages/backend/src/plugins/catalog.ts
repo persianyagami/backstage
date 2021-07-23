@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +14,31 @@
  * limitations under the License.
  */
 
-import { useHotCleanup } from '@backstage/backend-common';
 import {
   CatalogBuilder,
   createRouter,
-  runPeriodically,
 } from '@backstage/plugin-catalog-backend';
+import { Router } from 'express';
 import { PluginEnvironment } from '../types';
 
-export default async function createPlugin(env: PluginEnvironment) {
-  const builder = new CatalogBuilder(env);
+export default async function createPlugin(
+  env: PluginEnvironment,
+): Promise<Router> {
+  const builder = await CatalogBuilder.create(env);
   const {
     entitiesCatalog,
-    locationsCatalog,
-    higherOrderOperation,
     locationAnalyzer,
+    processingEngine,
+    locationService,
   } = await builder.build();
 
-  useHotCleanup(
-    module,
-    runPeriodically(() => higherOrderOperation.refreshAllLocations(), 100000),
-  );
+  await processingEngine.start();
 
   return await createRouter({
     entitiesCatalog,
-    locationsCatalog,
-    higherOrderOperation,
     locationAnalyzer,
+    locationService,
     logger: env.logger,
+    config: env.config,
   });
 }

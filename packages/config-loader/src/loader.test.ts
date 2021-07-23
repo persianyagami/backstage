@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,18 +19,47 @@ import mockFs from 'mock-fs';
 
 describe('loadConfig', () => {
   beforeAll(() => {
+    process.env.MY_SECRET = 'is-secret';
+    process.env.SUBSTITUTE_ME = 'substituted';
+
     mockFs({
       '/root/app-config.yaml': `
         app:
           title: Example App
           sessionKey:
             $file: secrets/session-key.txt
+          escaped: \$\${Escaped}
       `,
       '/root/app-config.development.yaml': `
         app:
           sessionKey: development-key
+        backend:
+          $include: ./included.yaml
+        other:
+          $include: secrets/included.yaml
       `,
       '/root/secrets/session-key.txt': 'abc123',
+      '/root/secrets/included.yaml': `
+        secret:
+          $file: session-key.txt
+      `,
+      '/root/included.yaml': `
+        foo:
+          bar: token \${MY_SECRET}
+      `,
+      '/root/app-config.substitute.yaml': `
+        app:
+          someConfig:
+            $include: \${SUBSTITUTE_ME}.yaml
+          noSubstitute:
+            $file: \$\${ESCAPE_ME}.txt
+      `,
+      '/root/substituted.yaml': `
+        secret:
+          $file: secrets/\${SUBSTITUTE_ME}.txt
+      `,
+      '/root/secrets/substituted.txt': '123abc',
+      '/root/${ESCAPE_ME}.txt': 'notSubstituted',
     });
   });
 
@@ -52,6 +81,7 @@ describe('loadConfig', () => {
           app: {
             title: 'Example App',
             sessionKey: 'abc123',
+            escaped: '${Escaped}',
           },
         },
       },
@@ -72,6 +102,7 @@ describe('loadConfig', () => {
           app: {
             title: 'Example App',
             sessionKey: 'abc123',
+            escaped: '${Escaped}',
           },
         },
       },
@@ -95,6 +126,7 @@ describe('loadConfig', () => {
           app: {
             title: 'Example App',
             sessionKey: 'abc123',
+            escaped: '${Escaped}',
           },
         },
       },
@@ -103,6 +135,36 @@ describe('loadConfig', () => {
         data: {
           app: {
             sessionKey: 'development-key',
+          },
+          backend: {
+            foo: {
+              bar: 'token is-secret',
+            },
+          },
+          other: {
+            secret: 'abc123',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('loads deep substituted config', async () => {
+    await expect(
+      loadConfig({
+        configRoot: '/root',
+        configPaths: ['/root/app-config.substitute.yaml'],
+        env: 'development',
+      }),
+    ).resolves.toEqual([
+      {
+        context: 'app-config.substitute.yaml',
+        data: {
+          app: {
+            someConfig: {
+              secret: '123abc',
+            },
+            noSubstitute: 'notSubstituted',
           },
         },
       },

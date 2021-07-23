@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import {
   getOrganizationTeams,
   getOrganizationUsers,
   getTeamMembers,
+  getOrganizationRepositories,
   QueryResponse,
 } from './github';
 
@@ -64,13 +65,17 @@ describe('github', () => {
         graphqlMsw.query('users', (_req, res, ctx) => res(ctx.data(input))),
       );
 
-      await expect(getOrganizationUsers(graphql, 'a')).resolves.toEqual(output);
+      await expect(
+        getOrganizationUsers(graphql, 'a', 'token'),
+      ).resolves.toEqual(output);
     });
   });
 
   describe('getOrganizationTeams', () => {
-    it('reads teams', async () => {
-      const input: QueryResponse = {
+    let input: QueryResponse;
+
+    beforeEach(() => {
+      input = {
         organization: {
           teams: {
             pageInfo: { hasNextPage: false },
@@ -78,6 +83,9 @@ describe('github', () => {
               {
                 slug: 'team',
                 combinedSlug: 'blah/team',
+                name: 'Team',
+                description: 'The one and only team',
+                avatarUrl: 'http://example.com/team.jpeg',
                 parentTeam: {
                   slug: 'parent',
                   combinedSlug: '',
@@ -92,13 +100,22 @@ describe('github', () => {
           },
         },
       };
+    });
 
+    it('reads teams', async () => {
       const output = {
         groups: [
           expect.objectContaining({
-            metadata: expect.objectContaining({ name: 'team' }),
+            metadata: expect.objectContaining({
+              name: 'team',
+              description: 'The one and only team',
+            }),
             spec: {
               type: 'team',
+              profile: {
+                displayName: 'Team',
+                picture: 'http://example.com/team.jpeg',
+              },
               parent: 'parent',
               children: [],
             },
@@ -112,6 +129,38 @@ describe('github', () => {
       );
 
       await expect(getOrganizationTeams(graphql, 'a')).resolves.toEqual(output);
+    });
+
+    it('applies namespaces', async () => {
+      const output = {
+        groups: [
+          expect.objectContaining({
+            metadata: expect.objectContaining({
+              name: 'team',
+              namespace: 'foo',
+              description: 'The one and only team',
+            }),
+            spec: {
+              type: 'team',
+              profile: {
+                displayName: 'Team',
+                picture: 'http://example.com/team.jpeg',
+              },
+              parent: 'parent',
+              children: [],
+            },
+          }),
+        ],
+        groupMemberUsers: new Map([['foo/team', ['user']]]),
+      };
+
+      server.use(
+        graphqlMsw.query('teams', (_req, res, ctx) => res(ctx.data(input))),
+      );
+
+      await expect(getOrganizationTeams(graphql, 'a', 'foo')).resolves.toEqual(
+        output,
+      );
     });
   });
 
@@ -139,6 +188,57 @@ describe('github', () => {
       );
 
       await expect(getTeamMembers(graphql, 'a', 'b')).resolves.toEqual(output);
+    });
+  });
+
+  describe('getOrganizationRepositories', () => {
+    it('read repositories', async () => {
+      const input: QueryResponse = {
+        repositoryOwner: {
+          repositories: {
+            nodes: [
+              {
+                name: 'backstage',
+                url: 'https://github.com/backstage/backstage',
+                isArchived: false,
+              },
+              {
+                name: 'demo',
+                url: 'https://github.com/backstage/demo',
+                isArchived: true,
+              },
+            ],
+            pageInfo: {
+              hasNextPage: false,
+            },
+          },
+        },
+      };
+
+      const output = {
+        repositories: [
+          {
+            name: 'backstage',
+            url: 'https://github.com/backstage/backstage',
+            isArchived: false,
+          },
+          {
+            name: 'demo',
+            url: 'https://github.com/backstage/demo',
+            isArchived: true,
+          },
+        ],
+      };
+
+      server.use(
+        graphqlMsw.query('repositories', (_req, res, ctx) =>
+          res(ctx.data(input)),
+        ),
+      );
+
+      await expect(getOrganizationRepositories(graphql, 'a')).resolves.toEqual(
+        output,
+      );
     });
   });
 });

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react';
+import { Entity, Location } from '@backstage/catalog-model';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
 import { Grid, makeStyles } from '@material-ui/core';
+import React, { useState } from 'react';
+import { useMountedState } from 'react-use';
+import { RegisterComponentForm } from '../RegisterComponentForm';
+import { RegisterComponentResultDialog } from '../RegisterComponentResultDialog';
+
 import {
+  Content,
+  ContentHeader,
+  Header,
   InfoCard,
   Page,
-  Content,
-  useApi,
-  errorApiRef,
-  Header,
   SupportButton,
-  ContentHeader,
-  RouteRef,
-} from '@backstage/core';
-import { RegisterComponentForm } from '../RegisterComponentForm';
-import { catalogApiRef } from '@backstage/plugin-catalog';
-import { useMountedState } from 'react-use';
-import { Entity, Location } from '@backstage/catalog-model';
-import { RegisterComponentResultDialog } from '../RegisterComponentResultDialog';
+} from '@backstage/core-components';
+import { errorApiRef, RouteRef, useApi } from '@backstage/core-plugin-api';
 
 const useStyles = makeStyles(theme => ({
   dialogPaper: {

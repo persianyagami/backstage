@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,21 @@
  */
 
 import { GroupEntity, UserEntity } from '@backstage/catalog-model';
+import { GithubCredentialType } from '@backstage/integration';
 import { graphql } from '@octokit/graphql';
 
 // Graphql types
 
 export type QueryResponse = {
-  organization: Organization;
+  organization?: Organization;
+  repositoryOwner?: Organization | User;
 };
 
 export type Organization = {
   membersWithRole?: Connection<User>;
   team?: Team;
   teams?: Connection<Team>;
+  repositories?: Connection<Repository>;
 };
 
 export type PageInfo = {
@@ -40,14 +43,23 @@ export type User = {
   avatarUrl?: string;
   email?: string;
   name?: string;
+  repositories?: Connection<Repository>;
 };
 
 export type Team = {
   slug: string;
   combinedSlug: string;
+  name?: string;
   description?: string;
+  avatarUrl?: string;
   parentTeam?: Team;
   members: Connection<User>;
+};
+
+export type Repository = {
+  name: string;
+  url: string;
+  isArchived: boolean;
 };
 
 export type Connection<T> = {
@@ -66,13 +78,20 @@ export type Connection<T> = {
 export async function getOrganizationUsers(
   client: typeof graphql,
   org: string,
+  tokenType: GithubCredentialType,
 ): Promise<{ users: UserEntity[] }> {
   const query = `
-    query users($org: String!, $cursor: String) {
+    query users($org: String!, $email: Boolean!, $cursor: String) {
       organization(login: $org) {
         membersWithRole(first: 100, after: $cursor) {
           pageInfo { hasNextPage, endCursor }
-          nodes { avatarUrl, bio, email, login, name }
+          nodes {
+            avatarUrl,
+            bio,
+            email @include(if: $email),
+            login,
+            name
+          }
         }
       }
     }`;
@@ -108,7 +127,7 @@ export async function getOrganizationUsers(
     query,
     r => r.organization?.membersWithRole,
     mapper,
-    { org },
+    { org, email: tokenType === 'token' },
   );
 
   return { users };
@@ -125,6 +144,7 @@ export async function getOrganizationUsers(
 export async function getOrganizationTeams(
   client: typeof graphql,
   org: string,
+  orgNamespace?: string,
 ): Promise<{
   groups: GroupEntity[];
   groupMemberUsers: Map<string, string[]>;
@@ -137,6 +157,9 @@ export async function getOrganizationTeams(
           nodes {
             slug
             combinedSlug
+            name
+            description
+            avatarUrl
             parentTeam { slug }
             members(first: 100, membership: IMMEDIATE) {
               pageInfo { hasNextPage }
@@ -162,15 +185,31 @@ export async function getOrganizationTeams(
       },
       spec: {
         type: 'team',
+        profile: {},
         children: [],
       },
     };
 
-    if (team.description) entity.metadata.description = team.description;
-    if (team.parentTeam) entity.spec.parent = team.parentTeam.slug;
+    if (orgNamespace) {
+      entity.metadata.namespace = orgNamespace;
+    }
+
+    if (team.description) {
+      entity.metadata.description = team.description;
+    }
+    if (team.name) {
+      entity.spec.profile!.displayName = team.name;
+    }
+    if (team.avatarUrl) {
+      entity.spec.profile!.picture = team.avatarUrl;
+    }
+    if (team.parentTeam) {
+      entity.spec.parent = team.parentTeam.slug;
+    }
 
     const memberNames: string[] = [];
-    groupMemberUsers.set(team.slug, memberNames);
+    const groupKey = orgNamespace ? `${orgNamespace}/${team.slug}` : team.slug;
+    groupMemberUsers.set(groupKey, memberNames);
 
     if (!team.members.pageInfo.hasNextPage) {
       // We got all the members in one go, run the fast path
@@ -198,6 +237,39 @@ export async function getOrganizationTeams(
   );
 
   return { groups, groupMemberUsers };
+}
+
+export async function getOrganizationRepositories(
+  client: typeof graphql,
+  org: string,
+): Promise<{ repositories: Repository[] }> {
+  const query = `
+    query repositories($org: String!, $cursor: String) {
+      repositoryOwner(login: $org) {
+        login
+        repositories(first: 100, after: $cursor) {
+          nodes {
+            name
+            url
+            isArchived
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }`;
+
+  const repositories = await queryWithPaging(
+    client,
+    query,
+    r => r.repositoryOwner?.repositories,
+    x => x,
+    { org },
+  );
+
+  return { repositories };
 }
 
 /**

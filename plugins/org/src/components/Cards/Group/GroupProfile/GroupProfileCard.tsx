@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,43 +14,39 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { Box, Grid, Link, Tooltip, Typography } from '@material-ui/core';
-import Alert from '@material-ui/lab/Alert';
-import { InfoCard } from '@backstage/core';
-import { entityRouteParams } from '@backstage/plugin-catalog';
 import {
-  Entity,
   GroupEntity,
   RELATION_CHILD_OF,
   RELATION_PARENT_OF,
 } from '@backstage/catalog-model';
+import {
+  EntityRefLinks,
+  getEntityRelations,
+  useEntity,
+  getEntityMetadataEditUrl,
+} from '@backstage/plugin-catalog-react';
+import {
+  Box,
+  Grid,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+  IconButton,
+} from '@material-ui/core';
 import AccountTreeIcon from '@material-ui/icons/AccountTree';
+import EmailIcon from '@material-ui/icons/Email';
 import GroupIcon from '@material-ui/icons/Group';
-import { Link as RouterLink, generatePath } from 'react-router-dom';
-
-const GroupLink = ({
-  groupName,
-  index = 0,
-  entity,
-}: {
-  groupName: string;
-  index?: number;
-  entity: Entity;
-}) => (
-  <>
-    {index >= 1 ? ', ' : ''}
-    <Link
-      component={RouterLink}
-      to={generatePath(
-        `/catalog/:namespace/group/${groupName}`,
-        entityRouteParams(entity),
-      )}
-    >
-      [{groupName}]
-    </Link>
-  </>
-);
+import EditIcon from '@material-ui/icons/Edit';
+import Alert from '@material-ui/lab/Alert';
+import React from 'react';
+import {
+  Avatar,
+  InfoCard,
+  InfoCardVariants,
+  Link,
+} from '@backstage/core-components';
 
 const CardTitle = ({ title }: { title: string }) => (
   <Box display="flex" alignItems="center">
@@ -60,65 +56,106 @@ const CardTitle = ({ title }: { title: string }) => (
 );
 
 export const GroupProfileCard = ({
-  entity: group,
   variant,
 }: {
-  entity: GroupEntity;
-  variant: string;
+  /** @deprecated The entity is now grabbed from context instead */
+  entity?: GroupEntity;
+  variant?: InfoCardVariants;
 }) => {
+  const { entity: group } = useEntity<GroupEntity>();
+  if (!group) {
+    return <Alert severity="error">Group not found</Alert>;
+  }
+
   const {
     metadata: { name, description },
+    spec: { profile },
   } = group;
-  const parent = group?.relations
-    ?.filter(r => r.type === RELATION_CHILD_OF)
-    ?.map(group => group.target.name)
-    .toString();
 
-  const childrens = group?.relations
-    ?.filter(r => r.type === RELATION_PARENT_OF)
-    ?.map(group => group.target.name);
+  const childRelations = getEntityRelations(group, RELATION_PARENT_OF, {
+    kind: 'Group',
+  });
+  const parentRelations = getEntityRelations(group, RELATION_CHILD_OF, {
+    kind: 'group',
+  });
 
-  if (!group) return <Alert severity="error">User not found</Alert>;
+  const entityMetadataEditUrl = getEntityMetadataEditUrl(group);
+
+  const displayName = profile?.displayName ?? name;
+  const emailHref = profile?.email ? `mailto:${profile.email}` : '#';
+  const infoCardAction = entityMetadataEditUrl ? (
+    <IconButton
+      aria-label="Edit"
+      title="Edit Metadata"
+      component={Link}
+      to={entityMetadataEditUrl}
+    >
+      <EditIcon />
+    </IconButton>
+  ) : (
+    <IconButton aria-label="Edit" disabled title="Edit Metadata">
+      <EditIcon />
+    </IconButton>
+  );
 
   return (
     <InfoCard
-      title={<CardTitle title={name} />}
+      title={<CardTitle title={displayName} />}
       subheader={description}
       variant={variant}
+      action={infoCardAction}
     >
       <Grid container spacing={3}>
-        <Grid item>
-          {parent ? (
-            <Typography variant="subtitle1">
-              <Box display="flex" alignItems="center">
-                <Tooltip title="Group Parent">
-                  <AccountTreeIcon fontSize="inherit" />
-                </Tooltip>
-                <Box ml={1} display="inline">
-                  <GroupLink groupName={parent} entity={group} />
-                </Box>
-              </Box>
-            </Typography>
-          ) : null}
-          {childrens?.length ? (
-            <Typography variant="subtitle1">
-              <Box display="flex" alignItems="center">
-                <Tooltip title="Parent of">
-                  <GroupIcon fontSize="inherit" />
-                </Tooltip>
-                <Box ml={1} display="inline">
-                  {childrens.map((children, index) => (
-                    <GroupLink
-                      groupName={children}
-                      entity={group}
-                      index={index}
-                      key={children}
-                    />
-                  ))}
-                </Box>
-              </Box>
-            </Typography>
-          ) : null}
+        <Grid item xs={12} sm={2} xl={1}>
+          <Avatar displayName={displayName} picture={profile?.picture} />
+        </Grid>
+        <Grid item md={10} xl={11}>
+          <List>
+            {profile?.email && (
+              <ListItem>
+                <ListItemIcon>
+                  <Tooltip title="Email">
+                    <EmailIcon />
+                  </Tooltip>
+                </ListItemIcon>
+                <ListItemText>
+                  <Link to={emailHref}>{profile.email}</Link>
+                </ListItemText>
+              </ListItem>
+            )}
+
+            {parentRelations.length ? (
+              <ListItem>
+                <ListItemIcon>
+                  <Tooltip title="Parent Group">
+                    <AccountTreeIcon />
+                  </Tooltip>
+                </ListItemIcon>
+                <ListItemText>
+                  <EntityRefLinks
+                    entityRefs={parentRelations}
+                    defaultKind="Group"
+                  />
+                </ListItemText>
+              </ListItem>
+            ) : null}
+
+            {childRelations.length ? (
+              <ListItem>
+                <ListItemIcon>
+                  <Tooltip title="Child Groups">
+                    <GroupIcon />
+                  </Tooltip>
+                </ListItemIcon>
+                <ListItemText>
+                  <EntityRefLinks
+                    entityRefs={childRelations}
+                    defaultKind="Group"
+                  />
+                </ListItemText>
+              </ListItem>
+            ) : null}
+          </List>
         </Grid>
       </Grid>
     </InfoCard>

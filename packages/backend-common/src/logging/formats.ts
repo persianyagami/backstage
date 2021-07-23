@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,23 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import * as winston from 'winston';
 import { TransformableInfo } from 'logform';
 
 const coloredTemplate = (info: TransformableInfo) => {
-  const { timestamp, level, message, plugin, service } = info;
+  const { timestamp, level, message, plugin, service, ...fields } = info;
   const colorizer = winston.format.colorize();
   const prefix = plugin || service;
   const timestampColor = colorizer.colorize('timestamp', timestamp);
   const prefixColor = colorizer.colorize('prefix', prefix);
 
-  return `${timestampColor} ${prefixColor} ${level} ${message}`;
+  const extraFields = Object.entries(fields)
+    .map(([key, value]) => `${colorizer.colorize('field', `${key}`)}=${value}`)
+    .join(' ');
+
+  return `${timestampColor} ${prefixColor} ${level} ${message} ${extraFields}`;
 };
 
 export const coloredFormat = winston.format.combine(
   winston.format.timestamp(),
   winston.format.colorize({
-    colors: { timestamp: 'dim', prefix: 'blue' },
+    colors: { timestamp: 'dim', prefix: 'blue', field: 'cyan', debug: 'grey' },
   }),
   winston.format.printf(coloredTemplate),
 );

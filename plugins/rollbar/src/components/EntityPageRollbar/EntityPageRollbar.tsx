@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import { Entity } from '@backstage/catalog-model';
+import { useEntity } from '@backstage/plugin-catalog-react';
+import React from 'react';
 import { RollbarProject } from '../RollbarProject/RollbarProject';
 
 type Props = {
-  entity: Entity;
+  /** @deprecated The entity is now grabbed from context instead */
+  entity?: Entity;
 };
 
-export const EntityPageRollbar = ({ entity }: Props) => {
+export const EntityPageRollbar = (_props: Props) => {
+  const { entity } = useEntity();
+
   return <RollbarProject entity={entity} />;
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,15 @@ import {
 
 import React, { Suspense } from 'react';
 import { useDownloadWorkflowRunLogs } from './useDownloadWorkflowRunLogs';
-import LinePart from 'react-lazylog/build/LinePart';
 import { useProjectName } from '../useProjectName';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import DescriptionIcon from '@material-ui/icons/Description';
 import { Entity } from '@backstage/catalog-model';
+import { readGitHubIntegrationConfigs } from '@backstage/integration';
+import { configApiRef, useApi } from '@backstage/core-plugin-api';
 
 const LazyLog = React.lazy(() => import('react-lazylog/build/LazyLog'));
+const LinePart = React.lazy(() => import('react-lazylog/build/LinePart'));
 
 const useStyles = makeStyles<Theme>(() => ({
   button: {
@@ -104,14 +106,24 @@ export const WorkflowRunLogs = ({
   inProgress,
 }: {
   entity: Entity;
-  runId: string;
+  runId: number;
   inProgress: boolean;
 }) => {
+  const config = useApi(configApiRef);
   const classes = useStyles();
   const projectName = useProjectName(entity);
 
+  // TODO: Get github hostname from metadata annotation
+  const hostname = readGitHubIntegrationConfigs(
+    config.getOptionalConfigArray('integrations.github') ?? [],
+  )[0].host;
   const [owner, repo] = projectName.value ? projectName.value.split('/') : [];
-  const jobLogs = useDownloadWorkflowRunLogs(repo, owner, runId);
+  const jobLogs = useDownloadWorkflowRunLogs({
+    hostname,
+    owner,
+    repo,
+    id: runId,
+  });
   const [open, setOpen] = React.useState(false);
 
   const handleOpen = () => {

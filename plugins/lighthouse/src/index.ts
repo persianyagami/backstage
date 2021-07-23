@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,18 @@
  * limitations under the License.
  */
 
-export { plugin } from './plugin';
-export { Router, isPluginApplicableToEntity, EmbeddedRouter } from './Router';
+export {
+  lighthousePlugin,
+  lighthousePlugin as plugin,
+  LighthousePage,
+  EntityLighthouseContent,
+  EntityLastLighthouseAuditCard,
+} from './plugin';
+export {
+  Router,
+  isLighthouseAvailable as isPluginApplicableToEntity,
+  isLighthouseAvailable,
+  EmbeddedRouter,
+} from './Router';
 export * from './api';
 export * from './components/Cards';

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,6 @@ export async function loadBackendConfig(options: Options): Promise<Config> {
   /* eslint-disable-next-line no-restricted-syntax */
   const paths = findPaths(__dirname);
   const configs = await loadConfig({
-    env: process.env.APP_ENV ?? process.env.NODE_ENV ?? 'development',
     configRoot: paths.targetRoot,
     configPaths: configOpts.map(opt => resolvePath(opt)),
   });

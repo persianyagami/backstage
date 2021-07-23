@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import {
   Validators,
 } from '@backstage/catalog-model';
 import { Config } from '@backstage/config';
+import { ScmIntegrations } from '@backstage/integration';
 import lodash from 'lodash';
 import { Logger } from 'winston';
 import {
@@ -37,17 +38,18 @@ import {
 import { DatabaseManager } from '../database';
 import {
   AnnotateLocationEntityProcessor,
+  BitbucketDiscoveryProcessor,
   BuiltinKindsEntityProcessor,
   CatalogProcessor,
+  CatalogProcessorParser,
   CodeOwnersProcessor,
   FileReaderProcessor,
+  GithubDiscoveryProcessor,
   GithubOrgReaderProcessor,
   HigherOrderOperation,
   HigherOrderOperations,
-  LdapOrgReaderProcessor,
+  LocationEntityProcessor,
   LocationReaders,
-  LocationRefProcessor,
-  MicrosoftGraphOrgReaderProcessor,
   PlaceholderProcessor,
   PlaceholderResolver,
   StaticLocationProcessor,
@@ -60,7 +62,9 @@ import {
   textPlaceholderResolver,
   yamlPlaceholderResolver,
 } from '../ingestion/processors/PlaceholderProcessor';
+import { defaultEntityDataParser } from '../ingestion/processors/util/parse';
 import { LocationAnalyzer } from '../ingestion/types';
+import { NextCatalogBuilder } from '../next';
 
 export type CatalogEnvironment = {
   logger: Logger;
@@ -96,6 +100,11 @@ export class CatalogBuilder {
   private fieldFormatValidators: Partial<Validators>;
   private processors: CatalogProcessor[];
   private processorsReplace: boolean;
+  private parser: CatalogProcessorParser | undefined;
+
+  static async create(env: CatalogEnvironment): Promise<NextCatalogBuilder> {
+    return new NextCatalogBuilder(env);
+  }
 
   constructor(env: CatalogEnvironment) {
     this.env = env;
@@ -105,6 +114,11 @@ export class CatalogBuilder {
     this.fieldFormatValidators = {};
     this.processors = [];
     this.processorsReplace = false;
+    this.parser = undefined;
+
+    env.logger.warn(
+      "Creating the catalog with 'new CatalogBuilder(env)' is deprecated! Use CatalogBuilder.create(env) instead",
+    );
   }
 
   /**
@@ -198,6 +212,20 @@ export class CatalogBuilder {
   }
 
   /**
+   * Sets up the catalog to use a custom parser for entity data.
+   *
+   * This is the function that gets called immediately after some raw entity
+   * specification data has been read from a remote source, and needs to be
+   * parsed and emitted as structured data.
+   *
+   * @param parser The custom parser
+   */
+  setEntityDataParser(parser: CatalogProcessorParser): CatalogBuilder {
+    this.parser = parser;
+    return this;
+  }
+
+  /**
    * Wires up and returns all of the component parts of the catalog
    */
   async build(): Promise<{
@@ -207,13 +235,16 @@ export class CatalogBuilder {
     locationAnalyzer: LocationAnalyzer;
   }> {
     const { config, database, logger } = this.env;
+    const integrations = ScmIntegrations.fromConfig(config);
 
     const policy = this.buildEntityPolicy();
     const processors = this.buildProcessors();
     const rulesEnforcer = CatalogRulesEnforcer.fromConfig(config);
+    const parser = this.parser || defaultEntityDataParser;
 
     const locationReader = new LocationReaders({
       ...this.env,
+      parser,
       processors,
       rulesEnforcer,
       policy,
@@ -232,7 +263,7 @@ export class CatalogBuilder {
       locationReader,
       logger,
     );
-    const locationAnalyzer = new RepoLocationAnalyzer(logger);
+    const locationAnalyzer = new RepoLocationAnalyzer(logger, integrations);
 
     return {
       entitiesCatalog,
@@ -260,6 +291,7 @@ export class CatalogBuilder {
 
   private buildProcessors(): CatalogProcessor[] {
     const { config, logger, reader } = this.env;
+    const integrations = ScmIntegrations.fromConfig(config);
 
     this.checkDeprecatedReaderProcessors();
 
@@ -281,13 +313,13 @@ export class CatalogBuilder {
     if (!this.processorsReplace) {
       processors.push(
         new FileReaderProcessor(),
+        BitbucketDiscoveryProcessor.fromConfig(config, { logger }),
+        GithubDiscoveryProcessor.fromConfig(config, { logger }),
         GithubOrgReaderProcessor.fromConfig(config, { logger }),
-        LdapOrgReaderProcessor.fromConfig(config, { logger }),
-        MicrosoftGraphOrgReaderProcessor.fromConfig(config, { logger }),
         new UrlReaderProcessor({ reader, logger }),
-        new CodeOwnersProcessor({ reader, logger }),
-        new LocationRefProcessor(),
-        new AnnotateLocationEntityProcessor(),
+        CodeOwnersProcessor.fromConfig(config, { logger, reader }),
+        new LocationEntityProcessor({ integrations }),
+        new AnnotateLocationEntityProcessor({ integrations }),
       );
     }
 

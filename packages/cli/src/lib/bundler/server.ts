@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ export async function serveBundle(options: ServeOptions) {
   const compiler = webpack(config);
 
   const server = new WebpackDevServer(compiler, {
-    hot: true,
+    hot: !process.env.CI,
     contentBase: paths.targetPublic,
     contentBasePublicPath: config.output?.publicPath,
     publicPath: config.output?.publicPath,
@@ -58,10 +58,12 @@ export async function serveBundle(options: ServeOptions) {
     host,
     port,
     proxy: pkg.proxy,
+    // When the dev server is behind a proxy, the host and public hostname differ
+    allowedHosts: [url.hostname],
   });
 
   await new Promise<void>((resolve, reject) => {
-    server.listen(port, url.hostname, (err?: Error) => {
+    server.listen(port, host, (err?: Error) => {
       if (err) {
         reject(err);
         return;

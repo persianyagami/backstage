@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,31 @@
  * limitations under the License.
  */
 
-import { createPlugin } from '@backstage/core';
+import { techRadarApiRef } from './api';
 
-export const plugin = createPlugin({
-  id: 'tech-radar',
+import { SampleTechRadarApi } from './sample';
+import {
+  createPlugin,
+  createRouteRef,
+  createRoutableExtension,
+  createApiFactory,
+} from '@backstage/core-plugin-api';
+
+const rootRouteRef = createRouteRef({
+  title: 'Tech Radar',
 });
+
+export const techRadarPlugin = createPlugin({
+  id: 'tech-radar',
+  routes: {
+    root: rootRouteRef,
+  },
+  apis: [createApiFactory(techRadarApiRef, new SampleTechRadarApi())],
+});
+
+export const TechRadarPage = techRadarPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/RadarPage').then(m => m.RadarPage),
+    mountPoint: rootRouteRef,
+  }),
+);

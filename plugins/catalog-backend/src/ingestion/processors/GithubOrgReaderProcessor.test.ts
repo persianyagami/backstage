@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,77 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+jest.mock('@octokit/graphql');
 import { getVoidLogger } from '@backstage/backend-common';
 import { LocationSpec } from '@backstage/catalog-model';
-import { ConfigReader } from '@backstage/config';
 import {
-  GithubOrgReaderProcessor,
-  parseUrl,
-  readConfig,
-} from './GithubOrgReaderProcessor';
+  ScmIntegrations,
+  GithubCredentialsProvider,
+} from '@backstage/integration';
+import { GithubOrgReaderProcessor, parseUrl } from './GithubOrgReaderProcessor';
+import { graphql } from '@octokit/graphql';
+import { ConfigReader } from '@backstage/config';
 
 describe('GithubOrgReaderProcessor', () => {
-  describe('readConfig', () => {
-    function config(
-      providers: { target: string; apiBaseUrl?: string; token?: string }[],
-    ) {
-      return ConfigReader.fromConfigs([
-        {
-          context: '',
-          data: {
-            catalog: { processors: { githubOrg: { providers } } },
-          },
-        },
-      ]);
-    }
-
-    it('adds a default GitHub entry when missing', () => {
-      const output = readConfig(config([]));
-      expect(output).toEqual([
-        {
-          target: 'https://github.com',
-          apiBaseUrl: 'https://api.github.com',
-        },
-      ]);
-    });
-
-    it('injects the correct GitHub API base URL when missing', () => {
-      const output = readConfig(config([{ target: 'https://github.com' }]));
-      expect(output).toEqual([
-        {
-          target: 'https://github.com',
-          apiBaseUrl: 'https://api.github.com',
-        },
-      ]);
-    });
-
-    it('rejects custom targets with no base URLs', () => {
-      expect(() =>
-        readConfig(config([{ target: 'https://ghe.company.com' }])),
-      ).toThrow(
-        'Provider at https://ghe.company.com must configure an explicit apiBaseUrl',
-      );
-    });
-
-    it('rejects funky configs', () => {
-      expect(() => readConfig(config([{ target: 7 } as any]))).toThrow(
-        /target/,
-      );
-      expect(() => readConfig(config([{ noTarget: '7' } as any]))).toThrow(
-        /target/,
-      );
-      expect(() =>
-        readConfig(
-          config([{ target: 'https://github.com', apiBaseUrl: 7 } as any]),
-        ),
-      ).toThrow(/apiBaseUrl/);
-      expect(() =>
-        readConfig(config([{ target: 'https://github.com', token: 7 } as any])),
-      ).toThrow(/token/);
-    });
-  });
-
   describe('parseUrl', () => {
     it('only supports clean org urls, and decodes them', () => {
       expect(() => parseUrl('https://github.com')).toThrow();
@@ -94,34 +35,27 @@ describe('GithubOrgReaderProcessor', () => {
   });
 
   describe('implementation', () => {
-    it('rejects unknown types', async () => {
-      const processor = new GithubOrgReaderProcessor({
-        providers: [
-          {
-            target: 'https://github.com',
-            apiBaseUrl: 'https://api.github.com',
-          },
-        ],
-        logger: getVoidLogger(),
-      });
-      const location: LocationSpec = {
-        type: 'not-github-org',
-        target: 'https://github.com',
-      };
-      await expect(
-        processor.readLocation(location, false, () => {}),
-      ).resolves.toBeFalsy();
+    const logger = getVoidLogger();
+    const integrations = ScmIntegrations.fromConfig(
+      new ConfigReader({
+        integrations: {
+          github: [
+            {
+              host: 'github.com',
+            },
+          ],
+        },
+      }),
+    );
+
+    beforeEach(() => {
+      jest.resetAllMocks();
     });
 
-    it('rejects unknown targets', async () => {
+    it('rejects unknown targets from integrations', async () => {
       const processor = new GithubOrgReaderProcessor({
-        providers: [
-          {
-            target: 'https://github.com',
-            apiBaseUrl: 'https://api.github.com',
-          },
-        ],
-        logger: getVoidLogger(),
+        integrations,
+        logger,
       });
       const location: LocationSpec = {
         type: 'github-org',
@@ -131,6 +65,102 @@ describe('GithubOrgReaderProcessor', () => {
         processor.readLocation(location, false, () => {}),
       ).rejects.toThrow(
         /There is no GitHub Org provider that matches https:\/\/not.github.com\/apa/,
+      );
+    });
+
+    it('should not query for email addresses when GitHub Apps is used for authentication', async () => {
+      const mockGetCredentials = jest.fn().mockReturnValue({
+        headers: { token: 'blah' },
+        type: 'app',
+      });
+
+      const mockClient = jest.fn();
+
+      mockClient
+        .mockResolvedValueOnce({
+          organization: {
+            membersWithRole: { pageInfo: { hasNextPage: false }, nodes: [{}] },
+          },
+        })
+        .mockResolvedValueOnce({
+          organization: {
+            teams: {
+              pageInfo: { hasNextPage: false },
+              nodes: [
+                { members: { pageInfo: { hasNextPage: false }, nodes: [{}] } },
+              ],
+            },
+          },
+        });
+
+      (graphql.defaults as jest.Mock).mockReturnValue(mockClient);
+
+      jest.spyOn(GithubCredentialsProvider, 'create').mockReturnValue({
+        getCredentials: mockGetCredentials,
+      } as any);
+
+      const processor = new GithubOrgReaderProcessor({
+        integrations,
+        logger,
+      });
+      const location: LocationSpec = {
+        type: 'github-org',
+        target: 'https://github.com/backstage',
+      };
+
+      await processor.readLocation(location, false, () => {});
+
+      expect(mockClient).toHaveBeenCalledWith(
+        expect.stringContaining('@include(if: $email)'),
+        expect.objectContaining({ email: false }),
+      );
+    });
+
+    it('should query for email addresses when token is used for authentication', async () => {
+      const mockGetCredentials = jest.fn().mockReturnValue({
+        headers: { token: 'blah' },
+        type: 'token',
+      });
+
+      const mockClient = jest.fn();
+
+      mockClient
+        .mockResolvedValueOnce({
+          organization: {
+            membersWithRole: { pageInfo: { hasNextPage: false }, nodes: [{}] },
+          },
+        })
+        .mockResolvedValueOnce({
+          organization: {
+            teams: {
+              pageInfo: { hasNextPage: false },
+              nodes: [
+                { members: { pageInfo: { hasNextPage: false }, nodes: [{}] } },
+              ],
+            },
+          },
+        });
+
+      (graphql.defaults as jest.Mock).mockReturnValue(mockClient);
+
+      jest.spyOn(GithubCredentialsProvider, 'create').mockReturnValue({
+        getCredentials: mockGetCredentials,
+      } as any);
+
+      const processor = new GithubOrgReaderProcessor({
+        integrations,
+        logger,
+      });
+      const location: LocationSpec = {
+        type: 'github-org',
+        target: 'https://github.com/backstage',
+      };
+
+      await processor.readLocation(location, false, () => {});
+
+      expect(mockClient).toHaveBeenCalledWith(
+        expect.stringContaining('@include(if: $email)'),
+        expect.objectContaining({ email: true }),
       );
     });
   });

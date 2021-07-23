@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,140 +13,142 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Entity } from '@backstage/catalog-model';
-import { Table, TableColumn, TableProps } from '@backstage/core';
-import { Chip, Link } from '@material-ui/core';
+import { RELATION_OWNED_BY, RELATION_PART_OF } from '@backstage/catalog-model';
+import {
+  formatEntityRefTitle,
+  getEntityMetadataEditUrl,
+  getEntityMetadataViewUrl,
+  getEntityRelations,
+  useEntityListProvider,
+  useStarredEntities,
+} from '@backstage/plugin-catalog-react';
 import Edit from '@material-ui/icons/Edit';
-import GitHub from '@material-ui/icons/GitHub';
-import { Alert } from '@material-ui/lab';
+import OpenInNew from '@material-ui/icons/OpenInNew';
+import { capitalize } from 'lodash';
 import React from 'react';
-import { generatePath, Link as RouterLink } from 'react-router-dom';
-import { findLocationForEntityMeta } from '../../data/utils';
-import { createEditLink } from '../createEditLink';
-import { useStarredEntities } from '../../hooks/useStarredEntities';
-import { entityRoute, entityRouteParams } from '../../routes';
 import {
   favouriteEntityIcon,
   favouriteEntityTooltip,
 } from '../FavouriteEntity/FavouriteEntity';
+import * as columnFactories from './columns';
+import { EntityRow } from './types';
+import {
+  CodeSnippet,
+  Table,
+  TableColumn,
+  TableProps,
+  WarningPanel,
+} from '@backstage/core-components';
 
-const columns: TableColumn<Entity>[] = [
-  {
-    title: 'Name',
-    field: 'metadata.name',
-    highlight: true,
-    render: (entity: any) => (
-      <Link
-        component={RouterLink}
-        to={generatePath(entityRoute.path, {
-          ...entityRouteParams(entity),
-          selectedTabId: 'overview',
-        })}
-      >
-        {entity.metadata.name}
-      </Link>
-    ),
-  },
-  {
-    title: 'Owner',
-    field: 'spec.owner',
-  },
-  {
-    title: 'Lifecycle',
-    field: 'spec.lifecycle',
-  },
-  {
-    title: 'Description',
-    field: 'metadata.description',
-  },
-  {
-    title: 'Tags',
-    field: 'metadata.tags',
-    cellStyle: {
-      padding: '0px 16px 0px 20px',
-    },
-    render: (entity: Entity) => (
-      <>
-        {entity.metadata.tags &&
-          entity.metadata.tags.map(t => (
-            <Chip
-              key={t}
-              label={t}
-              size="small"
-              variant="outlined"
-              style={{ marginBottom: '0px' }}
-            />
-          ))}
-      </>
-    ),
-  },
+const defaultColumns: TableColumn<EntityRow>[] = [
+  columnFactories.createNameColumn(),
+  columnFactories.createSystemColumn(),
+  columnFactories.createOwnerColumn(),
+  columnFactories.createSpecTypeColumn(),
+  columnFactories.createSpecLifecycleColumn(),
+  columnFactories.createMetadataDescriptionColumn(),
+  columnFactories.createTagsColumn(),
 ];
 
 type CatalogTableProps = {
-  entities: Entity[];
-  titlePreamble: string;
-  loading: boolean;
-  error?: any;
+  columns?: TableColumn<EntityRow>[];
+  actions?: TableProps<EntityRow>['actions'];
 };
 
-export const CatalogTable = ({
-  entities,
-  loading,
-  error,
-  titlePreamble,
-}: CatalogTableProps) => {
+export const CatalogTable = ({ columns, actions }: CatalogTableProps) => {
   const { isStarredEntity, toggleStarredEntity } = useStarredEntities();
+  const { loading, error, entities, filters } = useEntityListProvider();
+
+  const showTypeColumn = filters.type === undefined;
+  // TODO(timbonicus): remove the title from the CatalogTable once using EntitySearchBar
+  const titlePreamble = capitalize(filters.user?.value ?? 'all');
 
   if (error) {
     return (
       <div>
-        <Alert severity="error">
-          Error encountered while fetching catalog entities. {error.toString()}
-        </Alert>
+        <WarningPanel
+          severity="error"
+          title="Could not fetch catalog entities."
+        >
+          <CodeSnippet language="text" text={error.toString()} />
+        </WarningPanel>
       </div>
     );
   }
 
-  const actions: TableProps<Entity>['actions'] = [
-    (rowData: Entity) => {
-      const location = findLocationForEntityMeta(rowData.metadata);
+  const defaultActions: TableProps<EntityRow>['actions'] = [
+    ({ entity }) => {
+      const url = getEntityMetadataViewUrl(entity);
       return {
-        icon: () => <GitHub fontSize="small" />,
-        tooltip: 'View on GitHub',
+        icon: () => <OpenInNew fontSize="small" />,
+        tooltip: 'View',
+        disabled: !url,
         onClick: () => {
-          if (!location) return;
-          window.open(location.target, '_blank');
+          if (!url) return;
+          window.open(url, '_blank');
         },
-        hidden: location?.type !== 'github',
       };
     },
-    (rowData: Entity) => {
-      const location = findLocationForEntityMeta(rowData.metadata);
+    ({ entity }) => {
+      const url = getEntityMetadataEditUrl(entity);
       return {
         icon: () => <Edit fontSize="small" />,
         tooltip: 'Edit',
+        disabled: !url,
         onClick: () => {
-          if (!location) return;
-          window.open(createEditLink(location), '_blank');
+          if (!url) return;
+          window.open(url, '_blank');
         },
-        hidden: location?.type !== 'github',
       };
     },
-    (rowData: Entity) => {
-      const isStarred = isStarredEntity(rowData);
+    ({ entity }) => {
+      const isStarred = isStarredEntity(entity);
       return {
         cellStyle: { paddingLeft: '1em' },
         icon: () => favouriteEntityIcon(isStarred),
         tooltip: favouriteEntityTooltip(isStarred),
-        onClick: () => toggleStarredEntity(rowData),
+        onClick: () => toggleStarredEntity(entity),
       };
     },
   ];
 
+  const rows = entities.map(entity => {
+    const partOfSystemRelations = getEntityRelations(entity, RELATION_PART_OF, {
+      kind: 'system',
+    });
+    const ownedByRelations = getEntityRelations(entity, RELATION_OWNED_BY);
+
+    return {
+      entity,
+      resolved: {
+        name: formatEntityRefTitle(entity, {
+          defaultKind: 'Component',
+        }),
+        ownedByRelationsTitle: ownedByRelations
+          .map(r => formatEntityRefTitle(r, { defaultKind: 'group' }))
+          .join(', '),
+        ownedByRelations,
+        partOfSystemRelationTitle: partOfSystemRelations
+          .map(r =>
+            formatEntityRefTitle(r, {
+              defaultKind: 'system',
+            }),
+          )
+          .join(', '),
+        partOfSystemRelations,
+      },
+    };
+  });
+
+  const typeColumn = (columns || defaultColumns).find(c => c.title === 'Type');
+  if (typeColumn) {
+    typeColumn.hidden = !showTypeColumn;
+  }
+
   return (
-    <Table<Entity>
+    <Table<EntityRow>
       isLoading={loading}
-      columns={columns}
+      columns={columns || defaultColumns}
       options={{
         paging: true,
         pageSize: 20,
@@ -156,9 +158,11 @@ export const CatalogTable = ({
         padding: 'dense',
         pageSizeOptions: [20, 50, 100],
       }}
-      title={`${titlePreamble} (${(entities && entities.length) || 0})`}
-      data={entities}
-      actions={actions}
+      title={`${titlePreamble} (${entities.length})`}
+      data={rows}
+      actions={actions || defaultActions}
     />
   );
 };
+
+CatalogTable.columns = columnFactories;

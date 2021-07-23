@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,3 +27,9 @@ export const ENTITY_META_GENERATED_FIELDS = [
   'etag',
   'generation',
 ] as const;
+
+/**
+ * Annotations for linking to entity from catalog pages.
+ */
+export const VIEW_URL_ANNOTATION = 'backstage.io/view-url';
+export const EDIT_URL_ANNOTATION = 'backstage.io/edit-url';

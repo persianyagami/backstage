@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,54 @@
  * limitations under the License.
  */
 
-import { ScmIntegration, ScmIntegrationFactory } from '../types';
+import { basicIntegrations, defaultScmResolveUrl } from '../helpers';
+import { ScmIntegration, ScmIntegrationsFactory } from '../types';
 import {
   GitLabIntegrationConfig,
   readGitLabIntegrationConfigs,
 } from './config';
 
 export class GitLabIntegration implements ScmIntegration {
-  static factory: ScmIntegrationFactory = ({ config }) => {
+  static factory: ScmIntegrationsFactory<GitLabIntegration> = ({ config }) => {
     const configs = readGitLabIntegrationConfigs(
       config.getOptionalConfigArray('integrations.gitlab') ?? [],
     );
-    return configs.map(integration => ({
-      predicate: (url: URL) => url.host === integration.host,
-      integration: new GitLabIntegration(integration),
-    }));
+    return basicIntegrations(
+      configs.map(c => new GitLabIntegration(c)),
+      i => i.config.host,
+    );
   };
 
-  constructor(private readonly config: GitLabIntegrationConfig) {}
+  constructor(private readonly integrationConfig: GitLabIntegrationConfig) {}
 
   get type(): string {
     return 'gitlab';
   }
 
   get title(): string {
-    return this.config.host;
+    return this.integrationConfig.host;
   }
+
+  get config(): GitLabIntegrationConfig {
+    return this.integrationConfig;
+  }
+
+  resolveUrl(options: {
+    url: string;
+    base: string;
+    lineNumber?: number;
+  }): string {
+    return defaultScmResolveUrl(options);
+  }
+
+  resolveEditUrl(url: string): string {
+    return replaceUrlType(url, 'edit');
+  }
+}
+
+export function replaceUrlType(
+  url: string,
+  type: 'blob' | 'tree' | 'edit',
+): string {
+  return url.replace(/\/\-\/(blob|tree|edit)\//, `/-/${type}/`);
 }

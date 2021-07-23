@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,24 @@ import { Maybe, Product } from '../../types';
 type CostInsightsNavigationProps = {
   alerts: number;
   products: Maybe<Product[]>;
+};
+
+const NavigationMenuItem = ({ navigation, icon, title }: NavigationItem) => {
+  const classes = useStyles();
+  const [, setScroll] = useScroll();
+  return (
+    <MenuItem
+      button
+      data-testid={`menu-item-${navigation}`}
+      className={classes.menuItem}
+      onClick={() => setScroll(navigation)}
+    >
+      <ListItemIcon className={classes.listItemIcon}>{icon}</ListItemIcon>
+      <ListItemText
+        primary={<Typography className={classes.title}>{title}</Typography>}
+      />
+    </MenuItem>
+  );
 };
 
 export const CostInsightsNavigation = React.memo(
@@ -102,21 +120,3 @@ export const CostInsightsNavigation = React.memo(
     );
   },
 );
-
-const NavigationMenuItem = ({ navigation, icon, title }: NavigationItem) => {
-  const classes = useStyles();
-  const { scrollIntoView } = useScroll(navigation);
-  return (
-    <MenuItem
-      button
-      data-testid={`menu-item-${navigation}`}
-      className={classes.menuItem}
-      onClick={scrollIntoView}
-    >
-      <ListItemIcon className={classes.listItemIcon}>{icon}</ListItemIcon>
-      <ListItemText
-        primary={<Typography className={classes.title}>{title}</Typography>}
-      />
-    </MenuItem>
-  );
-};

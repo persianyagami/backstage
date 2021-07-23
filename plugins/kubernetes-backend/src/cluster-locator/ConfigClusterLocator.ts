@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ClusterDetails, KubernetesClustersSupplier } from '..';
 import { Config } from '@backstage/config';
+import { ClusterDetails, KubernetesClustersSupplier } from '../types/types';
 
 export class ConfigClusterLocator implements KubernetesClustersSupplier {
   private readonly clusterDetails: ClusterDetails[];
@@ -24,17 +24,37 @@ export class ConfigClusterLocator implements KubernetesClustersSupplier {
     this.clusterDetails = clusterDetails;
   }
 
-  static fromConfig(config: Config[]): ConfigClusterLocator {
+  static fromConfig(config: Config): ConfigClusterLocator {
     // TODO: Add validation that authProvider is required and serviceAccountToken
     // is required if authProvider is serviceAccount
     return new ConfigClusterLocator(
-      config.map(c => {
-        return {
+      config.getConfigArray('clusters').map(c => {
+        const authProvider = c.getString('authProvider');
+        const clusterDetails = {
           name: c.getString('name'),
           url: c.getString('url'),
           serviceAccountToken: c.getOptionalString('serviceAccountToken'),
-          authProvider: c.getString('authProvider'),
+          skipTLSVerify: c.getOptionalBoolean('skipTLSVerify') ?? false,
+          authProvider: authProvider,
         };
+
+        switch (authProvider) {
+          case 'google': {
+            return clusterDetails;
+          }
+          case 'aws': {
+            const assumeRole = c.getOptionalString('assumeRole');
+            return { assumeRole, ...clusterDetails };
+          }
+          case 'serviceAccount': {
+            return clusterDetails;
+          }
+          default: {
+            throw new Error(
+              `authProvider "${authProvider}" has no config associated with it`,
+            );
+          }
+        }
       }),
     );
   }

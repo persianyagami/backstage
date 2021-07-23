@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,16 @@
  */
 
 import { Entity, RELATION_API_PROVIDED_BY } from '@backstage/catalog-model';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
-import { CatalogApi, catalogApiRef } from '@backstage/plugin-catalog';
+import {
+  CatalogApi,
+  catalogApiRef,
+  EntityProvider,
+} from '@backstage/plugin-catalog-react';
 import { renderInTestApp } from '@backstage/test-utils';
 import { waitFor } from '@testing-library/react';
 import React from 'react';
 import { ProvidingComponentsCard } from './ProvidingComponentsCard';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 
 describe('<ProvidingComponentsCard />', () => {
   const catalogApi: jest.Mocked<CatalogApi> = {
@@ -62,12 +66,14 @@ describe('<ProvidingComponentsCard />', () => {
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ProvidingComponentsCard entity={entity} />
+        <EntityProvider entity={entity}>
+          <ProvidingComponentsCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
-    expect(getByText(/Providers/i)).toBeInTheDocument();
-    expect(getByText(/No APIs provided by this entity/i)).toBeInTheDocument();
+    expect(getByText('Providers')).toBeInTheDocument();
+    expect(getByText(/No component provides this API/i)).toBeInTheDocument();
   });
 
   it('shows providing components', async () => {
@@ -95,31 +101,31 @@ describe('<ProvidingComponentsCard />', () => {
         },
       ],
     };
-    catalogApi.getEntityByName.mockResolvedValue({
-      apiVersion: 'v1',
-      kind: 'Component',
-      metadata: {
-        name: 'target-name',
-        namespace: 'my-namespace',
-      },
-      spec: {
-        type: 'service',
-        owner: 'Test',
-        lifecycle: 'production',
-      },
+    catalogApi.getEntities.mockResolvedValue({
+      items: [
+        {
+          apiVersion: 'v1',
+          kind: 'Component',
+          metadata: {
+            name: 'target-name',
+            namespace: 'my-namespace',
+          },
+          spec: {},
+        },
+      ],
     });
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ProvidingComponentsCard entity={entity} />
+        <EntityProvider entity={entity}>
+          <ProvidingComponentsCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
     await waitFor(() => {
-      expect(getByText(/Providers/i)).toBeInTheDocument();
+      expect(getByText('Providers')).toBeInTheDocument();
       expect(getByText(/target-name/i)).toBeInTheDocument();
-      expect(getByText(/Test/i)).toBeInTheDocument();
-      expect(getByText(/production/i)).toBeInTheDocument();
     });
   });
 });

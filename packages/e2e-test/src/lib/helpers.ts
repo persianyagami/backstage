@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -152,7 +152,7 @@ export async function waitForPageWithText(
 
   // The page may not be fully loaded and hence we need to retry.
   let findTextAttempts = 0;
-  const escapedText = text.replace(/"/g, '\\"');
+  const escapedText = text.replace(/"|\\/g, '\\$&');
   for (;;) {
     try {
       browser.assert.evaluate(

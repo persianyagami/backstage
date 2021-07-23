@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,18 @@ describe('azure core', () => {
           'https://dev.azure.com/org-name/project-name/_git/repo-name?path=my-template.yaml',
         result:
           'https://dev.azure.com/org-name/project-name/_apis/git/repositories/repo-name/items?path=my-template.yaml',
+      },
+      {
+        url:
+          'https://api.com/org-name/project-name/_git/repo-name?path=my-template.yaml',
+        result:
+          'https://api.com/org-name/project-name/_apis/git/repositories/repo-name/items?path=my-template.yaml',
+      },
+      {
+        url:
+          'https://api.com/org-name/project-name/_git/repo-name?path=my-template.yaml&version=GBmaster',
+        result:
+          'https://api.com/org-name/project-name/_apis/git/repositories/repo-name/items?path=my-template.yaml&version=master',
       },
     ])('should handle happy path %#', async ({ url, result }) => {
       expect(getAzureFileFetchUrl(url)).toBe(result);

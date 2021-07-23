@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,26 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useEffect } from 'react';
-import { useWorkflowRuns } from '../useWorkflowRuns';
-import { WorkflowRun, WorkflowRunsTable } from '../WorkflowRunsTable';
 import { Entity } from '@backstage/catalog-model';
-import { WorkflowRunStatus } from '../WorkflowRunStatus';
+import { readGitHubIntegrationConfigs } from '@backstage/integration';
+import { useEntity } from '@backstage/plugin-catalog-react';
 import {
-  Link,
-  Theme,
-  makeStyles,
   LinearProgress,
+  Link,
+  makeStyles,
+  Theme,
   Typography,
 } from '@material-ui/core';
+import ExternalLinkIcon from '@material-ui/icons/Launch';
+import React, { useEffect } from 'react';
+import { GITHUB_ACTIONS_ANNOTATION } from '../useProjectName';
+import { useWorkflowRuns, WorkflowRun } from '../useWorkflowRuns';
+import { WorkflowRunsTable } from '../WorkflowRunsTable';
+import { WorkflowRunStatus } from '../WorkflowRunStatus';
+
+import { configApiRef, errorApiRef, useApi } from '@backstage/core-plugin-api';
 import {
   InfoCard,
+  InfoCardVariants,
   StructuredMetadataTable,
-  errorApiRef,
-  useApi,
-} from '@backstage/core';
-import ExternalLinkIcon from '@material-ui/icons/Launch';
-import { GITHUB_ACTIONS_ANNOTATION } from '../useProjectName';
+} from '@backstage/core-components';
 
 const useStyles = makeStyles<Theme>({
   externalLinkIcon: {
@@ -79,16 +82,22 @@ const WidgetContent = ({
 };
 
 export const LatestWorkflowRunCard = ({
-  entity,
   branch = 'master',
   // Display the card full height suitable for
   variant,
 }: Props) => {
+  const { entity } = useEntity();
+  const config = useApi(configApiRef);
   const errorApi = useApi(errorApiRef);
+  // TODO: Get github hostname from metadata annotation
+  const hostname = readGitHubIntegrationConfigs(
+    config.getOptionalConfigArray('integrations.github') ?? [],
+  )[0].host;
   const [owner, repo] = (
     entity?.metadata.annotations?.[GITHUB_ACTIONS_ANNOTATION] ?? '/'
   ).split('/');
   const [{ runs, loading, error }] = useWorkflowRuns({
+    hostname,
     owner,
     repo,
     branch,
@@ -113,17 +122,21 @@ export const LatestWorkflowRunCard = ({
 };
 
 type Props = {
-  entity: Entity;
+  /** @deprecated The entity is now grabbed from context instead */
+  entity?: Entity;
   branch: string;
-  variant?: string;
+  variant?: InfoCardVariants;
 };
 
 export const LatestWorkflowsForBranchCard = ({
-  entity,
   branch = 'master',
   variant,
-}: Props) => (
-  <InfoCard title={`Last ${branch} build`} variant={variant}>
-    <WorkflowRunsTable branch={branch} entity={entity} />
-  </InfoCard>
-);
+}: Props) => {
+  const { entity } = useEntity();
+
+  return (
+    <InfoCard title={`Last ${branch} build`} variant={variant}>
+      <WorkflowRunsTable branch={branch} entity={entity} />
+    </InfoCard>
+  );
+};

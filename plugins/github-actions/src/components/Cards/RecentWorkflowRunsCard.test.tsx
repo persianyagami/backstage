@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,26 @@
  * limitations under the License.
  */
 
-import type { Props as RecentWorkflowRunsCardProps } from './RecentWorkflowRunsCard';
-import React from 'react';
-import { render } from '@testing-library/react';
-import { RecentWorkflowRunsCard } from './RecentWorkflowRunsCard';
-import { ApiProvider, ApiRegistry, errorApiRef } from '@backstage/core-api';
-import { useWorkflowRuns } from '../useWorkflowRuns';
-import { ThemeProvider } from '@material-ui/core';
+import { EntityProvider } from '@backstage/plugin-catalog-react';
 import { lightTheme } from '@backstage/theme';
+import { ThemeProvider } from '@material-ui/core';
+import { render } from '@testing-library/react';
+import React from 'react';
 import { MemoryRouter } from 'react-router';
+import { useWorkflowRuns } from '../useWorkflowRuns';
+import type { Props as RecentWorkflowRunsCardProps } from './RecentWorkflowRunsCard';
+import { RecentWorkflowRunsCard } from './RecentWorkflowRunsCard';
+
+import {
+  ApiProvider,
+  ApiRegistry,
+  ConfigReader,
+} from '@backstage/core-app-api';
+import {
+  errorApiRef,
+  configApiRef,
+  ConfigApi,
+} from '@backstage/core-plugin-api';
 
 jest.mock('../useWorkflowRuns', () => ({
   useWorkflowRuns: jest.fn(),
@@ -32,6 +43,8 @@ const mockErrorApi: jest.Mocked<typeof errorApiRef.T> = {
   post: jest.fn(),
   error$: jest.fn(),
 };
+
+const configApi: ConfigApi = new ConfigReader({});
 
 describe('<RecentWorkflowRunsCard />', () => {
   const entity = {
@@ -69,8 +82,15 @@ describe('<RecentWorkflowRunsCard />', () => {
     render(
       <ThemeProvider theme={lightTheme}>
         <MemoryRouter>
-          <ApiProvider apis={ApiRegistry.with(errorApiRef, mockErrorApi)}>
-            <RecentWorkflowRunsCard {...props} />
+          <ApiProvider
+            apis={ApiRegistry.with(errorApiRef, mockErrorApi).with(
+              configApiRef,
+              configApi,
+            )}
+          >
+            <EntityProvider entity={props.entity!}>
+              <RecentWorkflowRunsCard {...props} />
+            </EntityProvider>
           </ApiProvider>
         </MemoryRouter>
       </ThemeProvider>,

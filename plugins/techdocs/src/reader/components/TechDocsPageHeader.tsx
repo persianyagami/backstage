@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,55 +14,68 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { AsyncState } from 'react-use/lib/useAsync';
+import { EntityName, RELATION_OWNED_BY } from '@backstage/catalog-model';
+import { Header, HeaderLabel } from '@backstage/core-components';
+import { useRouteRef } from '@backstage/core-plugin-api';
+import {
+  EntityRefLink,
+  EntityRefLinks,
+  getEntityRelations,
+} from '@backstage/plugin-catalog-react';
 import CodeIcon from '@material-ui/icons/Code';
-import { EntityName } from '@backstage/catalog-model';
-import { Header, HeaderLabel, Link } from '@backstage/core';
+import React from 'react';
+import { rootRouteRef } from '../../routes';
+import { TechDocsEntityMetadata, TechDocsMetadata } from '../../types';
 
 type TechDocsPageHeaderProps = {
   entityId: EntityName;
-  metadataRequest: {
-    entity: AsyncState<any>;
-    techdocs: AsyncState<any>;
-  };
+  entityMetadata?: TechDocsEntityMetadata;
+  techDocsMetadata?: TechDocsMetadata;
 };
 
 export const TechDocsPageHeader = ({
   entityId,
-  metadataRequest,
+  entityMetadata,
+  techDocsMetadata,
 }: TechDocsPageHeaderProps) => {
-  const {
-    techdocs: techdocsMetadata,
-    entity: entityMetadata,
-  } = metadataRequest;
-
-  const { value: techdocsMetadataValues } = techdocsMetadata;
-  const { value: entityMetadataValues } = entityMetadata;
-
-  const { kind, name } = entityId;
+  const { name } = entityId;
 
   const { site_name: siteName, site_description: siteDescription } =
-    techdocsMetadataValues || {};
+    techDocsMetadata || {};
 
-  const {
-    locationMetadata,
-    spec: { owner, lifecycle },
-  } = entityMetadataValues || { spec: {} };
+  const { locationMetadata, spec } = entityMetadata || {};
+  const lifecycle = spec?.lifecycle;
 
-  const componentLink = `/catalog/${kind}/${name}`;
+  const ownedByRelations = entityMetadata
+    ? getEntityRelations(entityMetadata, RELATION_OWNED_BY)
+    : [];
+
+  const docsRootLink = useRouteRef(rootRouteRef)();
 
   const labels = (
     <>
       <HeaderLabel
         label="Component"
         value={
-          <Link style={{ color: '#fff' }} to={componentLink}>
-            {name}
-          </Link>
+          <EntityRefLink
+            color="inherit"
+            entityRef={entityId}
+            defaultKind="Component"
+          />
         }
       />
-      {owner ? <HeaderLabel label="Site Owner" value={owner} /> : null}
+      {ownedByRelations.length > 0 && (
+        <HeaderLabel
+          label="Owner"
+          value={
+            <EntityRefLinks
+              color="inherit"
+              entityRefs={ownedByRelations}
+              defaultKind="group"
+            />
+          }
+        />
+      )}
       {lifecycle ? <HeaderLabel label="Lifecycle" value={lifecycle} /> : null}
       {locationMetadata &&
       locationMetadata.type !== 'dir' &&
@@ -90,8 +103,8 @@ export const TechDocsPageHeader = ({
       subtitle={
         siteDescription && siteDescription !== 'None' ? siteDescription : ''
       }
-      type={name}
-      typeLink={componentLink}
+      type="Docs"
+      typeLink={docsRootLink}
     >
       {labels}
     </Header>

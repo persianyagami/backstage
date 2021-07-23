@@ -1,5 +1,79 @@
 # @backstage/plugin-proxy-backend
 
+## 0.2.11
+
+### Patch Changes
+
+- 13da7be3c: Clean up proxy creation log messages and make them include the mount path.
+
+## 0.2.10
+
+### Patch Changes
+
+- 3108ff7bf: Make `yarn dev` respect the `PLUGIN_PORT` environment variable.
+- 6ffcf9ed8: Bump http-proxy-middleware from 0.19.2 to 2.0.0
+- Updated dependencies
+  - @backstage/backend-common@0.8.3
+
+## 0.2.9
+
+### Patch Changes
+
+- 875809a59: Fixed proxy requests to the base URL of routes without a trailing slash redirecting to the `target` with the full path appended.
+- Updated dependencies [92963779b]
+- Updated dependencies [eda9dbd5f]
+  - @backstage/backend-common@0.8.2
+
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [22fd8ce2a]
+- Updated dependencies [f9fb4a205]
+  - @backstage/backend-common@0.8.0
+
+## 0.2.7
+
+### Patch Changes
+
+- cdb3426e5: Prefix proxy routes with `/` if not present in configuration
+- Updated dependencies [e0bfd3d44]
+- Updated dependencies [38ca05168]
+- Updated dependencies [d8b81fd28]
+  - @backstage/backend-common@0.7.0
+  - @backstage/config@0.1.5
+
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [8686eb38c]
+- Updated dependencies [0434853a5]
+- Updated dependencies [8686eb38c]
+  - @backstage/backend-common@0.6.0
+  - @backstage/config@0.1.4
+
+## 0.2.5
+
+### Patch Changes
+
+- 1987c9341: Added a verification for well formed URLs when processing proxy targets. Otherwise users gets a cryptic error message thrown from Express which makes it hard to debug.
+- 9ce68b677: Fix for proxy-backend plugin when global-agent is enabled
+- Updated dependencies [497859088]
+- Updated dependencies [8adb48df4]
+  - @backstage/backend-common@0.5.5
+
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [0b135e7e0]
+- Updated dependencies [294a70cab]
+- Updated dependencies [0ea032763]
+- Updated dependencies [5345a1f98]
+- Updated dependencies [09a370426]
+  - @backstage/backend-common@0.5.0
+
 ## 0.2.3
 
 ### Patch Changes

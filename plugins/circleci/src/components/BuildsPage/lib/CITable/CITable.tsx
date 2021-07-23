@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import RetryIcon from '@material-ui/icons/Replay';
 import GitHubIcon from '@material-ui/icons/GitHub';
 import LaunchIcon from '@material-ui/icons/Launch';
 import { Link as RouterLink, generatePath } from 'react-router-dom';
+import { durationHumanized, relativeTimeTo } from '../../../../util';
+import { circleCIBuildRouteRef } from '../../../../route-refs';
 import {
   StatusError,
   StatusWarning,
@@ -35,9 +37,7 @@ import {
   StatusRunning,
   Table,
   TableColumn,
-} from '@backstage/core';
-import { durationHumanized, relativeTimeTo } from '../../../../util';
-import { circleCIBuildRouteRef } from '../../../../route-refs';
+} from '@backstage/core-components';
 
 export type CITableBuildInfo = {
   id: string;
@@ -79,7 +79,7 @@ export type CITableBuildInfo = {
 
 // retried, canceled, infrastructure_fail, timedout, not_run, running, failed, queued, scheduled, not_running, no_tests, fixed, success
 const getStatusComponent = (status: string | undefined = '') => {
-  switch (status.toLowerCase()) {
+  switch (status.toLocaleLowerCase('en-US')) {
     case 'queued':
     case 'scheduled':
       return <StatusPending />;

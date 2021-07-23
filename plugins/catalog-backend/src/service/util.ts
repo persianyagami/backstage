@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InputError } from '@backstage/backend-common';
+import { InputError, NotAllowedError } from '@backstage/errors';
 import { Request } from 'express';
 import lodash from 'lodash';
 import yup from 'yup';
@@ -53,4 +53,10 @@ export async function validateRequestBody<T>(
   }
 
   return (body as unknown) as T;
+}
+
+export function disallowReadonlyMode(readonly: boolean) {
+  if (readonly) {
+    throw new NotAllowedError('This operation not allowed in readonly mode');
+  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
+import { ProductionSentryApi, sentryApiRef } from './api';
 import {
   configApiRef,
   createApiFactory,
   createPlugin,
   createRouteRef,
   discoveryApiRef,
-} from '@backstage/core';
-import { ProductionSentryApi, sentryApiRef } from './api';
+} from '@backstage/core-plugin-api';
 
 export const rootRouteRef = createRouteRef({
   path: '/sentry',
   title: 'Sentry',
 });
 
-export const plugin = createPlugin({
+export const sentryPlugin = createPlugin({
   id: 'sentry',
   apis: [
     createApiFactory({
@@ -41,4 +41,7 @@ export const plugin = createPlugin({
         ),
     }),
   ],
+  routes: {
+    root: rootRouteRef,
+  },
 });

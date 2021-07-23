@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,36 @@ describe('github core', () => {
       expect(
         getGitHubFileFetchUrl(
           'https://ghe.mycompany.net/a/b/blob/branchname/path/to/c.yaml',
+          config,
+        ),
+      ).toEqual(
+        'https://ghe.mycompany.net/api/v3/repos/a/b/contents/path/to/c.yaml?ref=branchname',
+      );
+    });
+
+    it('happy path for github tree', () => {
+      const config: GitHubIntegrationConfig = {
+        host: 'github.com',
+        apiBaseUrl: 'https://api.github.com',
+      };
+      expect(
+        getGitHubFileFetchUrl(
+          'https://github.com/a/b/tree/branchname/path/to/c.yaml',
+          config,
+        ),
+      ).toEqual(
+        'https://api.github.com/repos/a/b/contents/path/to/c.yaml?ref=branchname',
+      );
+    });
+
+    it('happy path for ghe tree', () => {
+      const config: GitHubIntegrationConfig = {
+        host: 'ghe.mycompany.net',
+        apiBaseUrl: 'https://ghe.mycompany.net/api/v3',
+      };
+      expect(
+        getGitHubFileFetchUrl(
+          'https://ghe.mycompany.net/a/b/tree/branchname/path/to/c.yaml',
           config,
         ),
       ).toEqual(

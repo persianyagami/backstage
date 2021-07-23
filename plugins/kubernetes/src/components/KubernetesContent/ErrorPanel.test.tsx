@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ describe('ErrorPanel', () => {
     // title
     expect(
       getByText(
-        'There was an error retrieving some Kubernetes resources for the entity: THIS_ENTITY',
+        'There was a problem retrieving some Kubernetes resources for the entity: THIS_ENTITY. This could mean that the Error Reporting card is not completely accurate.',
       ),
     ).toBeInTheDocument();
 
@@ -67,7 +67,7 @@ describe('ErrorPanel', () => {
     // title
     expect(
       getByText(
-        'There was an error retrieving some Kubernetes resources for the entity: THIS_ENTITY',
+        'There was a problem retrieving some Kubernetes resources for the entity: THIS_ENTITY. This could mean that the Error Reporting card is not completely accurate.',
       ),
     ).toBeInTheDocument();
 

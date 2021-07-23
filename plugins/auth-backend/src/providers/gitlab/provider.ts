@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 import express from 'express';
 import { Strategy as GitlabStrategy } from 'passport-gitlab2';
 import {
-  executeFrameHandlerStrategy,
   executeRedirectStrategy,
+  executeFrameHandlerStrategy,
+  executeRefreshTokenStrategy,
+  executeFetchUserProfileStrategy,
   makeProfileInfo,
   PassportDoneCallback,
 } from '../../lib/passport';
@@ -30,74 +32,42 @@ import {
   OAuthResponse,
   OAuthEnvironmentHandler,
   OAuthStartRequest,
+  OAuthRefreshRequest,
   encodeState,
+  OAuthResult,
 } from '../../lib/oauth';
-import passport from 'passport';
+
+type FullProfile = OAuthResult['fullProfile'] & {
+  avatarUrl?: string;
+};
+
+type PrivateInfo = {
+  refreshToken: string;
+};
 
 export type GitlabAuthProviderOptions = OAuthProviderOptions & {
   baseUrl: string;
 };
 
+function transformProfile(fullProfile: FullProfile) {
+  const profile = makeProfileInfo({
+    ...fullProfile,
+    photos: [
+      ...(fullProfile.photos ?? []),
+      ...(fullProfile.avatarUrl ? [{ value: fullProfile.avatarUrl }] : []),
+    ],
+  });
+
+  let id = fullProfile.id;
+  if (profile.email) {
+    id = profile.email.split('@')[0];
+  }
+
+  return { id, profile };
+}
+
 export class GitlabAuthProvider implements OAuthHandlers {
   private readonly _strategy: GitlabStrategy;
-
-  static transformPassportProfile(rawProfile: any): passport.Profile {
-    const profile: passport.Profile = {
-      id: rawProfile.id,
-      username: rawProfile.username,
-      provider: rawProfile.provider,
-      displayName: rawProfile.displayName,
-    };
-
-    if (rawProfile.emails && rawProfile.emails.length > 0) {
-      profile.emails = rawProfile.emails;
-    }
-    if (rawProfile.avatarUrl) {
-      profile.photos = [{ value: rawProfile.avatarUrl }];
-    }
-
-    return profile;
-  }
-
-  static transformOAuthResponse(
-    accessToken: string,
-    rawProfile: any,
-    params: any = {},
-  ): OAuthResponse {
-    const passportProfile = GitlabAuthProvider.transformPassportProfile(
-      rawProfile,
-    );
-
-    const profile = makeProfileInfo(passportProfile, params.id_token);
-    const providerInfo = {
-      accessToken,
-      scope: params.scope,
-      expiresInSeconds: params.expires_in,
-      idToken: params.id_token,
-    };
-
-    // gitlab provides an id numeric value (123)
-    // as a fallback
-    let id = passportProfile!.id;
-
-    if (profile.email) {
-      id = profile.email.split('@')[0];
-    }
-
-    if (params.expires_in) {
-      providerInfo.expiresInSeconds = params.expires_in;
-    }
-    if (params.id_token) {
-      providerInfo.idToken = params.id_token;
-    }
-    return {
-      providerInfo,
-      profile,
-      backstageIdentity: {
-        id,
-      },
-    };
-  }
 
   constructor(options: GitlabAuthProviderOptions) {
     this._strategy = new GitlabStrategy(
@@ -109,17 +79,18 @@ export class GitlabAuthProvider implements OAuthHandlers {
       },
       (
         accessToken: any,
-        _: any,
+        refreshToken: any,
         params: any,
-        rawProfile: any,
-        done: PassportDoneCallback<OAuthResponse>,
+        fullProfile: any,
+        done: PassportDoneCallback<OAuthResult, PrivateInfo>,
       ) => {
-        const oauthResponse = GitlabAuthProvider.transformOAuthResponse(
-          accessToken,
-          rawProfile,
-          params,
+        done(
+          undefined,
+          { fullProfile, params, accessToken },
+          {
+            refreshToken,
+          },
         );
-        done(undefined, oauthResponse);
       },
     );
   }
@@ -131,37 +102,91 @@ export class GitlabAuthProvider implements OAuthHandlers {
     });
   }
 
-  async handler(req: express.Request): Promise<{ response: OAuthResponse }> {
-    return await executeFrameHandlerStrategy<OAuthResponse>(
-      req,
+  async handler(
+    req: express.Request,
+  ): Promise<{ response: OAuthResponse; refreshToken: string }> {
+    const { result, privateInfo } = await executeFrameHandlerStrategy<
+      OAuthResult,
+      PrivateInfo
+    >(req, this._strategy);
+    const { accessToken, params } = result;
+
+    const { id, profile } = transformProfile(result.fullProfile);
+
+    return {
+      response: {
+        profile,
+        providerInfo: {
+          accessToken,
+          scope: params.scope,
+          expiresInSeconds: params.expires_in,
+          idToken: params.id_token,
+        },
+        backstageIdentity: {
+          id,
+        },
+      },
+      refreshToken: privateInfo.refreshToken,
+    };
+  }
+
+  async refresh(req: OAuthRefreshRequest): Promise<OAuthResponse> {
+    const {
+      accessToken,
+      refreshToken: newRefreshToken,
+      params,
+    } = await executeRefreshTokenStrategy(
       this._strategy,
+      req.refreshToken,
+      req.scope,
     );
+
+    const fullProfile = await executeFetchUserProfileStrategy(
+      this._strategy,
+      accessToken,
+    );
+    const { id, profile } = transformProfile(fullProfile);
+
+    return {
+      profile,
+      providerInfo: {
+        accessToken,
+        refreshToken: newRefreshToken, // GitLab expires the old refresh token when used
+        idToken: params.id_token,
+        expiresInSeconds: params.expires_in,
+        scope: params.scope,
+      },
+      backstageIdentity: {
+        id,
+      },
+    };
   }
 }
 
-export const createGitlabProvider: AuthProviderFactory = ({
-  providerId,
-  globalConfig,
-  config,
-  tokenIssuer,
-}) =>
-  OAuthEnvironmentHandler.mapConfig(config, envConfig => {
-    const clientId = envConfig.getString('clientId');
-    const clientSecret = envConfig.getString('clientSecret');
-    const audience = envConfig.getString('audience');
-    const baseUrl = audience || 'https://gitlab.com';
-    const callbackUrl = `${globalConfig.baseUrl}/${providerId}/handler/frame`;
+export type GitlabProviderOptions = {};
 
-    const provider = new GitlabAuthProvider({
-      clientId,
-      clientSecret,
-      callbackUrl,
-      baseUrl,
-    });
+export const createGitlabProvider = (
+  _options?: GitlabProviderOptions,
+): AuthProviderFactory => {
+  return ({ providerId, globalConfig, config, tokenIssuer }) =>
+    OAuthEnvironmentHandler.mapConfig(config, envConfig => {
+      const clientId = envConfig.getString('clientId');
+      const clientSecret = envConfig.getString('clientSecret');
+      const audience = envConfig.getOptionalString('audience');
+      const baseUrl = audience || 'https://gitlab.com';
+      const callbackUrl = `${globalConfig.baseUrl}/${providerId}/handler/frame`;
 
-    return OAuthAdapter.fromConfig(globalConfig, provider, {
-      disableRefresh: true,
-      providerId,
-      tokenIssuer,
+      const provider = new GitlabAuthProvider({
+        clientId,
+        clientSecret,
+        callbackUrl,
+        baseUrl,
+      });
+
+      return OAuthAdapter.fromConfig(globalConfig, provider, {
+        disableRefresh: false,
+        providerId,
+        tokenIssuer,
+      });
     });
-  });
+};

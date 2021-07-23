@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,57 +14,42 @@
  * limitations under the License.
  */
 
-import { TemplateEntityV1alpha1 } from '@backstage/catalog-model';
 import {
   Content,
   ContentHeader,
-  errorApiRef,
   Header,
   Lifecycle,
   Page,
-  Progress,
   SupportButton,
-  useApi,
-  WarningPanel,
-} from '@backstage/core';
-import { catalogApiRef } from '@backstage/plugin-catalog';
-import { Button, Grid, Link, Typography } from '@material-ui/core';
-import React, { useEffect } from 'react';
+} from '@backstage/core-components';
+import { useRouteRef } from '@backstage/core-plugin-api';
+import {
+  EntityKindPicker,
+  EntityListProvider,
+  EntitySearchBar,
+  EntityTagPicker,
+  UserListPicker,
+} from '@backstage/plugin-catalog-react';
+import { Button, makeStyles } from '@material-ui/core';
+import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import useStaleWhileRevalidate from 'swr';
-import { TemplateCard, TemplateCardProps } from '../TemplateCard';
+import { registerComponentRouteRef } from '../../routes';
+import { TemplateList } from '../TemplateList';
+import { TemplateTypePicker } from '../TemplateTypePicker';
 
-const getTemplateCardProps = (
-  template: TemplateEntityV1alpha1,
-): TemplateCardProps & { key: string } => {
-  return {
-    key: template.metadata.uid!,
-    name: template.metadata.name,
-    title: `${(template.metadata.title || template.metadata.name) ?? ''}`,
-    type: template.spec.type ?? '',
-    description: template.metadata.description ?? '-',
-    tags: (template.metadata?.tags as string[]) ?? [],
-  };
-};
+const useStyles = makeStyles(theme => ({
+  contentWrapper: {
+    display: 'grid',
+    gridTemplateAreas: "'filters' 'grid'",
+    gridTemplateColumns: '250px 1fr',
+    gridColumnGap: theme.spacing(2),
+  },
+}));
 
-export const ScaffolderPage = () => {
-  const catalogApi = useApi(catalogApiRef);
-  const errorApi = useApi(errorApiRef);
+export const ScaffolderPageContents = () => {
+  const styles = useStyles();
 
-  const { data: templates, isValidating, error } = useStaleWhileRevalidate(
-    'templates/all',
-    async () => {
-      const response = await catalogApi.getEntities({
-        filter: { kind: 'Template' },
-      });
-      return response.items as TemplateEntityV1alpha1[];
-    },
-  );
-
-  useEffect(() => {
-    if (!error) return;
-    errorApi.post(error);
-  }, [error, errorApi]);
+  const registerComponentLink = useRouteRef(registerComponentRouteRef);
 
   return (
     <Page themeId="home">
@@ -79,47 +64,45 @@ export const ScaffolderPage = () => {
       />
       <Content>
         <ContentHeader title="Available Templates">
-          <Button
-            variant="contained"
-            color="primary"
-            component={RouterLink}
-            to="/catalog-import"
-          >
-            Register Existing Component
-          </Button>
+          {registerComponentLink && (
+            <Button
+              component={RouterLink}
+              variant="contained"
+              color="primary"
+              to={registerComponentLink()}
+            >
+              Register Existing Component
+            </Button>
+          )}
           <SupportButton>
             Create new software components using standard templates. Different
             templates create different kinds of components (services, websites,
             documentation, ...).
           </SupportButton>
         </ContentHeader>
-        {!templates && isValidating && <Progress />}
-        {templates && !templates.length && (
-          <Typography variant="body2">
-            Shoot! Looks like you don't have any templates. Check out the
-            documentation{' '}
-            <Link href="https://backstage.io/docs/features/software-templates/adding-templates">
-              here!
-            </Link>
-          </Typography>
-        )}
-        {error && (
-          <WarningPanel>
-            Oops! Something went wrong loading the templates: {error.message}
-          </WarningPanel>
-        )}
-        <Grid container>
-          {templates &&
-            templates?.length > 0 &&
-            templates.map(template => {
-              return (
-                <Grid key={template.metadata.uid} item xs={12} sm={6} md={3}>
-                  <TemplateCard {...getTemplateCardProps(template)} />
-                </Grid>
-              );
-            })}
-        </Grid>
+
+        <div className={styles.contentWrapper}>
+          <div>
+            <EntitySearchBar />
+            <EntityKindPicker initialFilter="template" hidden />
+            <UserListPicker
+              initialFilter="all"
+              availableFilters={['all', 'starred']}
+            />
+            <TemplateTypePicker />
+            <EntityTagPicker />
+          </div>
+          <div>
+            <TemplateList />
+          </div>
+        </div>
       </Content>
     </Page>
   );
 };
+
+export const ScaffolderPage = () => (
+  <EntityListProvider>
+    <ScaffolderPageContents />
+  </EntityListProvider>
+);

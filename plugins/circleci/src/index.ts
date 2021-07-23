@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,16 @@
  * limitations under the License.
  */
 
-export { plugin } from './plugin';
+export {
+  circleCIPlugin,
+  circleCIPlugin as plugin,
+  EntityCircleCIContent,
+} from './plugin';
 export * from './api';
 export * from './route-refs';
-export { Router, isPluginApplicableToEntity } from './components/Router';
+export {
+  Router,
+  isCircleCIAvailable,
+  isCircleCIAvailable as isPluginApplicableToEntity,
+} from './components/Router';
 export { CIRCLECI_ANNOTATION } from './constants';

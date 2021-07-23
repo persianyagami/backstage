@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+import { lighthouseApiRef, LighthouseRestApi } from './api';
 import {
   createPlugin,
   createRouteRef,
   createApiFactory,
   configApiRef,
-} from '@backstage/core';
-import { lighthouseApiRef, LighthouseRestApi } from './api';
+  createRoutableExtension,
+  createComponentExtension,
+} from '@backstage/core-plugin-api';
 
 export const rootRouteRef = createRouteRef({
   path: '',
@@ -37,7 +39,11 @@ export const createAuditRouteRef = createRouteRef({
   title: 'Create Lighthouse Audit',
 });
 
-export const plugin = createPlugin({
+export const entityContentRouteRef = createRouteRef({
+  title: 'Lighthouse Entity Content',
+});
+
+export const lighthousePlugin = createPlugin({
   id: 'lighthouse',
   apis: [
     createApiFactory({
@@ -46,4 +52,31 @@ export const plugin = createPlugin({
       factory: ({ configApi }) => LighthouseRestApi.fromConfig(configApi),
     }),
   ],
+  routes: {
+    root: createAuditRouteRef,
+    entityContent: entityContentRouteRef,
+  },
 });
+
+export const LighthousePage = lighthousePlugin.provide(
+  createRoutableExtension({
+    component: () => import('./Router').then(m => m.Router),
+    mountPoint: rootRouteRef,
+  }),
+);
+
+export const EntityLighthouseContent = lighthousePlugin.provide(
+  createRoutableExtension({
+    component: () => import('./Router').then(m => m.EmbeddedRouter),
+    mountPoint: entityContentRouteRef,
+  }),
+);
+
+export const EntityLastLighthouseAuditCard = lighthousePlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () =>
+        import('./components/Cards').then(m => m.LastLighthouseAuditCard),
+    },
+  }),
+);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ export type BundlingPathsOptions = {
 export function resolveBundlingPaths(options: BundlingPathsOptions) {
   const { entry } = options;
 
-  const resolveTargetModule = (path: string) => {
+  const resolveTargetModule = (pathString: string) => {
     for (const ext of ['mjs', 'js', 'ts', 'tsx', 'jsx']) {
-      const filePath = paths.resolveTarget(`${path}.${ext}`);
+      const filePath = paths.resolveTarget(`${pathString}.${ext}`);
       if (fs.pathExistsSync(filePath)) {
         return filePath;
       }
     }
-    return paths.resolveTarget(`${path}.js`);
+    return paths.resolveTarget(`${pathString}.js`);
   };
 
   let targetPublic = undefined;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,13 @@ export function buildMemberOf(groups: GroupEntity[], users: UserEntity[]) {
   users.forEach(user => {
     const transitiveMemberOf = new Set<string>();
 
-    const todo = [...user.spec.memberOf];
+    const todo = [
+      ...user.spec.memberOf,
+      ...groups
+        .filter(g => g.spec.members?.includes(user.metadata.name))
+        .map(g => g.metadata.name),
+    ];
+
     for (;;) {
       const current = todo.pop();
       if (!current) {

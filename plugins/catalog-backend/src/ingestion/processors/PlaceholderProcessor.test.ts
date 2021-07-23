@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import {
 
 describe('PlaceholderProcessor', () => {
   const read: jest.MockedFunction<ResolverRead> = jest.fn();
-  const reader: UrlReader = { read, readTree: jest.fn() };
+  const reader: UrlReader = { read, readTree: jest.fn(), search: jest.fn() };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -331,7 +331,7 @@ describe('PlaceholderProcessor', () => {
         },
       ),
     ).rejects.toThrow(
-      'Placeholder $text could not form an URL out of ./a/b/catalog-info.yaml and ../c/catalog-info.yaml',
+      'Placeholder $text could not form a URL out of ./a/b/catalog-info.yaml and ../c/catalog-info.yaml',
     );
 
     expect(read).not.toBeCalled();

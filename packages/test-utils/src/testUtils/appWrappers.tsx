@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,21 @@ import React, { ComponentType, ReactNode, ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { Route } from 'react-router-dom';
 import { lightTheme } from '@backstage/theme';
-import privateExports, {
-  defaultSystemIcons,
+import { createApp } from '@backstage/core-app-api';
+import {
   BootErrorPageProps,
-} from '@backstage/core-api';
+  RouteRef,
+  ExternalRouteRef,
+  attachComponentData,
+  createRouteRef,
+} from '@backstage/core-plugin-api';
 import { RenderResult } from '@testing-library/react';
 import { renderWithEffects } from '@backstage/test-utils-core';
 import { mockApis } from './mockApis';
 
-const { PrivateAppImpl } = privateExports;
-
+const ErrorBoundaryFallback = ({ error }: { error: Error }) => {
+  throw new Error(`Reached ErrorBoundaryFallback Page with error, ${error}`);
+};
 const NotFoundErrorPage = () => {
   throw new Error('Reached NotFound Page');
 };
@@ -44,7 +49,30 @@ type TestAppOptions = {
    * Initial route entries to pass along as `initialEntries` to the router.
    */
   routeEntries?: string[];
+
+  /**
+   * An object of paths to mount route ref on, with the key being the path and the value
+   * being the RouteRef that the path will be bound to. This allows the route refs to be
+   * used by `useRouteRef` in the rendered elements.
+   *
+   * @example
+   * wrapInTestApp(<MyComponent />, {
+   *   mountedRoutes: {
+   *     '/my-path': myRouteRef,
+   *   }
+   * })
+   * // ...
+   * const link = useRouteRef(myRouteRef)
+   */
+  mountedRoutes?: { [path: string]: RouteRef | ExternalRouteRef };
 };
+
+function isExternalRouteRef(
+  routeRef: RouteRef | ExternalRouteRef,
+): routeRef is ExternalRouteRef {
+  // TODO(Rugvip): Least ugly workaround for now, but replace :D
+  return String(routeRef).includes('{type=external,');
+}
 
 /**
  * Wraps a component inside a Backstage test app, providing a mocked theme
@@ -58,18 +86,22 @@ export function wrapInTestApp(
   options: TestAppOptions = {},
 ): ReactElement {
   const { routeEntries = ['/'] } = options;
+  const boundRoutes = new Map<ExternalRouteRef, RouteRef>();
 
-  const app = new PrivateAppImpl({
-    apis: [],
+  const app = createApp({
+    apis: mockApis,
+    // Bit of a hack to make sure that the default config loader isn't used
+    // as that would force every single test to wait for config loading.
+    configLoader: (false as unknown) as undefined,
     components: {
-      NotFoundErrorPage,
-      BootErrorPage,
       Progress,
+      BootErrorPage,
+      NotFoundErrorPage,
+      ErrorBoundaryFallback,
       Router: ({ children }) => (
         <MemoryRouter initialEntries={routeEntries} children={children} />
       ),
     },
-    icons: defaultSystemIcons,
     plugins: [],
     themes: [
       {
@@ -79,15 +111,41 @@ export function wrapInTestApp(
         variant: 'light',
       },
     ],
-    defaultApis: mockApis,
+    bindRoutes: ({ bind }) => {
+      for (const [externalRef, absoluteRef] of boundRoutes) {
+        bind(
+          { ref: externalRef },
+          {
+            ref: absoluteRef,
+          },
+        );
+      }
+    },
   });
 
-  let Wrapper: ComponentType;
+  let wrappedElement: React.ReactElement;
   if (Component instanceof Function) {
-    Wrapper = Component;
+    wrappedElement = <Component />;
   } else {
-    Wrapper = () => Component as React.ReactElement;
+    wrappedElement = Component as React.ReactElement;
   }
+
+  const routeElements = Object.entries(options.mountedRoutes ?? {}).map(
+    ([path, routeRef]) => {
+      const Page = () => <div>Mounted at {path}</div>;
+
+      // Allow external route refs to be bound to paths as well, for convenience.
+      // We work around it by creating and binding an absolute ref to the external one.
+      if (isExternalRouteRef(routeRef)) {
+        const absoluteRef = createRouteRef({ id: 'id' });
+        boundRoutes.set(routeRef, absoluteRef);
+        attachComponentData(Page, 'core.mountPoint', absoluteRef);
+      } else {
+        attachComponentData(Page, 'core.mountPoint', routeRef);
+      }
+      return <Route key={path} path={path} element={<Page />} />;
+    },
+  );
 
   const AppProvider = app.getProvider();
   const AppRouter = app.getRouter();
@@ -95,9 +153,10 @@ export function wrapInTestApp(
   return (
     <AppProvider>
       <AppRouter>
+        {routeElements}
         {/* The path of * here is needed to be set as a catch all, so it will render the wrapper element
          *  and work with nested routes if they exist too */}
-        <Route path="*" element={<Wrapper />} />
+        <Route path="*" element={wrappedElement} />
       </AppRouter>
     </AppProvider>
   );

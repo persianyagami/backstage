@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,18 @@ import {
   RollbarProject,
   RollbarTopActiveItem,
 } from './types';
-import { DiscoveryApi } from '@backstage/core';
+import { DiscoveryApi, IdentityApi } from '@backstage/core-plugin-api';
 
 export class RollbarClient implements RollbarApi {
   private readonly discoveryApi: DiscoveryApi;
+  private readonly identityApi: IdentityApi;
 
-  constructor(options: { discoveryApi: DiscoveryApi }) {
+  constructor(options: {
+    discoveryApi: DiscoveryApi;
+    identityApi: IdentityApi;
+  }) {
     this.discoveryApi = options.discoveryApi;
+    this.identityApi = options.identityApi;
   }
 
   async getAllProjects(): Promise<RollbarProject[]> {
@@ -53,7 +58,10 @@ export class RollbarClient implements RollbarApi {
 
   private async get(path: string): Promise<any> {
     const url = `${await this.discoveryApi.getBaseUrl('rollbar')}${path}`;
-    const response = await fetch(url);
+    const idToken = await this.identityApi.getIdToken();
+    const response = await fetch(url, {
+      headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+    });
 
     if (!response.ok) {
       const payload = await response.text();

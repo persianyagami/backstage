@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { render } from '@testing-library/react';
 import { wrapInTestApp } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
+import React from 'react';
 import { TrendGraph } from './TrendGraph';
 
 describe('TrendGraph component', () => {

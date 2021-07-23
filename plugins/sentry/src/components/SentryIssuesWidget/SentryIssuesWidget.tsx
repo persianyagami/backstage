@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 
+import { Entity } from '@backstage/catalog-model';
 import React, { useEffect } from 'react';
-import {
-  EmptyState,
-  ErrorApi,
-  errorApiRef,
-  InfoCard,
-  MissingAnnotationEmptyState,
-  Progress,
-  useApi,
-} from '@backstage/core';
-import SentryIssuesTable from '../SentryIssuesTable/SentryIssuesTable';
 import { useAsync } from 'react-use';
 import { sentryApiRef } from '../../api';
+import SentryIssuesTable from '../SentryIssuesTable/SentryIssuesTable';
 import {
   SENTRY_PROJECT_SLUG_ANNOTATION,
   useProjectSlug,
 } from '../useProjectSlug';
-import { Entity } from '@backstage/catalog-model';
+
+import {
+  EmptyState,
+  InfoCard,
+  InfoCardVariants,
+  MissingAnnotationEmptyState,
+  Progress,
+} from '@backstage/core-components';
+
+import { ErrorApi, errorApiRef, useApi } from '@backstage/core-plugin-api';
 
 export const SentryIssuesWidget = ({
   entity,
@@ -40,7 +41,7 @@ export const SentryIssuesWidget = ({
 }: {
   entity: Entity;
   statsFor?: '24h' | '12h';
-  variant?: string;
+  variant?: InfoCardVariants;
 }) => {
   const errorApi = useApi<ErrorApi>(errorApiRef);
   const sentryApi = useApi(sentryApiRef);

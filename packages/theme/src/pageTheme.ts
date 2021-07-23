@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,4 +63,5 @@ export const pageTheme: Record<string, PageTheme> = {
   library: genPageTheme(colorVariants.rubyRed, shapes.wave),
   other: genPageTheme(colorVariants.darkGrey, shapes.wave),
   app: genPageTheme(colorVariants.toastyOrange, shapes.wave),
+  apis: genPageTheme(colorVariants.teal, shapes.wave2),
 };

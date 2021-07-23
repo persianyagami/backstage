@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { createApiRef } from '@backstage/core';
 import { Config } from '@backstage/config';
+import { createApiRef } from '@backstage/core-plugin-api';
 
 export type LighthouseCategoryId =
   | 'pwa'
@@ -125,9 +125,10 @@ export class LighthouseRestApi implements LighthouseApi {
     return await resp.json();
   }
 
-  async getWebsiteList({ limit, offset }: LASListRequest = {}): Promise<
-    WebsiteListResponse
-  > {
+  async getWebsiteList({
+    limit,
+    offset,
+  }: LASListRequest = {}): Promise<WebsiteListResponse> {
     const params = new URLSearchParams();
     if (typeof limit === 'number') params.append('limit', limit.toString());
     if (typeof offset === 'number') params.append('offset', offset.toString());

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,30 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { Content, Link } from '@backstage/core';
 import {
-  Typography,
-  Breadcrumbs,
-  Paper,
-  TableContainer,
-  Table,
-  TableRow,
-  TableCell,
-  TableBody,
+  Box,
   Link as MaterialLink,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableRow,
+  Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
-import { useBuildWithSteps } from '../useBuildWithSteps';
-import { useProjectSlugFromEntity } from '../useProjectSlugFromEntity';
-import { JenkinsRunStatus } from '../BuildsPage/lib/Status';
 import ExternalLinkIcon from '@material-ui/icons/Launch';
+import React from 'react';
+import { buildRouteRef } from '../../plugin';
+import { JenkinsRunStatus } from '../BuildsPage/lib/Status';
+import { useBuildWithSteps } from '../useBuildWithSteps';
+
+import { Breadcrumbs, Content, Link } from '@backstage/core-components';
+import { useRouteRefParams } from '@backstage/core-plugin-api';
 
 const useStyles = makeStyles(theme => ({
   root: {
     maxWidth: 720,
-    margin: theme.spacing(2),
   },
   table: {
     padding: theme.spacing(1),
@@ -47,25 +47,21 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-const Page = () => (
-  <Content>
-    <BuildWithStepsView />
-  </Content>
-);
-
 const BuildWithStepsView = () => {
-  const { owner, repo } = useProjectSlugFromEntity();
-  const { branch, buildNumber } = useParams();
+  // TODO: Add a test that react-router decodes this (even though `generatePath` doesn't encode it for you!)
+  const { jobFullName, buildNumber } = useRouteRefParams(buildRouteRef);
   const classes = useStyles();
-  const buildPath = `${owner}/${repo}/${branch}/${buildNumber}`;
-  const [{ value }] = useBuildWithSteps(buildPath);
+
+  const [{ value }] = useBuildWithSteps({ jobFullName, buildNumber });
 
   return (
     <div className={classes.root}>
       <Breadcrumbs aria-label="breadcrumb">
-        <Link to="../../..">Jobs</Link>
+        {/* TODO: don't hardcode this link */}
+        <Link to="../../..">Projects</Link>
         <Typography>Run</Typography>
       </Breadcrumbs>
+      <Box m={2} />
       <TableContainer component={Paper} className={classes.table}>
         <Table>
           <TableBody>
@@ -106,7 +102,7 @@ const BuildWithStepsView = () => {
                 <Typography noWrap>Jenkins</Typography>
               </TableCell>
               <TableCell>
-                <MaterialLink target="_blank" href={value?.buildUrl}>
+                <MaterialLink target="_blank" href={value?.url}>
                   View on Jenkins{' '}
                   <ExternalLinkIcon className={classes.externalLinkIcon} />
                 </MaterialLink>
@@ -114,10 +110,11 @@ const BuildWithStepsView = () => {
             </TableRow>
             <TableRow>
               <TableCell>
+                {/* TODO: be SCM agnostic */}
                 <Typography noWrap>GitHub</Typography>
               </TableCell>
               <TableCell>
-                <MaterialLink target="_blank" href={value?.source.url}>
+                <MaterialLink target="_blank" href={value?.source?.url}>
                   View on GitHub{' '}
                   <ExternalLinkIcon className={classes.externalLinkIcon} />
                 </MaterialLink>
@@ -129,6 +126,11 @@ const BuildWithStepsView = () => {
     </div>
   );
 };
+const Page = () => (
+  <Content>
+    <BuildWithStepsView />
+  </Content>
+);
 
 export default Page;
 export { BuildWithStepsView as BuildWithSteps };

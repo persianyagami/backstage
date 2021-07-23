@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 import { UserEntity } from '@backstage/catalog-model';
+import { EntityProvider } from '@backstage/plugin-catalog-react';
 import { renderWithEffects, wrapInTestApp } from '@backstage/test-utils';
 import React from 'react';
 import { UserProfileCard } from './UserProfileCard';
@@ -48,7 +49,11 @@ describe('UserSummary Test', () => {
 
   it('Display Profile Card', async () => {
     const rendered = await renderWithEffects(
-      wrapInTestApp(<UserProfileCard entity={userEntity} variant="gridItem" />),
+      wrapInTestApp(
+        <EntityProvider entity={userEntity}>
+          <UserProfileCard entity={userEntity} variant="gridItem" />
+        </EntityProvider>,
+      ),
     );
 
     expect(rendered.getByText('calum-leavy@example.com')).toBeInTheDocument();
@@ -56,7 +61,7 @@ describe('UserSummary Test', () => {
       'src',
       'https://example.com/staff/calum.jpeg',
     );
-    expect(rendered.getByText('[ExampleGroup]')).toHaveAttribute(
+    expect(rendered.getByText('ExampleGroup')).toHaveAttribute(
       'href',
       '/catalog/default/group/ExampleGroup',
     );

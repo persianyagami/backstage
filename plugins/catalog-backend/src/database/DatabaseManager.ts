@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 
 import { getVoidLogger, resolvePackagePath } from '@backstage/backend-common';
-import Knex from 'knex';
+import knexFactory, { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import { Logger } from 'winston';
 import { CommonDatabase } from './CommonDatabase';
 import { Database } from './types';
-import { v4 as uuidv4 } from 'uuid';
 
 const migrationsDir = resolvePackagePath(
   '@backstage/plugin-catalog-backend',
@@ -52,7 +52,7 @@ export class DatabaseManager {
   }
 
   public static async createInMemoryDatabaseConnection(): Promise<Knex> {
-    const knex = Knex({
+    const knex = knexFactory({
       client: 'sqlite3',
       connection: ':memory:',
       useNullAsDefault: true,
@@ -85,11 +85,11 @@ export class DatabaseManager {
       useNullAsDefault: true,
     };
 
-    let knex = Knex(config);
+    let knex = knexFactory(config);
     if (typeof config.connection !== 'string') {
       const tempDbName = `d${uuidv4().replace(/-/g, '')}`;
       await knex.raw(`CREATE DATABASE ${tempDbName};`);
-      knex = Knex({
+      knex = knexFactory({
         ...config,
         connection: {
           ...config.connection,

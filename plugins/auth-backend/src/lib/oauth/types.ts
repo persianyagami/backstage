@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 import express from 'express';
+import { Profile as PassportProfile } from 'passport';
 import { AuthResponse, RedirectInfo } from '../../providers/types';
 
 /**
@@ -33,6 +34,17 @@ export type OAuthProviderOptions = {
    * Callback URL to be passed to the auth provider to redirect to after the user signs in.
    */
   callbackUrl: string;
+};
+
+export type OAuthResult = {
+  fullProfile: PassportProfile;
+  params: {
+    id_token?: string;
+    scope: string;
+    expires_in: number;
+  };
+  accessToken: string;
+  refreshToken?: string;
 };
 
 export type OAuthResponse = AuthResponse<OAuthProviderInfo>;

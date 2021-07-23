@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { Incidents } from './Incidents';
 import { wrapInTestApp } from '@backstage/test-utils';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
 import { pagerDutyApiRef } from '../../api';
 import { Incident } from '../types';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 
 const mockPagerDutyApi = {
   getIncidentsByServiceId: () => [],
@@ -84,13 +84,7 @@ describe('Incidents', () => {
           },
         ] as Incident[],
     );
-    const {
-      getByText,
-      getByTitle,
-      getAllByTitle,
-      getByLabelText,
-      queryByTestId,
-    } = render(
+    const { getByText, getAllByTitle, queryByTestId } = render(
       wrapInTestApp(
         <ApiProvider apis={apis}>
           <Incidents serviceId="abc" refreshIncidents={false} />
@@ -102,10 +96,10 @@ describe('Incidents', () => {
     expect(getByText('title2')).toBeInTheDocument();
     expect(getByText('person1')).toBeInTheDocument();
     expect(getByText('person2')).toBeInTheDocument();
-    expect(getByTitle('triggered')).toBeInTheDocument();
-    expect(getByTitle('acknowledged')).toBeInTheDocument();
-    expect(getByLabelText('Status error')).toBeInTheDocument();
-    expect(getByLabelText('Status warning')).toBeInTheDocument();
+    expect(getByText('triggered')).toBeInTheDocument();
+    expect(getByText('acknowledged')).toBeInTheDocument();
+    expect(queryByTestId('chip-triggered')).toBeInTheDocument();
+    expect(queryByTestId('chip-acknowledged')).toBeInTheDocument();
 
     // assert links, mailto and hrefs, date calculation
     expect(getAllByTitle('View in PagerDuty').length).toEqual(2);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,39 +14,22 @@
  * limitations under the License.
  */
 
-import * as yup from 'yup';
 import type { Entity } from '../entity/Entity';
-import { schemaValidator } from './util';
-
-const API_VERSION = ['backstage.io/v1alpha1', 'backstage.io/v1beta1'] as const;
-const KIND = 'API' as const;
-
-const schema = yup.object<Partial<ApiEntityV1alpha1>>({
-  apiVersion: yup.string().required().oneOf(API_VERSION),
-  kind: yup.string().required().equals([KIND]),
-  spec: yup
-    .object({
-      type: yup.string().required().min(1),
-      lifecycle: yup.string().required().min(1),
-      owner: yup.string().required().min(1),
-      definition: yup.string().required().min(1),
-    })
-    .required(),
-});
+import schema from '../schema/kinds/API.v1alpha1.schema.json';
+import { ajvCompiledJsonSchemaValidator } from './util';
 
 export interface ApiEntityV1alpha1 extends Entity {
-  apiVersion: typeof API_VERSION[number];
-  kind: typeof KIND;
+  apiVersion: 'backstage.io/v1alpha1' | 'backstage.io/v1beta1';
+  kind: 'API';
   spec: {
     type: string;
     lifecycle: string;
     owner: string;
     definition: string;
+    system?: string;
   };
 }
 
-export const apiEntityV1alpha1Validator = schemaValidator(
-  KIND,
-  API_VERSION,
+export const apiEntityV1alpha1Validator = ajvCompiledJsonSchemaValidator(
   schema,
 );

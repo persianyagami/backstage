@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,10 @@
 
 /* eslint-disable jest/no-disabled-tests */
 
-import React from 'react';
-import { render, fireEvent } from '@testing-library/react';
 import { wrapInTestApp } from '@backstage/test-utils';
-
-import LighthouseIntro from '.';
+import { fireEvent, render } from '@testing-library/react';
+import React from 'react';
+import LighthouseIntro from './index';
 
 describe('LighthouseIntro', () => {
   it('renders successfully', () => {

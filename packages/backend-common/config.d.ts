@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,17 +32,17 @@ export interface Config {
           port?: string | number;
         };
 
-    /** HTTPS configuration for the backend. If omitted the backend will serve HTTP */
-    https?: {
-      /** Certificate configuration or parameters for generating a self-signed certificate */
-      certificate?:
-        | {
-            /** Algorithm to use to generate a self-signed certificate */
-            algorithm: string;
-            keySize?: number;
-            days?: number;
-          }
-        | {
+    /**
+     * HTTPS configuration for the backend. If omitted the backend will serve HTTP.
+     *
+     * Setting this to `true` will cause self-signed certificates to be generated, which
+     * can be useful for local development or other non-production scenarios.
+     */
+    https?:
+      | true
+      | {
+          /** Certificate configuration */
+          certificate?: {
             /** PEM encoded certificate. Use $file to load in a file */
             cert: string;
             /**
@@ -51,21 +51,55 @@ export interface Config {
              */
             key: string;
           };
-    };
+        };
 
-    /** Database connection configuration, select database type using the `client` field */
-    database:
-      | {
-          client: 'sqlite3';
-          connection: ':memory:' | string;
-        }
-      | {
-          client: 'pg';
+    /** Database connection configuration, select base database type using the `client` field */
+    database: {
+      /** Default database client to use */
+      client: 'sqlite3' | 'pg';
+      /**
+       * Base database connection string or Knex object
+       * @secret
+       */
+      connection: string | object;
+      /** Database name prefix override */
+      prefix?: string;
+      /**
+       * Whether to ensure the given database exists by creating it if it does not.
+       * Defaults to true if unspecified.
+       */
+      ensureExists?: boolean;
+      /** Plugin specific database configuration and client override */
+      plugin?: {
+        [pluginId: string]: {
+          /** Database client override */
+          client?: 'sqlite3' | 'pg';
           /**
-           * PostgreSQL connection string or knex configuration object.
+           * Database connection string or Knex object override
            * @secret
            */
-          connection: string | object;
+          connection?: string | object;
+          /**
+           * Whether to ensure the given database exists by creating it if it does not.
+           * Defaults to base config if unspecified.
+           */
+          ensureExists?: boolean;
+        };
+      };
+    };
+
+    /** Cache connection configuration, select cache type using the `store` field */
+    cache?:
+      | {
+          store: 'memory';
+        }
+      | {
+          store: 'memcache';
+          /**
+           * A memcache connection string in the form `user:pass@host:port`.
+           * @secret
+           */
+          connection: string;
         };
 
     cors?: {
@@ -80,6 +114,26 @@ export interface Config {
     };
 
     /**
+     * Configuration related to URL reading, used for example for reading catalog info
+     * files, scaffolder templates, and techdocs content.
+     */
+    reading?: {
+      /**
+       * A list of targets to allow outgoing requests to. Users will be able to make
+       * requests on behalf of the backend to the targets that are allowed by this list.
+       */
+      allow?: Array<{
+        /**
+         * A host to allow outgoing requests to, being either a full host or
+         * a subdomain wildcard pattern with a leading `*`. For example `example.com`
+         * and `*.example.com` are valid values, `prod.*.example.com` is not.
+         * The host may also contain a port, for example `example.com:8080`.
+         */
+        host: string;
+      }>;
+    };
+
+    /**
      * Content Security Policy options.
      *
      * The keys are the plain policy ID, e.g. "upgrade-insecure-requests". The
@@ -88,82 +142,5 @@ export interface Config {
      * remove the default value that Backstage puts in place for that policy.
      */
     csp?: { [policyId: string]: string[] | false };
-  };
-
-  /** Configuration for integrations towards various external repository provider systems */
-  integrations?: {
-    /** Integration configuration for Azure */
-    azure?: Array<{
-      /**
-       * The hostname of the given Azure instance
-       */
-      host: string;
-      /**
-       * Token used to authenticate requests.
-       * @visibility secret
-       */
-      token?: string;
-    }>;
-
-    /** Integration configuration for BitBucket */
-    bitbucket?: Array<{
-      /**
-       * The hostname of the given Bitbucket instance
-       */
-      host: string;
-      /**
-       * Token used to authenticate requests.
-       * @visibility secret
-       */
-      token?: string;
-      /**
-       * The base url for the BitBucket API, for example https://api.bitbucket.org/2.0
-       */
-      apiBaseUrl?: string;
-      /**
-       * The username to use for authenticated requests.
-       * @visibility secret
-       */
-      username?: string;
-      /**
-       * BitBucket app password used to authenticate requests.
-       * @visibility secret
-       */
-      appPassword?: string;
-    }>;
-
-    /** Integration configuration for GitHub */
-    github?: Array<{
-      /**
-       * The hostname of the given GitHub instance
-       */
-      host: string;
-      /**
-       * Token used to authenticate requests.
-       * @visibility secret
-       */
-      token?: string;
-      /**
-       * The base url for the GitHub API, for example https://api.github.com
-       */
-      apiBaseUrl?: string;
-      /**
-       * The base url for GitHub raw resources, for example https://raw.githubusercontent.com
-       */
-      rawBaseUrl?: string;
-    }>;
-
-    /** Integration configuration for GitLab */
-    gitlab?: Array<{
-      /**
-       * The hostname of the given GitLab instance
-       */
-      host: string;
-      /**
-       * Token used to authenticate requests.
-       * @visibility secret
-       */
-      token?: string;
-    }>;
   };
 }

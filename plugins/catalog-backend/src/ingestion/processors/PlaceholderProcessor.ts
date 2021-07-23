@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,12 +94,21 @@ export class PlaceholderProcessor implements CatalogProcessor {
         return [data, false];
       }
 
+      const read = async (url: string): Promise<Buffer> => {
+        if (this.options.reader.readUrl) {
+          const response = await this.options.reader.readUrl(url);
+          const buffer = await response.buffer();
+          return buffer;
+        }
+        return this.options.reader.read(url);
+      };
+
       return [
         await resolver({
           key: resolverKey,
           value: resolverValue,
           baseUrl: location.target,
-          read: this.options.reader.read.bind(this.options.reader),
+          read,
         }),
         true,
       ];
@@ -203,7 +212,7 @@ function relativeUrl({ key, value, baseUrl }: ResolverParams): string {
       // path traversal attacks and access to any file on the host system. Implementing this
       // would require additional security measures.
       throw new Error(
-        `Placeholder \$${key} could not form an URL out of ${baseUrl} and ${value}`,
+        `Placeholder \$${key} could not form a URL out of ${baseUrl} and ${value}`,
       );
     }
   }

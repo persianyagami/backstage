@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,17 @@
  * limitations under the License.
  */
 
-export { plugin } from './plugin';
+export {
+  jenkinsPlugin,
+  jenkinsPlugin as plugin,
+  EntityJenkinsContent,
+  EntityLatestJenkinsRunCard,
+} from './plugin';
 export { LatestRunCard } from './components/Cards';
-export { Router, isPluginApplicableToEntity } from './components/Router';
+export {
+  Router,
+  isJenkinsAvailable,
+  isJenkinsAvailable as isPluginApplicableToEntity,
+} from './components/Router';
 export { JENKINS_ANNOTATION } from './constants';
 export * from './api';

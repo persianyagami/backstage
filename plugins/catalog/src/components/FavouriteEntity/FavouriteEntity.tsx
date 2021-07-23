@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  */
 
 import React, { ComponentProps } from 'react';
+import { useStarredEntities } from '@backstage/plugin-catalog-react';
 import { IconButton, Tooltip, withStyles } from '@material-ui/core';
 import StarBorder from '@material-ui/icons/StarBorder';
 import Star from '@material-ui/icons/Star';
-import { useStarredEntities } from '../../hooks/useStarredEntities';
 import { Entity } from '@backstage/catalog-model';
 
 type Props = ComponentProps<typeof IconButton> & { entity: Entity };

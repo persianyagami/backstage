@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,5 +18,8 @@ export * from './azure';
 export * from './bitbucket';
 export * from './github';
 export * from './gitlab';
+export * from './googleGcs';
+export { defaultScmResolveUrl } from './helpers';
 export { ScmIntegrations } from './ScmIntegrations';
-export type { ScmIntegration, ScmIntegrationRegistry } from './types';
+export type { ScmIntegration, ScmIntegrationsGroup } from './types';
+export type { ScmIntegrationRegistry } from './registry';

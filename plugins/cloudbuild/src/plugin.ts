@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,25 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { cloudbuildApiRef, CloudbuildClient } from './api';
+import { rootRouteRef } from './routes';
 import {
   createPlugin,
-  createRouteRef,
   createApiFactory,
   googleAuthApiRef,
-} from '@backstage/core';
-import { cloudbuildApiRef, CloudbuildClient } from './api';
+  createRoutableExtension,
+  createComponentExtension,
+} from '@backstage/core-plugin-api';
 
-export const rootRouteRef = createRouteRef({
-  path: '',
-  title: 'Google Cloudbuild',
-});
-
-export const buildRouteRef = createRouteRef({
-  path: ':id',
-  title: 'Cloudbuild Run',
-});
-
-export const plugin = createPlugin({
+export const cloudbuildPlugin = createPlugin({
   id: 'cloudbuild',
   apis: [
     createApiFactory({
@@ -42,4 +34,32 @@ export const plugin = createPlugin({
       },
     }),
   ],
+  routes: {
+    entityContent: rootRouteRef,
+  },
 });
+
+export const EntityCloudbuildContent = cloudbuildPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/Router').then(m => m.Router),
+    mountPoint: rootRouteRef,
+  }),
+);
+
+export const EntityLatestCloudbuildRunCard = cloudbuildPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () =>
+        import('./components/Cards').then(m => m.LatestWorkflowRunCard),
+    },
+  }),
+);
+
+export const EntityLatestCloudbuildsForBranchCard = cloudbuildPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () =>
+        import('./components/Cards').then(m => m.LatestWorkflowsForBranchCard),
+    },
+  }),
+);

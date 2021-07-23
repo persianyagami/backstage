@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,17 @@
 // @ts-check
 
 /**
- * @param {import('knex')} knex
+ * @param {import('knex').Knex} knex
  */
 exports.up = async function up(knex) {
-  // Drop constraints (Postgres)
-  try {
+  // SQLite does not support FK and PK
+  if (knex.client.config.client !== 'sqlite3') {
     await knex.schema.alterTable('entities_search', table => {
       table.dropForeign(['entity_id']);
     });
     await knex.schema.alterTable('entities', table => {
       table.dropPrimary('entities_pkey');
     });
-  } catch (e) {
-    // SQLite does not support FK and PK, carry on
   }
   await knex.schema.alterTable('entities', table => {
     table.dropUnique([], 'entities_unique_name');
@@ -128,19 +126,17 @@ exports.up = async function up(knex) {
 };
 
 /**
- * @param {import('knex')} knex
+ * @param {import('knex').Knex} knex
  */
 exports.down = async function down(knex) {
-  // Drop constraints (Postgres)
-  try {
+  // SQLite does not support FK and PK
+  if (knex.client.config.client !== 'sqlite3') {
     await knex.schema.alterTable('entities_search', table => {
       table.dropForeign(['entity_id']);
     });
     await knex.schema.alterTable('entities', table => {
       table.dropPrimary('entities_pkey');
     });
-  } catch (e) {
-    // SQLite does not support FK and PK, carry on
   }
   await knex.schema.alterTable('entities', table => {
     table.dropUnique([], 'entities_unique_name');

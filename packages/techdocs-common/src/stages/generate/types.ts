@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,37 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Writable } from 'stream';
-import Docker from 'dockerode';
+
 import { Entity } from '@backstage/catalog-model';
+import { Writable } from 'stream';
+import { Logger } from 'winston';
 import { ParsedLocationAnnotation } from '../../helpers';
 
+// Determines where the generator will be run
+export type GeneratorRunInType = 'docker' | 'local';
+
 /**
- * The returned directory from the generator which is ready
- * to pass to the next stage of the TechDocs which is publishing
+ * The techdocs generator configurations options.
  */
-export type GeneratorRunResult = {
-  resultDir: string;
+export type GeneratorConfig = {
+  runIn: GeneratorRunInType;
+  dockerImage?: string;
+  pullImage?: boolean;
 };
 
 /**
  * The values that the generator will receive.
  *
- * @param {string} directory The directory of the uncompiled documentation, with the values from the frontend
- * @param {Docker} dockerClient A docker client to run any generator on top of your directory
+ * @param {string} inputDir The directory of the uncompiled documentation, with the values from the frontend
+ * @param {string} outputDir Directory to store generated docs in. Usually - a newly created temporary directory.
  * @param {ParsedLocationAnnotation} parsedLocationAnnotation backstage.io/techdocs-ref annotation of an entity
- * @param {Writable} [logStream] A dedicated log stream
+ * @param {string} etag A unique identifier for the prepared tree e.g. commit SHA. If provided it will be stored in techdocs_metadata.json.
+ * @param {Logger} [logger] A logger that forwards the messages to the caller to be displayed outside of the backend.
+ * @param {Writable} [logStream] A log stream that can send raw log messages to the caller to be displayed outside of the backend..
  */
 export type GeneratorRunOptions = {
-  directory: string;
-  dockerClient: Docker;
-  parsedLocationAnnotation: ParsedLocationAnnotation;
+  inputDir: string;
+  outputDir: string;
+  parsedLocationAnnotation?: ParsedLocationAnnotation;
+  etag?: string;
+  logger: Logger;
   logStream?: Writable;
 };
 
 export type GeneratorBase = {
-  // runs the generator with the values and returns the directory to be published
-  run(opts: GeneratorRunOptions): Promise<GeneratorRunResult>;
+  // Runs the generator with the values
+  run(opts: GeneratorRunOptions): Promise<void>;
 };
 
 /**

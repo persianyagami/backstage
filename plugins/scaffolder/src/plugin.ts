@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,71 @@
  * limitations under the License.
  */
 
+import { scmIntegrationsApiRef } from '@backstage/integration-react';
+import { scaffolderApiRef, ScaffolderClient } from './api';
+import { EntityPicker } from './components/fields/EntityPicker';
+import { OwnerPicker } from './components/fields/OwnerPicker';
 import {
-  createPlugin,
+  repoPickerValidation,
+  RepoUrlPicker,
+} from './components/fields/RepoUrlPicker';
+import { createScaffolderFieldExtension } from './extensions';
+import { registerComponentRouteRef, rootRouteRef } from './routes';
+import {
   createApiFactory,
+  createPlugin,
+  createRoutableExtension,
   discoveryApiRef,
-} from '@backstage/core';
-import { ScaffolderPage } from './components/ScaffolderPage';
-import { TemplatePage } from './components/TemplatePage';
-import { rootRoute, templateRoute } from './routes';
-import { scaffolderApiRef, ScaffolderApi } from './api';
+  identityApiRef,
+} from '@backstage/core-plugin-api';
 
-export const plugin = createPlugin({
+export const scaffolderPlugin = createPlugin({
   id: 'scaffolder',
   apis: [
     createApiFactory({
       api: scaffolderApiRef,
-      deps: { discoveryApi: discoveryApiRef },
-      factory: ({ discoveryApi }) => new ScaffolderApi({ discoveryApi }),
+      deps: {
+        discoveryApi: discoveryApiRef,
+        identityApi: identityApiRef,
+        scmIntegrationsApi: scmIntegrationsApiRef,
+      },
+      factory: ({ discoveryApi, identityApi, scmIntegrationsApi }) =>
+        new ScaffolderClient({ discoveryApi, identityApi, scmIntegrationsApi }),
     }),
   ],
-  register({ router }) {
-    router.addRoute(rootRoute, ScaffolderPage);
-    router.addRoute(templateRoute, TemplatePage);
+  routes: {
+    root: rootRouteRef,
+  },
+  externalRoutes: {
+    registerComponent: registerComponentRouteRef,
   },
 });
+
+export const EntityPickerFieldExtension = scaffolderPlugin.provide(
+  createScaffolderFieldExtension({
+    component: EntityPicker,
+    name: 'EntityPicker',
+  }),
+);
+
+export const RepoUrlPickerFieldExtension = scaffolderPlugin.provide(
+  createScaffolderFieldExtension({
+    component: RepoUrlPicker,
+    name: 'RepoUrlPicker',
+    validation: repoPickerValidation,
+  }),
+);
+
+export const OwnerPickerFieldExtension = scaffolderPlugin.provide(
+  createScaffolderFieldExtension({
+    component: OwnerPicker,
+    name: 'OwnerPicker',
+  }),
+);
+
+export const ScaffolderPage = scaffolderPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/Router').then(m => m.Router),
+    mountPoint: rootRouteRef,
+  }),
+);

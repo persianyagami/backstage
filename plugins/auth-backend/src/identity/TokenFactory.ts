@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import moment from 'moment';
 import { TokenIssuer, TokenParams, KeyStore, AnyJWK } from './types';
 import { JSONWebKey, JWK, JWS } from 'jose';
 import { Logger } from 'winston';
 import { v4 as uuid } from 'uuid';
+import { DateTime } from 'luxon';
 
 const MS_IN_S = 1000;
 
@@ -52,7 +52,7 @@ export class TokenFactory implements TokenIssuer {
   private readonly keyStore: KeyStore;
   private readonly keyDurationSeconds: number;
 
-  private keyExpiry?: moment.Moment;
+  private keyExpiry?: Date;
   private privateKeyPromise?: Promise<JSONWebKey>;
 
   constructor(options: Options) {
@@ -67,13 +67,14 @@ export class TokenFactory implements TokenIssuer {
 
     const iss = this.issuer;
     const sub = params.claims.sub;
+    const ent = params.claims.ent;
     const aud = 'backstage';
     const iat = Math.floor(Date.now() / MS_IN_S);
-    const exp = iat + this.keyDurationSeconds * MS_IN_S;
+    const exp = iat + this.keyDurationSeconds;
 
-    this.logger.info(`Issuing token for ${sub}`);
+    this.logger.info(`Issuing token for ${sub}, with entities ${ent ?? []}`);
 
-    return JWS.sign({ iss, sub, aud, iat, exp }, key, {
+    return JWS.sign({ iss, sub, aud, iat, exp, ent }, key, {
       alg: key.alg,
       kid: key.kid,
     });
@@ -90,8 +91,10 @@ export class TokenFactory implements TokenIssuer {
 
     for (const key of keys) {
       // Allow for a grace period of another full key duration before we remove the keys from the database
-      const expireAt = key.createdAt.add(3 * this.keyDurationSeconds, 's');
-      if (expireAt.isBefore()) {
+      const expireAt = DateTime.fromJSDate(key.createdAt).plus({
+        seconds: 3 * this.keyDurationSeconds,
+      });
+      if (expireAt < DateTime.local()) {
         expiredKeys.push(key);
       } else {
         validKeys.push(key);
@@ -117,14 +120,21 @@ export class TokenFactory implements TokenIssuer {
   private async getKey(): Promise<JSONWebKey> {
     // Make sure that we only generate one key at a time
     if (this.privateKeyPromise) {
-      if (this.keyExpiry?.isAfter()) {
+      if (
+        this.keyExpiry &&
+        DateTime.fromJSDate(this.keyExpiry) > DateTime.local()
+      ) {
         return this.privateKeyPromise;
       }
       this.logger.info(`Signing key has expired, generating new key`);
       delete this.privateKeyPromise;
     }
 
-    this.keyExpiry = moment().add(this.keyDurationSeconds, 'seconds');
+    this.keyExpiry = DateTime.utc()
+      .plus({
+        seconds: this.keyDurationSeconds,
+      })
+      .toJSDate();
     const promise = (async () => {
       // This generates a new signing key to be used to sign tokens until the next key rotation
       const key = await JWK.generate('EC', 'P-256', {

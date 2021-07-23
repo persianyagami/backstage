@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,26 @@
  * limitations under the License.
  */
 
-import { createPlugin, createRouteRef } from '@backstage/core';
-import WelcomePage from './components/WelcomePage';
+import {
+  createPlugin,
+  createRoutableExtension,
+  createRouteRef,
+} from '@backstage/core-plugin-api';
 
 export const rootRouteRef = createRouteRef({
-  path: '/welcome',
   title: 'Welcome',
 });
 
-export const plugin = createPlugin({
+export const welcomePlugin = createPlugin({
   id: 'welcome',
-  register({ router, featureFlags }) {
-    router.addRoute(rootRouteRef, WelcomePage);
+  register({ featureFlags }) {
     featureFlags.register('enable-welcome-box');
   },
 });
+
+export const WelcomePage = welcomePlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/WelcomePage').then(m => m.default),
+    mountPoint: rootRouteRef,
+  }),
+);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import { KubernetesAuthTranslator } from './types';
 import { GoogleKubernetesAuthTranslator } from './GoogleKubernetesAuthTranslator';
 import { KubernetesAuthTranslatorGenerator } from './KubernetesAuthTranslatorGenerator';
 import { ServiceAccountKubernetesAuthTranslator } from './ServiceAccountKubernetesAuthTranslator';
+import { AwsIamKubernetesAuthTranslator } from './AwsIamKubernetesAuthTranslator';
 
 describe('getKubernetesAuthTranslatorInstance', () => {
   const sut = KubernetesAuthTranslatorGenerator;
@@ -27,6 +28,13 @@ describe('getKubernetesAuthTranslatorInstance', () => {
       'google',
     );
     expect(authTranslator instanceof GoogleKubernetesAuthTranslator).toBe(true);
+  });
+
+  it('can return an auth translator for aws auth', () => {
+    const authTranslator: KubernetesAuthTranslator = sut.getKubernetesAuthTranslatorInstance(
+      'aws',
+    );
+    expect(authTranslator instanceof AwsIamKubernetesAuthTranslator).toBe(true);
   });
 
   it('can return an auth translator for serviceAccount auth', () => {

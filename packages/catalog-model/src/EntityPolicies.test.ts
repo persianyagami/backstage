@@ -1,6 +1,5 @@
-import { Entity } from './entity';
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +14,8 @@ import { Entity } from './entity';
  * limitations under the License.
  */
 
+import { Entity, EntityPolicy } from './entity';
 import { EntityPolicies } from './EntityPolicies';
-import { EntityPolicy } from './types';
 
 describe('EntityPolicies', () => {
   const p1: jest.Mocked<EntityPolicy> = { enforce: jest.fn() };

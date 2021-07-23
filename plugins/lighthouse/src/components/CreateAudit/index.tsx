@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,31 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import {
-  makeStyles,
-  Grid,
   Button,
+  Grid,
   List,
   ListItem,
+  makeStyles,
   MenuItem,
   TextField,
 } from '@material-ui/core';
-import {
-  errorApiRef,
-  useApi,
-  InfoCard,
-  Header,
-  Page,
-  Content,
-  ContentHeader,
-  HeaderLabel,
-} from '@backstage/core';
-
+import React, { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { lighthouseApiRef } from '../../api';
 import { useQuery } from '../../utils';
 import LighthouseSupportButton from '../SupportButton';
+
+import {
+  Content,
+  ContentHeader,
+  Header,
+  HeaderLabel,
+  InfoCard,
+  Page,
+} from '@backstage/core-components';
+import { errorApiRef, useApi } from '@backstage/core-plugin-api';
+
+// TODO(freben): move all of this out of index
 
 const useStyles = makeStyles(theme => ({
   input: {
@@ -79,7 +81,7 @@ export const CreateAuditContent = () => {
       // TODO use the id from the response to redirect to the audit page for that id when
       // FAILED and RUNNING audits are supported
       await lighthouseApi.triggerAudit({
-        url,
+        url: url.replace(/\/$/, ''),
         options: {
           lighthouseConfig: {
             settings: {

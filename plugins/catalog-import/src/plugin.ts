@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,60 @@
  * limitations under the License.
  */
 
+import { scmIntegrationsApiRef } from '@backstage/integration-react';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
+import { catalogImportApiRef, CatalogImportClient } from './api';
 import {
   createApiFactory,
   createPlugin,
+  createRoutableExtension,
   createRouteRef,
   discoveryApiRef,
   githubAuthApiRef,
-} from '@backstage/core';
-import { catalogImportApiRef } from './api/CatalogImportApi';
-import { CatalogImportClient } from './api/CatalogImportClient';
+  identityApiRef,
+} from '@backstage/core-plugin-api';
 
 export const rootRouteRef = createRouteRef({
   path: '',
   title: 'catalog-import',
 });
 
-export const plugin = createPlugin({
+export const catalogImportPlugin = createPlugin({
   id: 'catalog-import',
   apis: [
     createApiFactory({
       api: catalogImportApiRef,
-      deps: { discoveryApi: discoveryApiRef, githubAuthApi: githubAuthApiRef },
-      factory: ({ discoveryApi, githubAuthApi }) =>
-        new CatalogImportClient({ discoveryApi, githubAuthApi }),
+      deps: {
+        discoveryApi: discoveryApiRef,
+        githubAuthApi: githubAuthApiRef,
+        identityApi: identityApiRef,
+        scmIntegrationsApi: scmIntegrationsApiRef,
+        catalogApi: catalogApiRef,
+      },
+      factory: ({
+        discoveryApi,
+        githubAuthApi,
+        identityApi,
+        scmIntegrationsApi,
+        catalogApi,
+      }) =>
+        new CatalogImportClient({
+          discoveryApi,
+          githubAuthApi,
+          scmIntegrationsApi,
+          identityApi,
+          catalogApi,
+        }),
     }),
   ],
+  routes: {
+    importPage: rootRouteRef,
+  },
 });
+
+export const CatalogImportPage = catalogImportPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/Router').then(m => m.Router),
+    mountPoint: rootRouteRef,
+  }),
+);

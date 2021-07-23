@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,15 @@ import App from './App';
 
 describe('App', () => {
   it('should render', async () => {
-    Object.defineProperty(process.env, 'APP_CONFIG', {
-      configurable: true,
-      value: [
+    process.env = {
+      NODE_ENV: 'test',
+      APP_CONFIG: [
         {
           data: {
-            app: { title: 'Test' },
+            app: {
+              title: 'Test',
+              support: { url: 'http://localhost:7000/support' },
+            },
             backend: { baseUrl: 'http://localhost:7000' },
             lighthouse: {
               baseUrl: 'http://localhost:3003',
@@ -36,8 +39,8 @@ describe('App', () => {
           },
           context: 'test',
         },
-      ],
-    });
+      ] as any,
+    };
 
     const rendered = await renderWithEffects(<App />);
     expect(rendered.baseElement).toBeInTheDocument();

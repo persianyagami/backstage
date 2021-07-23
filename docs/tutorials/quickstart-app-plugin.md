@@ -35,8 +35,8 @@ title: Adding Custom Plugin to Existing Monorepo App
 1. When the process finishes, let's start the backend:
    `yarn --cwd packages/backend start`
 1. If you see errors starting, refer to
-   [Auth Configuration](https://backstage.io/docs/tutorials/quickstart-app-auth#the-auth-configuration)
-   for more information on environment variables.
+   [Auth Configuration](https://backstage.io/docs/auth/) for more information on
+   environment variables.
 1. And now the frontend, from a new terminal window and the root of your
    project: `yarn start`
 1. As usual, a browser window should popup loading the App.
@@ -49,7 +49,7 @@ title: Adding Custom Plugin to Existing Monorepo App
 
 Let's add a shortcut.
 
-1. Open and modify `root: packages > app > src > sidebar.tsx` with the
+1. Open and modify `root: packages > app > src > components > Root.tsx` with the
    following:
 
 ```tsx
@@ -59,7 +59,7 @@ import GitHubIcon from '@material-ui/icons/GitHub';
 ```
 
 Simple! The App will reload with your changes automatically. You should now see
-a github icon displayed in the sidebar. Clicking that will link to our new
+a GitHub icon displayed in the sidebar. Clicking that will link to our new
 plugin. And now, the API fun begins.
 
 # The Identity
@@ -72,8 +72,7 @@ Our first modification will be to extract information from the Identity API.
 
 ```tsx
 // Add identityApiRef to the list of imported from core
-import { identityApiRef } from '@backstage/core';
-import { useApi } from '@backstage/core-api';
+import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 ```
 
 3. Adjust the ExampleComponent from inline to block
@@ -138,20 +137,13 @@ changes, let's start by wiping this component clean.
 import React from 'react';
 import { useAsync } from 'react-use';
 import Alert from '@material-ui/lab/Alert';
-import {
-  Table,
-  TableColumn,
-  Progress,
-  githubAuthApiRef,
-} from '@backstage/core';
-import { useApi } from '@backstage/core-api';
+import { Table, TableColumn, Progress } from '@backstage/core-components';
+import { githubAuthApiRef, useApi } from '@backstage/core-plugin-api';
 import { graphql } from '@octokit/graphql';
 
-const ExampleFetchComponent = () => {
+export const ExampleFetchComponent = () => {
   return <div>Nothing to see yet</div>;
 };
-
-export default ExampleFetchComponent;
 ```
 
 3. Save that and ensure you see no errors. Comment out the unused imports if

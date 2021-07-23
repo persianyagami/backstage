@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,69 @@
  * limitations under the License.
  */
 
-import { ScmIntegration, ScmIntegrationFactory } from '../types';
+import parseGitUrl from 'git-url-parse';
+import { basicIntegrations, defaultScmResolveUrl } from '../helpers';
+import { ScmIntegration, ScmIntegrationsFactory } from '../types';
 import {
   BitbucketIntegrationConfig,
   readBitbucketIntegrationConfigs,
 } from './config';
 
 export class BitbucketIntegration implements ScmIntegration {
-  static factory: ScmIntegrationFactory = ({ config }) => {
+  static factory: ScmIntegrationsFactory<BitbucketIntegration> = ({
+    config,
+  }) => {
     const configs = readBitbucketIntegrationConfigs(
       config.getOptionalConfigArray('integrations.bitbucket') ?? [],
     );
-    return configs.map(integration => ({
-      predicate: (url: URL) => url.host === integration.host,
-      integration: new BitbucketIntegration(integration),
-    }));
+    return basicIntegrations(
+      configs.map(c => new BitbucketIntegration(c)),
+      i => i.config.host,
+    );
   };
 
-  constructor(private readonly config: BitbucketIntegrationConfig) {}
+  constructor(private readonly integrationConfig: BitbucketIntegrationConfig) {}
 
   get type(): string {
     return 'bitbucket';
   }
 
   get title(): string {
-    return this.config.host;
+    return this.integrationConfig.host;
+  }
+
+  get config(): BitbucketIntegrationConfig {
+    return this.integrationConfig;
+  }
+
+  resolveUrl(options: {
+    url: string;
+    base: string;
+    lineNumber?: number;
+  }): string {
+    const resolved = defaultScmResolveUrl(options);
+
+    // Bitbucket line numbers use the syntax #example.txt-42, rather than #L42
+    if (options.lineNumber) {
+      const url = new URL(resolved);
+
+      const filename = url.pathname.split('/').slice(-1)[0];
+      url.hash = `${filename}-${options.lineNumber}`;
+      return url.toString();
+    }
+
+    return resolved;
+  }
+
+  resolveEditUrl(url: string): string {
+    const urlData = parseGitUrl(url);
+    const editUrl = new URL(url);
+
+    editUrl.searchParams.set('mode', 'edit');
+    // TODO: Not sure what spa=0 does, at least bitbucket.org doesn't support it
+    // but this is taken over from the initial implementation.
+    editUrl.searchParams.set('spa', '0');
+    editUrl.searchParams.set('at', urlData.ref);
+    return editUrl.toString();
   }
 }

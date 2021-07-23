@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import ModuleScopePlugin from 'react-dev-utils/ModuleScopePlugin';
 import StartServerPlugin from 'start-server-webpack-plugin';
 import webpack from 'webpack';
 import nodeExternals from 'webpack-node-externals';
+import { isChildPath } from '@backstage/cli-common';
 import { optimization } from './optimization';
 import { Config } from '@backstage/config';
 import { BundlingPaths } from './paths';
@@ -72,8 +73,8 @@ async function readBuildInfo() {
 }
 
 async function loadLernaPackages(): Promise<LernaPackage[]> {
-  const LernaProject = require('@lerna/project');
-  const project = new LernaProject(cliPaths.targetDir);
+  const { Project } = require('@lerna/project');
+  const project = new Project(cliPaths.targetDir);
   return project.getPackages();
 }
 
@@ -87,7 +88,9 @@ export async function createConfig(
   const { plugins, loaders } = transforms(options);
   // Any package that is part of the monorepo but outside the monorepo root dir need
   // separate resolution logic.
-  const externalPkgs = packages.filter(p => !p.location.startsWith(paths.root));
+  const externalPkgs = packages.filter(
+    p => !isChildPath(paths.root, p.location),
+  );
 
   const baseUrl = frontendConfig.getString('app.baseUrl');
   const validBaseUrl = new URL(baseUrl);
@@ -95,15 +98,18 @@ export async function createConfig(
   if (checksEnabled) {
     plugins.push(
       new ForkTsCheckerWebpackPlugin({
-        tsconfig: paths.targetTsConfig,
-        eslint: true,
-        eslintOptions: {
-          parserOptions: {
-            project: paths.targetTsConfig,
-            tsconfigRootDir: paths.targetPath,
+        typescript: {
+          configFile: paths.targetTsConfig,
+        },
+        eslint: {
+          files: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+          options: {
+            parserOptions: {
+              project: paths.targetTsConfig,
+              tsconfigRootDir: paths.targetPath,
+            },
           },
         },
-        reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
       }),
     );
   }
@@ -125,6 +131,16 @@ export async function createConfig(
           googleAnalyticsTrackingId: frontendConfig.getOptionalString(
             'app.googleAnalyticsTrackingId',
           ),
+          datadogRum: {
+            env: frontendConfig.getOptionalString('app.datadogRum.env'),
+            clientToken: frontendConfig.getOptionalString(
+              'app.datadogRum.clientToken',
+            ),
+            applicationId: frontendConfig.getOptionalString(
+              'app.datadogRum.applicationId',
+            ),
+            site: frontendConfig.getOptionalString('app.datadogRum.site'),
+          },
         },
       },
     }),
@@ -182,6 +198,15 @@ export async function createConfig(
       chunkFilename: isDev
         ? '[name].chunk.js'
         : 'static/[name].[chunkhash:8].chunk.js',
+      ...(isDev
+        ? {
+            devtoolModuleFilenameTemplate: info =>
+              `file:///${resolvePath(info.absoluteResourcePath).replace(
+                /\\/g,
+                '/',
+              )}`,
+          }
+        : {}),
     },
     plugins,
   };
@@ -199,7 +224,9 @@ export async function createBackendConfig(
   const moduleDirs = packages.map((p: any) =>
     resolvePath(p.location, 'node_modules'),
   );
-  const externalPkgs = packages.filter(p => !p.location.startsWith(paths.root)); // See frontend config
+  const externalPkgs = packages.filter(
+    p => !isChildPath(paths.root, p.location),
+  ); // See frontend config
 
   const { loaders } = transforms(options);
 
@@ -215,7 +242,7 @@ export async function createBackendConfig(
         }
       : {}),
     externals: [
-      nodeExternals({
+      nodeExternalsWithResolve({
         modulesDir: paths.rootNodeModules,
         additionalModuleDirs: moduleDirs,
         allowlist: ['webpack/hot/poll?100', ...localPackageNames],
@@ -264,7 +291,11 @@ export async function createBackendConfig(
         : '[name].[chunkhash:8].chunk.js',
       ...(isDev
         ? {
-            devtoolModuleFilenameTemplate: 'file:///[absolute-resource-path]',
+            devtoolModuleFilenameTemplate: info =>
+              `file:///${resolvePath(info.absoluteResourcePath).replace(
+                /\\/g,
+                '/',
+              )}`,
           }
         : {}),
     },
@@ -277,18 +308,50 @@ export async function createBackendConfig(
       ...(checksEnabled
         ? [
             new ForkTsCheckerWebpackPlugin({
-              tsconfig: paths.targetTsConfig,
-              eslint: true,
-              eslintOptions: {
-                parserOptions: {
-                  project: paths.targetTsConfig,
-                  tsconfigRootDir: paths.targetPath,
+              typescript: {
+                configFile: paths.targetTsConfig,
+              },
+              eslint: {
+                files: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+                options: {
+                  parserOptions: {
+                    project: paths.targetTsConfig,
+                    tsconfigRootDir: paths.targetPath,
+                  },
                 },
               },
-              reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
             }),
           ]
         : []),
     ],
+  };
+}
+
+// This makes the module resolution happen from the context of each non-external module, rather
+// than the main entrypoint. This fixes a bug where dependencies would be resolved from the backend
+// package rather than each individual backend package and plugin.
+//
+// TODO(Rugvip): Feature suggestion/contribute this to webpack-externals
+function nodeExternalsWithResolve(
+  options: Parameters<typeof nodeExternals>[0],
+) {
+  let currentContext: string;
+  const externals = nodeExternals({
+    ...options,
+    importType(request) {
+      const resolved = require.resolve(request, {
+        paths: [currentContext],
+      });
+      return `commonjs ${resolved}`;
+    },
+  });
+
+  return (
+    context: string,
+    request: string,
+    callback: webpack.ExternalsFunctionCallback,
+  ) => {
+    currentContext = context;
+    return externals(context, request, callback);
   };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,95 @@
  * limitations under the License.
  */
 
+import fetch from 'cross-fetch';
 import parseGitUrl from 'git-url-parse';
 import { BitbucketIntegrationConfig } from './config';
+
+/**
+ * Given a URL pointing to a path on a provider, returns the default branch.
+ *
+ * @param url A URL pointing to a path
+ * @param config The relevant provider config
+ */
+export async function getBitbucketDefaultBranch(
+  url: string,
+  config: BitbucketIntegrationConfig,
+): Promise<string> {
+  const { name: repoName, owner: project, resource } = parseGitUrl(url);
+
+  const isHosted = resource === 'bitbucket.org';
+  // Bitbucket Server https://docs.atlassian.com/bitbucket-server/rest/7.9.0/bitbucket-rest.html#idp184
+  let branchUrl = isHosted
+    ? `${config.apiBaseUrl}/repositories/${project}/${repoName}`
+    : `${config.apiBaseUrl}/projects/${project}/repos/${repoName}/default-branch`;
+
+  let response = await fetch(branchUrl, getBitbucketRequestOptions(config));
+
+  if (response.status === 404 && !isHosted) {
+    // First try the new format, and then if it gets specifically a 404 it should try the old format
+    // (to support old  Atlassian Bitbucket v5.11.1 format )
+    branchUrl = `${config.apiBaseUrl}/projects/${project}/repos/${repoName}/branches/default`;
+    response = await fetch(branchUrl, getBitbucketRequestOptions(config));
+  }
+
+  if (!response.ok) {
+    const message = `Failed to retrieve default branch from ${branchUrl}, ${response.status} ${response.statusText}`;
+    throw new Error(message);
+  }
+
+  let defaultBranch;
+  if (isHosted) {
+    const repoInfo = await response.json();
+    defaultBranch = repoInfo.mainbranch.name;
+  } else {
+    const { displayId } = await response.json();
+    defaultBranch = displayId;
+  }
+  if (!defaultBranch) {
+    throw new Error(
+      `Failed to read default branch from ${branchUrl}. ` +
+        `Response ${response.status} ${response.json()}`,
+    );
+  }
+  return defaultBranch;
+}
+
+/**
+ * Given a URL pointing to a path on a provider, returns a URL that is suitable
+ * for downloading the subtree.
+ *
+ * @param url A URL pointing to a path
+ * @param config The relevant provider config
+ */
+export async function getBitbucketDownloadUrl(
+  url: string,
+  config: BitbucketIntegrationConfig,
+): Promise<string> {
+  const {
+    name: repoName,
+    owner: project,
+    ref,
+    protocol,
+    resource,
+    filepath,
+  } = parseGitUrl(url);
+
+  const isHosted = resource === 'bitbucket.org';
+
+  let branch = ref;
+  if (!branch) {
+    branch = await getBitbucketDefaultBranch(url, config);
+  }
+  // path will limit the downloaded content
+  // /docs will only download the docs folder and everything below it
+  // /docs/index.md will download the docs folder and everything below it
+  const path = filepath ? `&path=${encodeURIComponent(filepath)}` : '';
+  const archiveUrl = isHosted
+    ? `${protocol}://${resource}/${project}/${repoName}/get/${branch}.tar.gz`
+    : `${config.apiBaseUrl}/projects/${project}/repos/${repoName}/archive?format=tgz&at=${branch}&prefix=${project}-${repoName}${path}`;
+
+  return archiveUrl;
+}
 
 /**
  * Given a URL pointing to a file on a provider, returns a URL that is suitable

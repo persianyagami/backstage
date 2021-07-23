@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,11 @@
 
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { InfoCard, Progress, Link } from '@backstage/core';
 import { BuildWithSteps, BuildStepAction } from '../../api';
 import {
   Grid,
   Box,
   IconButton,
-  Breadcrumbs,
   Typography,
   Link as MaterialLink,
 } from '@material-ui/core';
@@ -30,6 +28,12 @@ import { makeStyles } from '@material-ui/core/styles';
 import { ActionOutput } from './lib/ActionOutput/ActionOutput';
 import LaunchIcon from '@material-ui/icons/Launch';
 import { useBuildWithSteps } from '../../state/useBuildWithSteps';
+import {
+  Breadcrumbs,
+  InfoCard,
+  Progress,
+  Link,
+} from '@backstage/core-components';
 
 const IconLink = (IconButton as any) as typeof MaterialLink;
 
@@ -99,18 +103,6 @@ const pickClassName = (
   return classes.neutral;
 };
 
-const BuildsList = ({ build }: { build?: BuildWithSteps }) => (
-  <Box>
-    {build &&
-      build.steps &&
-      build.steps.map(
-        ({ name, actions }: { name: string; actions: BuildStepAction[] }) => (
-          <ActionsList key={name} name={name} actions={actions} />
-        ),
-      )}
-  </Box>
-);
-
 const ActionsList = ({
   actions,
 }: {
@@ -132,6 +124,18 @@ const ActionsList = ({
   );
 };
 
+const BuildsList = ({ build }: { build?: BuildWithSteps }) => (
+  <Box>
+    {build &&
+      build.steps &&
+      build.steps.map(
+        ({ name, actions }: { name: string; actions: BuildStepAction[] }) => (
+          <ActionsList key={name} name={name} actions={actions} />
+        ),
+      )}
+  </Box>
+);
+
 export const BuildWithStepsPage = () => {
   const { buildId = '' } = useParams();
   const classes = useStyles();
@@ -146,10 +150,12 @@ export const BuildWithStepsPage = () => {
 
   return (
     <>
-      <Breadcrumbs aria-label="breadcrumb">
-        <Link to="..">All builds</Link>
-        <Typography>Build details</Typography>
-      </Breadcrumbs>
+      <Box mb={3}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link to="..">All builds</Link>
+          <Typography>Build details</Typography>
+        </Breadcrumbs>
+      </Box>
       <Grid container spacing={3} direction="column">
         <Grid item>
           <InfoCard

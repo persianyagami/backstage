@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 import { createRouter } from '@backstage/plugin-auth-backend';
+import { Router } from 'express';
 import { PluginEnvironment } from '../types';
 
 export default async function createPlugin({
@@ -22,6 +23,6 @@ export default async function createPlugin({
   database,
   config,
   discovery,
-}: PluginEnvironment) {
+}: PluginEnvironment): Promise<Router> {
   return await createRouter({ logger, config, database, discovery });
 }

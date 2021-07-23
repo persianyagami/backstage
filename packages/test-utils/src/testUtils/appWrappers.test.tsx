@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
-import React, { useEffect } from 'react';
-import { render } from '@testing-library/react';
-import { wrapInTestApp, renderInTestApp } from './appWrappers';
-import { Route, Routes } from 'react-router';
-import { withLogCollector } from '@backstage/test-utils-core';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 import {
-  useApi,
+  createExternalRouteRef,
+  createRouteRef,
+  createSubRouteRef,
   errorApiRef,
-  ApiProvider,
-  ApiRegistry,
-} from '@backstage/core-api';
+  useApi,
+  useRouteRef,
+} from '@backstage/core-plugin-api';
+import { withLogCollector } from '@backstage/test-utils-core';
+import { render } from '@testing-library/react';
+import React, { useEffect } from 'react';
+import { Route, Routes } from 'react-router';
 import { MockErrorApi } from './apis';
+import { renderInTestApp, wrapInTestApp } from './appWrappers';
 
 describe('wrapInTestApp', () => {
   it('should provide routing and warn about missing act()', async () => {
@@ -46,6 +49,9 @@ describe('wrapInTestApp', () => {
     });
 
     expect(error).toEqual([
+      expect.stringMatching(
+        /^Warning: An update to %s inside a test was not wrapped in act\(...\)/,
+      ),
       expect.stringMatching(
         /^Warning: An update to %s inside a test was not wrapped in act\(...\)/,
       ),
@@ -112,5 +118,46 @@ describe('wrapInTestApp', () => {
 
     expect(rendered.getByText('foo')).toBeInTheDocument();
     expect(mockErrorApi.getErrors()).toEqual([{ error: new Error('NOPE') }]);
+  });
+
+  it('should allow route refs to be mounted on specific paths', async () => {
+    const aRouteRef = createRouteRef({ id: 'A' });
+    const bRouteRef = createRouteRef({ id: 'B', params: ['name'] });
+    const subRouteRef = createSubRouteRef({
+      id: 'S',
+      parent: bRouteRef,
+      path: '/:page',
+    });
+    const externalRouteRef = createExternalRouteRef({
+      id: 'E',
+      params: ['name'],
+    });
+
+    const MyComponent = () => {
+      const a = useRouteRef(aRouteRef);
+      const b = useRouteRef(bRouteRef);
+      const s = useRouteRef(subRouteRef);
+      const e = useRouteRef(externalRouteRef);
+      return (
+        <div>
+          <div>Link A: {a()}</div>
+          <div>Link B: {b({ name: 'x' })}</div>
+          <div>Link S: {s({ name: 'y', page: 'p' })}</div>
+          <div>Link E: {e({ name: 'z' })}</div>
+        </div>
+      );
+    };
+
+    const rendered = await renderInTestApp(<MyComponent />, {
+      mountedRoutes: {
+        '/my-a-path': aRouteRef,
+        '/my-b-path/:name': bRouteRef,
+        '/my-e-path/:name': externalRouteRef,
+      },
+    });
+    expect(rendered.getByText('Link A: /my-a-path')).toBeInTheDocument();
+    expect(rendered.getByText('Link B: /my-b-path/x')).toBeInTheDocument();
+    expect(rendered.getByText('Link S: /my-b-path/y/p')).toBeInTheDocument();
+    expect(rendered.getByText('Link E: /my-e-path/z')).toBeInTheDocument();
   });
 });

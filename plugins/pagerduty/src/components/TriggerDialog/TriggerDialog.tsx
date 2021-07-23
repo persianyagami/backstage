@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,26 +25,28 @@ import {
   Typography,
   CircularProgress,
 } from '@material-ui/core';
-import { useApi, alertApiRef, identityApiRef } from '@backstage/core';
 import { useAsyncFn } from 'react-use';
 import { pagerDutyApiRef } from '../../api';
 import { Alert } from '@material-ui/lab';
+import { usePagerdutyEntity } from '../../hooks';
+import {
+  useApi,
+  alertApiRef,
+  identityApiRef,
+} from '@backstage/core-plugin-api';
 
 type Props = {
-  name: string;
-  integrationKey: string;
   showDialog: boolean;
   handleDialog: () => void;
-  onIncidentCreated: () => void;
+  onIncidentCreated?: () => void;
 };
 
 export const TriggerDialog = ({
-  name,
-  integrationKey,
   showDialog,
   handleDialog,
   onIncidentCreated: onIncidentCreated,
 }: Props) => {
+  const { name, integrationKey } = usePagerdutyEntity();
   const alertApi = useApi(alertApiRef);
   const identityApi = useApi(identityApiRef);
   const userName = identityApi.getUserId();
@@ -52,11 +54,11 @@ export const TriggerDialog = ({
   const [description, setDescription] = useState<string>('');
 
   const [{ value, loading, error }, handleTriggerAlarm] = useAsyncFn(
-    async (description: string) =>
+    async (descriptions: string) =>
       await api.triggerAlarm({
-        integrationKey,
+        integrationKey: integrationKey as string,
         source: window.location.toString(),
-        description,
+        description: descriptions,
         userName,
       }),
   );
@@ -69,11 +71,17 @@ export const TriggerDialog = ({
 
   useEffect(() => {
     if (value) {
-      alertApi.post({
-        message: `Alarm successfully triggered by ${userName}`,
-      });
-      onIncidentCreated();
-      handleDialog();
+      (async () => {
+        alertApi.post({
+          message: `Alarm successfully triggered by ${userName}`,
+        });
+
+        handleDialog();
+
+        // The pager duty API isn't always returning the newly created alarm immediately
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        onIncidentCreated?.();
+      })();
     }
   }, [value, alertApi, handleDialog, userName, onIncidentCreated]);
 

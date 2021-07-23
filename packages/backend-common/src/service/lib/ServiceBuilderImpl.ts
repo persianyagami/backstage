@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import { Config } from '@backstage/config';
 import compression from 'compression';
 import cors from 'cors';
 import express, { Router } from 'express';
-import helmet, { HelmetOptions } from 'helmet';
+import helmet from 'helmet';
 import * as http from 'http';
 import stoppable from 'stoppable';
 import { Logger } from 'winston';
@@ -27,9 +27,9 @@ import { getRootLogger } from '../../logging';
 import {
   errorHandler,
   notFoundHandler,
-  requestLoggingHandler,
+  requestLoggingHandler as defaultRequestLoggingHandler,
 } from '../../middleware';
-import { ServiceBuilder } from '../types';
+import { RequestLoggingHandlerFactory, ServiceBuilder } from '../types';
 import {
   CspOptions,
   HttpsSettings,
@@ -52,10 +52,9 @@ const DEFAULT_CSP = {
   'frame-ancestors': ["'self'"],
   'img-src': ["'self'", 'data:'],
   'object-src': ["'none'"],
-  'script-src': ["'self'"],
+  'script-src': ["'self'", "'unsafe-eval'"],
   'script-src-attr': ["'none'"],
   'style-src': ["'self'", 'https:', "'unsafe-inline'"],
-  'upgrade-insecure-requests': [] as string[],
 };
 
 export class ServiceBuilderImpl implements ServiceBuilder {
@@ -66,6 +65,7 @@ export class ServiceBuilderImpl implements ServiceBuilder {
   private cspOptions: Record<string, string[] | false> | undefined;
   private httpsSettings: HttpsSettings | undefined;
   private routers: [string, Router][];
+  private requestLoggingHandler: RequestLoggingHandlerFactory | undefined;
   // Reference to the module where builder is created - needed for hot module
   // reloading
   private module: NodeModule;
@@ -145,7 +145,14 @@ export class ServiceBuilderImpl implements ServiceBuilder {
     return this;
   }
 
-  start(): Promise<http.Server> {
+  setRequestLoggingHandler(
+    requestLoggingHandler: RequestLoggingHandlerFactory,
+  ) {
+    this.requestLoggingHandler = requestLoggingHandler;
+    return this;
+  }
+
+  async start(): Promise<http.Server> {
     const app = express();
     const {
       port,
@@ -161,22 +168,24 @@ export class ServiceBuilderImpl implements ServiceBuilder {
       app.use(cors(corsOptions));
     }
     app.use(compression());
-    app.use(requestLoggingHandler());
+    app.use(
+      (this.requestLoggingHandler ?? defaultRequestLoggingHandler)(logger),
+    );
     for (const [root, route] of this.routers) {
       app.use(root, route);
     }
     app.use(notFoundHandler());
     app.use(errorHandler());
 
+    const server: http.Server = httpsSettings
+      ? await createHttpsServer(app, httpsSettings, logger)
+      : createHttpServer(app, logger);
+
     return new Promise((resolve, reject) => {
       app.on('error', e => {
         logger.error(`Failed to start up on port ${port}, ${e}`);
         reject(e);
       });
-
-      const server: http.Server = httpsSettings
-        ? createHttpsServer(app, httpsSettings, logger)
-        : createHttpServer(app, logger);
 
       const stoppableServer = stoppable(
         server.listen(port, host, () => {
@@ -195,14 +204,7 @@ export class ServiceBuilderImpl implements ServiceBuilder {
     });
   }
 
-  private getOptions(): {
-    port: number;
-    host: string;
-    logger: Logger;
-    corsOptions?: cors.CorsOptions;
-    httpsSettings?: HttpsSettings;
-    helmetOptions: HelmetOptions;
-  } {
+  private getOptions() {
     return {
       port: this.port ?? DEFAULT_PORT,
       host: this.host ?? DEFAULT_HOST,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,70 +21,171 @@ import { ConfigReader } from '@backstage/config';
 import { Publisher } from './publish';
 import { LocalPublish } from './local';
 import { GoogleGCSPublish } from './googleStorage';
+import { AwsS3Publish } from './awsS3';
+import { AzureBlobStoragePublish } from './azureBlobStorage';
+import { OpenStackSwiftPublish } from './openStackSwift';
 
 const logger = getVoidLogger();
-const testDiscovery: jest.Mocked<PluginEndpointDiscovery> = {
+const discovery: jest.Mocked<PluginEndpointDiscovery> = {
   getBaseUrl: jest.fn().mockResolvedValueOnce('http://localhost:7000'),
   getExternalBaseUrl: jest.fn(),
 };
 
 describe('Publisher', () => {
-  it('should create local publisher by default', () => {
-    const mockConfig = ConfigReader.fromConfigs([
-      {
-        context: '',
-        data: {
-          techdocs: {
-            requestUrl: 'http://localhost:7000',
-          },
-        },
-      },
-    ]);
+  beforeEach(() => {
+    jest.resetModules(); // clear the cache
+  });
 
-    const publisher = Publisher.fromConfig(mockConfig, logger, testDiscovery);
+  it('should create local publisher by default', async () => {
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+      },
+    });
+
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
     expect(publisher).toBeInstanceOf(LocalPublish);
   });
 
-  it('should create local publisher from config', () => {
-    const mockConfig = ConfigReader.fromConfigs([
-      {
-        context: '',
-        data: {
-          techdocs: {
-            requestUrl: 'http://localhost:7000',
-            publisher: {
-              type: 'local',
-            },
-          },
+  it('should create local publisher from config', async () => {
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+        publisher: {
+          type: 'local',
         },
       },
-    ]);
+    });
 
-    const publisher = Publisher.fromConfig(mockConfig, logger, testDiscovery);
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
     expect(publisher).toBeInstanceOf(LocalPublish);
   });
 
-  it('should create google gcs publisher from config', () => {
-    const mockConfig = ConfigReader.fromConfigs([
-      {
-        context: '',
-        data: {
-          techdocs: {
-            requestUrl: 'http://localhost:7000',
-            publisher: {
-              type: 'googleGcs',
-              googleGcs: {
-                credentials: '{}',
-                projectId: 'gcp-project-id',
-                bucketName: 'bucketName',
-              },
-            },
+  it('should create google gcs publisher from config', async () => {
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+        publisher: {
+          type: 'googleGcs',
+          googleGcs: {
+            credentials: '{}',
+            bucketName: 'bucketName',
           },
         },
       },
-    ]);
+    });
 
-    const publisher = Publisher.fromConfig(mockConfig, logger, testDiscovery);
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
     expect(publisher).toBeInstanceOf(GoogleGCSPublish);
+  });
+
+  it('should create AWS S3 publisher from config', async () => {
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+        publisher: {
+          type: 'awsS3',
+          awsS3: {
+            credentials: {
+              accessKeyId: 'accessKeyId',
+              secretAccessKey: 'secretAccessKey',
+            },
+            bucketName: 'bucketName',
+          },
+        },
+      },
+    });
+
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
+    expect(publisher).toBeInstanceOf(AwsS3Publish);
+  });
+
+  it('should create Azure Blob Storage publisher from config', async () => {
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+        publisher: {
+          type: 'azureBlobStorage',
+          azureBlobStorage: {
+            credentials: {
+              accountName: 'accountName',
+              accountKey: 'accountKey',
+            },
+            containerName: 'containerName',
+          },
+        },
+      },
+    });
+
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
+    expect(publisher).toBeInstanceOf(AzureBlobStoragePublish);
+  });
+
+  it('should create Azure Blob Storage publisher from environment variables', async () => {
+    process.env.AZURE_TENANT_ID = 'AZURE_TENANT_ID';
+    process.env.AZURE_CLIENT_ID = 'AZURE_CLIENT_ID';
+    process.env.AZURE_CLIENT_SECRET = 'AZURE_CLIENT_SECRET';
+
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+        publisher: {
+          type: 'azureBlobStorage',
+          azureBlobStorage: {
+            credentials: {
+              accountName: 'accountName',
+            },
+            containerName: 'containerName',
+          },
+        },
+      },
+    });
+
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
+    expect(publisher).toBeInstanceOf(AzureBlobStoragePublish);
+  });
+
+  it('should create Open Stack Swift publisher from config', async () => {
+    const mockConfig = new ConfigReader({
+      techdocs: {
+        requestUrl: 'http://localhost:7000',
+        publisher: {
+          type: 'openStackSwift',
+          openStackSwift: {
+            credentials: {
+              username: 'mockuser',
+              password: 'verystrongpass',
+            },
+            authUrl: 'mockauthurl',
+            region: 'mockregion',
+            containerName: 'mock',
+          },
+        },
+      },
+    });
+
+    const publisher = await Publisher.fromConfig(mockConfig, {
+      logger,
+      discovery,
+    });
+    expect(publisher).toBeInstanceOf(OpenStackSwiftPublish);
   });
 });

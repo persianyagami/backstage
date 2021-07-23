@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,32 @@
  */
 
 import {
-  errorApiRef,
-  githubAuthApiRef,
-  createApiFactory,
-} from '@backstage/core';
-
-import {
-  graphQlBrowseApiRef,
-  GraphQLEndpoints,
-} from '@backstage/plugin-graphiql';
-
+  ScmIntegrationsApi,
+  scmIntegrationsApiRef,
+} from '@backstage/integration-react';
 import {
   costInsightsApiRef,
   ExampleCostInsightsClient,
 } from '@backstage/plugin-cost-insights';
+import {
+  graphQlBrowseApiRef,
+  GraphQLEndpoints,
+} from '@backstage/plugin-graphiql';
+import {
+  AnyApiFactory,
+  configApiRef,
+  createApiFactory,
+  errorApiRef,
+  githubAuthApiRef,
+} from '@backstage/core-plugin-api';
 
-export const apis = [
+export const apis: AnyApiFactory[] = [
+  createApiFactory({
+    api: scmIntegrationsApiRef,
+    deps: { configApi: configApiRef },
+    factory: ({ configApi }) => ScmIntegrationsApi.fromConfig(configApi),
+  }),
+
   createApiFactory({
     api: graphQlBrowseApiRef,
     deps: { errorApi: errorApiRef, githubAuthApi: githubAuthApiRef },

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,12 @@ import express from 'express';
 /**
  * Key for all the different types of TechDocs publishers that are supported.
  */
-export type PublisherType = 'local' | 'googleGcs';
+export type PublisherType =
+  | 'local'
+  | 'googleGcs'
+  | 'awsS3'
+  | 'azureBlobStorage'
+  | 'openStackSwift';
 
 export type PublishRequest = {
   entity: Entity;
@@ -33,11 +38,50 @@ export type PublishResponse = {
 } | void;
 
 /**
+ * Result for the validation check.
+ */
+export type ReadinessResponse = {
+  /** If true, the publisher is able to interact with the backing storage. */
+  isAvailable: boolean;
+};
+
+/**
+ * Type to hold metadata found in techdocs_metadata.json and associated with each site
+ * @param etag ETag of the resource used to generate the site. Usually the latest commit sha of the source repository.
+ */
+export type TechDocsMetadata = {
+  site_name: string;
+  site_description: string;
+  etag: string;
+};
+
+export type MigrateRequest = {
+  /**
+   * Whether or not to remove the source file. Defaults to false (acting like a
+   * copy instead of a move).
+   */
+  removeOriginal?: boolean;
+
+  /**
+   * Maximum number of files/objects to migrate at once. Defaults to 25.
+   */
+  concurrency?: number;
+};
+
+/**
  * Base class for a TechDocs publisher (e.g. Local, Google GCS Bucket, AWS S3, etc.)
  * The publisher handles publishing of the generated static files after the prepare and generate steps of TechDocs.
  * It also provides APIs to communicate with the storage service.
  */
 export interface PublisherBase {
+  /**
+   * Check if the publisher is ready. This check tries to perform certain checks to see if the
+   * publisher is configured correctly and can be used to publish or read documentations.
+   * The different implementations might e.g. use the provided service credentials to access the
+   * target or check if a folder/bucket is available.
+   */
+  getReadiness(): Promise<ReadinessResponse>;
+
   /**
    * Store the generated static files onto a storage service (either local filesystem or external service).
    *
@@ -50,7 +94,7 @@ export interface PublisherBase {
    * Retrieve TechDocs Metadata about a site e.g. name, contributors, last updated, etc.
    * This API uses the techdocs_metadata.json file that co-exists along with the generated docs.
    */
-  fetchTechDocsMetadata(entityName: EntityName): Promise<string>;
+  fetchTechDocsMetadata(entityName: EntityName): Promise<TechDocsMetadata>;
 
   /**
    * Route middleware to serve static documentation files for an entity.
@@ -61,4 +105,14 @@ export interface PublisherBase {
    * Check if the index.html is present for the Entity at the Storage location.
    */
   hasDocsBeenGenerated(entityName: Entity): Promise<boolean>;
+
+  /**
+   * Migrates documentation objects with case sensitive entity triplets to
+   * lowercase entity triplets. This was (will be) a change introduced in
+   * techdocs-cli v{0.x.y} and techdocs-backend v{0.x.y}.
+   *
+   * Implementation of this method is unnecessary in publishers introduced
+   * after v{0.x.y} of techdocs-common.
+   */
+  migrateDocsCase?(migrateRequest: MigrateRequest): Promise<void>;
 }

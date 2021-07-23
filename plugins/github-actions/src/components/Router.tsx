@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,31 @@
  */
 import React from 'react';
 import { Entity } from '@backstage/catalog-model';
+import { useEntity } from '@backstage/plugin-catalog-react';
 import { Routes, Route } from 'react-router';
-import { rootRouteRef, buildRouteRef } from '../plugin';
+import { rootRouteRef, buildRouteRef } from '../routes';
 import { WorkflowRunDetails } from './WorkflowRunDetails';
 import { WorkflowRunsTable } from './WorkflowRunsTable';
 import { GITHUB_ACTIONS_ANNOTATION } from './useProjectName';
-import { MissingAnnotationEmptyState } from '@backstage/core';
+import { MissingAnnotationEmptyState } from '@backstage/core-components';
 
-export const isPluginApplicableToEntity = (entity: Entity) =>
+export const isGithubActionsAvailable = (entity: Entity) =>
   Boolean(entity.metadata.annotations?.[GITHUB_ACTIONS_ANNOTATION]);
 
-export const Router = ({ entity }: { entity: Entity }) =>
-  !isPluginApplicableToEntity(entity) ? (
-    <MissingAnnotationEmptyState annotation={GITHUB_ACTIONS_ANNOTATION} />
-  ) : (
+type Props = {
+  /** @deprecated The entity is now grabbed from context instead */
+  entity?: Entity;
+};
+
+export const Router = (_props: Props) => {
+  const { entity } = useEntity();
+
+  if (!isGithubActionsAvailable(entity)) {
+    return (
+      <MissingAnnotationEmptyState annotation={GITHUB_ACTIONS_ANNOTATION} />
+    );
+  }
+  return (
     <Routes>
       <Route
         path={`/${rootRouteRef.path}`}
@@ -41,3 +52,4 @@ export const Router = ({ entity }: { entity: Entity }) =>
       )
     </Routes>
   );
+};

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,15 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 export interface Config {
   kubernetes?: {
-    serviceLocatorMethod: 'multiTenant';
-    clusterLocatorMethods: 'config'[];
-    clusters: {
-      url: string;
-      name: string;
-      serviceAccountToken: string;
-      authProvider: 'serviceAccount';
-    }[];
+    serviceLocatorMethod: {
+      type: 'multiTenant';
+    };
+    clusterLocatorMethods: Array<
+      | {
+          /** @visibility frontend */
+          type: 'gke';
+          /** @visibility frontend */
+          projectId: string;
+          /** @visibility frontend */
+          region?: string;
+          /** @visibility frontend */
+          skipTLSVerify?: boolean;
+        }
+      | {
+          /** @visibility frontend */
+          type: 'config';
+          clusters: Array<{
+            /** @visibility frontend */
+            url: string;
+            /** @visibility frontend */
+            name: string;
+            /** @visibility secret  */
+            serviceAccountToken?: string;
+            /** @visibility frontend */
+            authProvider: 'aws' | 'google' | 'serviceAccount';
+            /** @visibility frontend */
+            skipTLSVerify?: boolean;
+          }>;
+        }
+    >;
+    customResources?: Array<{
+      group: string;
+      apiVersion: string;
+      plural: string;
+    }>;
   };
 }

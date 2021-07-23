@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ describe('loadConfigSchema', () => {
     expect(() =>
       schema2.process([...configs, { data: { key1: 3 }, context: 'test2' }]),
     ).toThrow(
-      'Config validation failed, Config should be string { type=string } at .key1',
+      'Config validation failed, Config should be string { type=string } at /key1',
     );
 
     await expect(

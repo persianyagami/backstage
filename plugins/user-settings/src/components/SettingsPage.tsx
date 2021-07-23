@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,39 +14,35 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react';
-import { Content, Header, HeaderTabs, Page } from '@backstage/core';
-import { General } from './General';
-import { AuthProviders } from './AuthProviders';
-import { FeatureFlags } from './FeatureFlags';
+import React from 'react';
+import { UserSettingsAuthProviders } from './AuthProviders';
+import { UserSettingsFeatureFlags } from './FeatureFlags';
+import { UserSettingsGeneral } from './General';
+import { Header, Page, TabbedLayout } from '@backstage/core-components';
 
 type Props = {
   providerSettings?: JSX.Element;
 };
 
 export const SettingsPage = ({ providerSettings }: Props) => {
-  const [activeTab, setActiveTab] = useState<number>(0);
-  const onTabChange = (index: number) => {
-    setActiveTab(index);
-  };
-
-  const tabs = [
-    { id: 'general', label: 'General' },
-    { id: 'auth-providers', label: 'Authentication Providers' },
-    { id: 'feature-flags', label: 'Feature Flags' },
-  ];
-
-  const content = [
-    <General />,
-    <AuthProviders providerSettings={providerSettings} />,
-    <FeatureFlags />,
-  ];
-
   return (
     <Page themeId="home">
       <Header title="Settings" />
-      <HeaderTabs tabs={tabs} onChange={onTabChange} />
-      <Content>{content[activeTab]}</Content>
+
+      <TabbedLayout>
+        <TabbedLayout.Route path="general" title="General">
+          <UserSettingsGeneral />
+        </TabbedLayout.Route>
+        <TabbedLayout.Route
+          path="auth-providers"
+          title="Authentication Providers"
+        >
+          <UserSettingsAuthProviders providerSettings={providerSettings} />
+        </TabbedLayout.Route>
+        <TabbedLayout.Route path="feature-flags" title="Feature Flags">
+          <UserSettingsFeatureFlags />
+        </TabbedLayout.Route>
+      </TabbedLayout>
     </Page>
   );
 };

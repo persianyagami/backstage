@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import React from 'react';
 import { ButtonBase } from '@material-ui/core';
 import { useBarChartStepperStyles as useStyles } from '../../utils/styles';
 
-export type BarChartSteps = {
+export type BarChartStepsProps = {
   steps: number;
   activeStep: number;
   onClick: (index: number) => void;
@@ -28,7 +28,7 @@ export const BarChartSteps = ({
   steps,
   activeStep,
   onClick,
-}: BarChartSteps) => {
+}: BarChartStepsProps) => {
   const classes = useStyles();
   const handleOnClick = (index: number) => (
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>,

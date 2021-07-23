@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 import { Entity } from '@backstage/catalog-model';
-import { Link } from '@backstage/core';
+import { readGitHubIntegrationConfigs } from '@backstage/integration';
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
   Box,
-  Breadcrumbs,
   CircularProgress,
   LinearProgress,
   Link as MaterialLink,
@@ -37,7 +36,7 @@ import {
 } from '@material-ui/core';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import ExternalLinkIcon from '@material-ui/icons/Launch';
-import moment from 'moment';
+import { DateTime } from 'luxon';
 import React from 'react';
 import { Job, Jobs, Step } from '../../api';
 import { useProjectName } from '../useProjectName';
@@ -45,6 +44,9 @@ import { WorkflowRunStatus } from '../WorkflowRunStatus';
 import { useWorkflowRunJobs } from './useWorkflowRunJobs';
 import { useWorkflowRunsDetails } from './useWorkflowRunsDetails';
 import { WorkflowRunLogs } from '../WorkflowRunLogs';
+
+import { configApiRef, useApi } from '@backstage/core-plugin-api';
+import { Breadcrumbs, Link } from '@backstage/core-components';
 
 const useStyles = makeStyles<Theme>(theme => ({
   root: {
@@ -71,29 +73,11 @@ const useStyles = makeStyles<Theme>(theme => ({
   },
 }));
 
-const JobsList = ({ jobs, entity }: { jobs?: Jobs; entity: Entity }) => {
-  const classes = useStyles();
-  return (
-    <Box>
-      {jobs &&
-        jobs.total_count > 0 &&
-        jobs.jobs.map(job => (
-          <JobListItem
-            key={job.id}
-            job={job}
-            className={
-              job.status !== 'success' ? classes.failed : classes.success
-            }
-            entity={entity}
-          />
-        ))}
-    </Box>
-  );
-};
-
 const getElapsedTime = (start: string, end: string) => {
-  const diff = moment(moment(end || moment()).diff(moment(start)));
-  const timeElapsed = diff.format('m [minutes] s [seconds]');
+  const startDate = DateTime.fromISO(start);
+  const endDate = end ? DateTime.fromISO(end) : DateTime.now();
+  const diff = endDate.diff(startDate);
+  const timeElapsed = diff.toFormat(`m 'minutes' s 'seconds'`);
   return timeElapsed;
 };
 
@@ -108,8 +92,8 @@ const StepView = ({ step }: { step: Step }) => {
       </TableCell>
       <TableCell>
         <WorkflowRunStatus
-          status={step.status.toUpperCase()}
-          conclusion={step.conclusion?.toUpperCase()}
+          status={step.status.toLocaleUpperCase('en-US')}
+          conclusion={step.conclusion?.toLocaleUpperCase('en-US')}
         />
       </TableCell>
     </TableRow>
@@ -158,12 +142,37 @@ const JobListItem = ({
   );
 };
 
+const JobsList = ({ jobs, entity }: { jobs?: Jobs; entity: Entity }) => {
+  const classes = useStyles();
+  return (
+    <Box>
+      {jobs &&
+        jobs.total_count > 0 &&
+        jobs.jobs.map(job => (
+          <JobListItem
+            key={job.id}
+            job={job}
+            className={
+              job.status !== 'success' ? classes.failed : classes.success
+            }
+            entity={entity}
+          />
+        ))}
+    </Box>
+  );
+};
+
 export const WorkflowRunDetails = ({ entity }: { entity: Entity }) => {
+  const config = useApi(configApiRef);
   const projectName = useProjectName(entity);
 
+  // TODO: Get github hostname from metadata annotation
+  const hostname = readGitHubIntegrationConfigs(
+    config.getOptionalConfigArray('integrations.github') ?? [],
+  )[0].host;
   const [owner, repo] = projectName.value ? projectName.value.split('/') : [];
-  const details = useWorkflowRunsDetails(repo, owner);
-  const jobs = useWorkflowRunJobs(details.value?.jobs_url);
+  const details = useWorkflowRunsDetails({ hostname, owner, repo });
+  const jobs = useWorkflowRunJobs({ hostname, owner, repo });
 
   const error = projectName.error || (projectName.value && details.error);
   const classes = useStyles();
@@ -178,10 +187,12 @@ export const WorkflowRunDetails = ({ entity }: { entity: Entity }) => {
   }
   return (
     <div className={classes.root}>
-      <Breadcrumbs aria-label="breadcrumb">
-        <Link to="..">Workflow runs</Link>
-        <Typography>Workflow run details</Typography>
-      </Breadcrumbs>
+      <Box mb={3}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link to="..">Workflow runs</Link>
+          <Typography>Workflow run details</Typography>
+        </Breadcrumbs>
+      </Box>
       <TableContainer component={Paper} className={classes.table}>
         <Table>
           <TableBody>
@@ -195,13 +206,19 @@ export const WorkflowRunDetails = ({ entity }: { entity: Entity }) => {
               <TableCell>
                 <Typography noWrap>Message</Typography>
               </TableCell>
-              <TableCell>{details.value?.head_commit.message}</TableCell>
+              <TableCell>{details.value?.head_commit?.message}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>
                 <Typography noWrap>Commit ID</Typography>
               </TableCell>
-              <TableCell>{details.value?.head_commit.id}</TableCell>
+              <TableCell>{details.value?.head_commit?.id}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>
+                <Typography noWrap>Workflow</Typography>
+              </TableCell>
+              <TableCell>{details.value?.name}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>
@@ -209,8 +226,8 @@ export const WorkflowRunDetails = ({ entity }: { entity: Entity }) => {
               </TableCell>
               <TableCell>
                 <WorkflowRunStatus
-                  status={details.value?.status}
-                  conclusion={details.value?.conclusion}
+                  status={details.value?.status || undefined}
+                  conclusion={details.value?.conclusion || undefined}
                 />
               </TableCell>
             </TableRow>
@@ -218,7 +235,7 @@ export const WorkflowRunDetails = ({ entity }: { entity: Entity }) => {
               <TableCell>
                 <Typography noWrap>Author</Typography>
               </TableCell>
-              <TableCell>{`${details.value?.head_commit.author.name} (${details.value?.head_commit.author.email})`}</TableCell>
+              <TableCell>{`${details.value?.head_commit?.author?.name} (${details.value?.head_commit?.author?.email})`}</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>

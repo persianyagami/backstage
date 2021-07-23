@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,22 @@
 
 import {
   createServiceBuilder,
+  DockerContainerRunner,
   SingleHostDiscovery,
+  UrlReader,
 } from '@backstage/backend-common';
+import { ConfigReader } from '@backstage/config';
+import {
+  DirectoryPreparer,
+  Generators,
+  Preparers,
+  Publisher,
+  TechdocsGenerator,
+} from '@backstage/techdocs-common';
+import Docker from 'dockerode';
 import { Server } from 'http';
 import { Logger } from 'winston';
 import { createRouter } from './router';
-import Docker from 'dockerode';
-import {
-  Preparers,
-  DirectoryPreparer,
-  Generators,
-  TechdocsGenerator,
-  Publisher,
-} from '@backstage/techdocs-common';
-import { ConfigReader } from '@backstage/config';
 
 export interface ServerOptions {
   port: number;
@@ -41,32 +43,41 @@ export async function startStandaloneServer(
   options: ServerOptions,
 ): Promise<Server> {
   const logger = options.logger.child({ service: 'techdocs-backend' });
-  const config = ConfigReader.fromConfigs([
-    {
-      context: '',
-      data: {
-        techdocs: {
-          publisher: {
-            type: 'local',
-          },
-        },
+  const config = new ConfigReader({
+    techdocs: {
+      publisher: {
+        type: 'local',
       },
     },
-  ]);
+  });
   const discovery = SingleHostDiscovery.fromConfig(config);
+  const mockUrlReader: jest.Mocked<UrlReader> = {
+    read: jest.fn(),
+    readTree: jest.fn(),
+    search: jest.fn(),
+  };
 
   logger.debug('Creating application...');
   const preparers = new Preparers();
-  const directoryPreparer = new DirectoryPreparer(logger);
+  const directoryPreparer = new DirectoryPreparer(
+    config,
+    logger,
+    mockUrlReader,
+  );
   preparers.register('dir', directoryPreparer);
 
+  const dockerClient = new Docker();
+  const containerRunner = new DockerContainerRunner({ dockerClient });
+
   const generators = new Generators();
-  const techdocsGenerator = new TechdocsGenerator(logger, config);
+  const techdocsGenerator = new TechdocsGenerator({
+    logger,
+    containerRunner,
+    config,
+  });
   generators.register('techdocs', techdocsGenerator);
 
-  const publisher = Publisher.fromConfig(config, logger, discovery);
-
-  const dockerClient = new Docker();
+  const publisher = await Publisher.fromConfig(config, { logger, discovery });
 
   logger.debug('Starting application server...');
   const router = await createRouter({
@@ -74,13 +85,15 @@ export async function startStandaloneServer(
     generators,
     logger,
     publisher,
-    dockerClient,
     config,
     discovery,
   });
-  const service = createServiceBuilder(module)
-    .enableCors({ origin: 'http://localhost:3000' })
+  let service = createServiceBuilder(module)
+    .setPort(options.port)
     .addRouter('/techdocs', router);
+  if (options.enableCors) {
+    service = service.enableCors({ origin: 'http://localhost:3000' });
+  }
   return await service.start().catch(err => {
     logger.error(err);
     process.exit(1);

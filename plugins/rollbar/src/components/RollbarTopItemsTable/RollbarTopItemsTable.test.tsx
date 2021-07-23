@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 import { wrapInTestApp } from '@backstage/test-utils';
 import { render } from '@testing-library/react';
 import * as React from 'react';
-import { RollbarTopItemsTable } from './RollbarTopItemsTable';
 import { RollbarTopActiveItem } from '../../api/types';
+import { RollbarTopItemsTable } from './RollbarTopItemsTable';
 
 const items: RollbarTopActiveItem[] = [
   {

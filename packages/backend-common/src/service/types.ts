@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,7 +86,20 @@ export type ServiceBuilder = {
   addRouter(root: string, router: Router | RequestHandler): ServiceBuilder;
 
   /**
+   * Set the request logging handler
+   *
+   * If no handler is given the default one is used
+   *
+   * @param requestLoggingHandler a factory function that given a logger returns an handler
+   */
+  setRequestLoggingHandler(
+    requestLoggingHandler: RequestLoggingHandlerFactory,
+  ): ServiceBuilder;
+
+  /**
    * Starts the server using the given settings.
    */
   start(): Promise<Server>;
 };
+
+export type RequestLoggingHandlerFactory = (logger?: Logger) => RequestHandler;

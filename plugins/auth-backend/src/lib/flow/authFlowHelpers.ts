@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,9 @@ export const postMessageResponse = (
     var originInfo = {'type': 'config_info', 'targetOrigin': origin};
     (window.opener || window.parent).postMessage(originInfo, '*');
     (window.opener || window.parent).postMessage(JSON.parse(authResponse), origin);
-    window.close();
+    setTimeout(() => {
+      window.close();
+    }, 100); // same as the interval of the core-api lib/loginPopup.ts (to address race conditions)
   `;
   const hash = crypto.createHash('sha256').update(script).digest('base64');
 

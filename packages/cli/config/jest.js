@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,20 +77,13 @@ async function getConfig() {
       '\\.(css|less|scss|sss|styl)$': require.resolve('jest-css-modules'),
     },
 
-    globals: {
-      'ts-jest': {
-        isolatedModules: true,
-      },
-    },
-
-    // We build .esm.js files with plugin:build, so to be able to load these in tests they need to be transformed
-    // TODO: jest is working on module support, it's possible that we can remove this in the future
     transform: {
-      '\\.esm\\.js$': require.resolve('jest-esm-transformer'),
-      '\\.(js|jsx|ts|tsx)$': require.resolve('ts-jest'),
+      '\\.esm\\.js$': require.resolve('./jestEsmTransform.js'), // See jestEsmTransform.js
+      '\\.(js|jsx|ts|tsx)$': require.resolve('@sucrase/jest-plugin'),
       '\\.(bmp|gif|jpg|jpeg|png|frag|xml|svg)$': require.resolve(
         './jestFileTransform.js',
       ),
+      '\\.(yaml)$': require.resolve('yaml-jest'),
     },
 
     // A bit more opinionated

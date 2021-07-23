@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,22 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { render } from '@testing-library/react';
-import WelcomePage from './WelcomePage';
-import { ThemeProvider } from '@material-ui/core';
+import { renderInTestApp } from '@backstage/test-utils';
 import { lightTheme } from '@backstage/theme';
+import { ThemeProvider } from '@material-ui/core';
+import React from 'react';
+import WelcomePage from './WelcomePage';
+
 import {
   ApiProvider,
   ApiRegistry,
-  errorApiRef,
-  configApiRef,
   ConfigReader,
-} from '@backstage/core';
+} from '@backstage/core-app-api';
+import { configApiRef, errorApiRef } from '@backstage/core-plugin-api';
 
 describe('WelcomePage', () => {
-  it('should render', () => {
-    // TODO: use common test app with mock implementations of all core APIs
-    const rendered = render(
+  it('should render', async () => {
+    const { baseElement } = await renderInTestApp(
       <ApiProvider
         apis={ApiRegistry.from([
           [errorApiRef, { post: jest.fn() }],
@@ -42,6 +41,6 @@ describe('WelcomePage', () => {
         </ThemeProvider>
       </ApiProvider>,
     );
-    expect(rendered.baseElement).toBeInTheDocument();
+    expect(baseElement).toBeInTheDocument();
   });
 });

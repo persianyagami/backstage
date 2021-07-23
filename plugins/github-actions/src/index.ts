@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,19 @@
  * limitations under the License.
  */
 
-export { plugin } from './plugin';
+export {
+  githubActionsPlugin,
+  githubActionsPlugin as plugin,
+  EntityGithubActionsContent,
+  EntityLatestGithubActionRunCard,
+  EntityLatestGithubActionsForBranchCard,
+  EntityRecentGithubActionsRunsCard,
+} from './plugin';
 export * from './api';
-export { Router, isPluginApplicableToEntity } from './components/Router';
+export {
+  Router,
+  isGithubActionsAvailable,
+  isGithubActionsAvailable as isPluginApplicableToEntity,
+} from './components/Router';
 export * from './components/Cards';
 export { GITHUB_ACTIONS_ANNOTATION } from './components/useProjectName';

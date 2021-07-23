@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,20 @@
  * limitations under the License.
  */
 
+import { gcpApiRef, GcpClient } from './api';
+import { rootRouteRef } from './routes';
 import {
   createApiFactory,
   createPlugin,
-  createRouteRef,
+  createRoutableExtension,
   googleAuthApiRef,
-} from '@backstage/core';
-import { gcpApiRef, GcpClient } from './api';
-import { NewProjectPage } from './components/NewProjectPage';
-import { ProjectDetailsPage } from './components/ProjectDetailsPage';
-import { ProjectListPage } from './components/ProjectListPage';
+} from '@backstage/core-plugin-api';
 
-export const rootRouteRef = createRouteRef({
-  path: '/gcp-projects',
-  title: 'GCP Projects',
-});
-export const projectRouteRef = createRouteRef({
-  path: '/gcp-projects/project',
-  title: 'GCP Project Page',
-});
-export const newProjectRouteRef = createRouteRef({
-  path: '/gcp-projects/new',
-  title: 'GCP Project Page',
-});
-
-export const plugin = createPlugin({
+export const gcpProjectsPlugin = createPlugin({
   id: 'gcp-projects',
+  routes: {
+    root: rootRouteRef,
+  },
   apis: [
     createApiFactory({
       api: gcpApiRef,
@@ -49,9 +37,12 @@ export const plugin = createPlugin({
       },
     }),
   ],
-  register({ router }) {
-    router.addRoute(rootRouteRef, ProjectListPage);
-    router.addRoute(projectRouteRef, ProjectDetailsPage);
-    router.addRoute(newProjectRouteRef, NewProjectPage);
-  },
 });
+
+export const GcpProjectsPage = gcpProjectsPlugin.provide(
+  createRoutableExtension({
+    component: () =>
+      import('./components/GcpProjectsPage').then(m => m.GcpProjectsPage),
+    mountPoint: rootRouteRef,
+  }),
+);

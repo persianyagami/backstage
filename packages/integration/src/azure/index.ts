@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+export { AzureIntegration } from './AzureIntegration';
 export {
   readAzureIntegrationConfig,
   readAzureIntegrationConfigs,
 } from './config';
 export type { AzureIntegrationConfig } from './config';
 export {
+  getAzureCommitsUrl,
   getAzureDownloadUrl,
   getAzureFileFetchUrl,
   getAzureRequestOptions,

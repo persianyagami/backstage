@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ const baseOptions = {
 
 describe('injectConfig', () => {
   beforeEach(() => {
-    fsMock.readdir.mockResolvedValue(['main.js']);
+    fsMock.readdir.mockResolvedValue(['main.js'] as any);
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe('injectConfig', () => {
   });
 
   it('should inject without config', async () => {
-    fsMock.readdir.mockResolvedValue(['main.js']);
+    fsMock.readdir.mockResolvedValue(['main.js'] as any);
     readFileMock.mockImplementation(
       async () => '"__APP_INJECTED_RUNTIME_CONFIG__"',
     );
@@ -68,7 +68,7 @@ describe('injectConfig', () => {
       'not-js.txt',
       'main.js',
       'after.js',
-    ]);
+    ] as any);
     readFileMock.mockImplementation(async (file: string) => {
       if (file.endsWith('main.js')) {
         return '"__APP_INJECTED_RUNTIME_CONFIG__"';
@@ -111,7 +111,7 @@ describe('injectConfig', () => {
   });
 
   it('should re-inject config', async () => {
-    fsMock.readdir.mockResolvedValue(['main.js']);
+    fsMock.readdir.mockResolvedValue(['main.js'] as any);
     readFileMock.mockResolvedValue(
       'JSON.parse("__APP_INJECTED_RUNTIME_CONFIG__")',
     );

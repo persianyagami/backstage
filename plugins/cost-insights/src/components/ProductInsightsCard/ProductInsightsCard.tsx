@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import React, {
   useState,
 } from 'react';
 import pluralize from 'pluralize';
-import { InfoCard } from '@backstage/core';
 import { Typography } from '@material-ui/core';
 import { default as Alert } from '@material-ui/lab/Alert';
 import { PeriodSelect } from '../PeriodSelect';
@@ -34,9 +33,10 @@ import {
   MapLoadingToProps,
   useLastCompleteBillingDate,
   useLoading,
-  useScroll,
 } from '../../hooks';
 import { findAnyKey } from '../../utils/assert';
+import { ScrollAnchor } from '../../utils/scroll';
+import { InfoCard } from '@backstage/core-components';
 
 type LoadingProps = (isLoading: boolean) => void;
 
@@ -60,7 +60,6 @@ export const ProductInsightsCard = ({
 }: PropsWithChildren<ProductInsightsCardProps>) => {
   const classes = useStyles();
   const mountedRef = useRef(false);
-  const { ScrollAnchor } = useScroll(product.kind);
   const [error, setError] = useState<Maybe<Error>>(null);
   const dispatchLoading = useLoading(mapLoadingToProps);
   const lastCompleteBillingDate = useLastCompleteBillingDate();
@@ -96,9 +95,10 @@ export const ProductInsightsCard = ({
   const entityKey = findAnyKey(entity?.entities);
   const entities = entityKey ? entity!.entities[entityKey] : [];
 
-  const subheader = entityKey
-    ? `${pluralize(entityKey, entities.length, true)}, sorted by cost`
-    : null;
+  const subheader =
+    entityKey && entities.length
+      ? `${pluralize(entityKey, entities.length, true)}, sorted by cost`
+      : null;
   const headerProps = {
     classes: classes,
     action: <PeriodSelect duration={duration} onSelect={setDuration} />,
@@ -107,7 +107,7 @@ export const ProductInsightsCard = ({
   if (error || !entity) {
     return (
       <InfoCard title={product.name} headerProps={headerProps}>
-        <ScrollAnchor behavior="smooth" top={-12} />
+        <ScrollAnchor id={product.kind} />
         <Alert severity="error">
           {error
             ? error.message
@@ -123,7 +123,7 @@ export const ProductInsightsCard = ({
       subheader={subheader}
       headerProps={headerProps}
     >
-      <ScrollAnchor behavior="smooth" top={-12} />
+      <ScrollAnchor id={product.kind} />
       {entities.length ? (
         <ProductInsightsChart
           entity={entity}
@@ -132,7 +132,7 @@ export const ProductInsightsCard = ({
         />
       ) : (
         <Typography>
-          There are no {product.name} costs within this timeframe for your
+          There are no {product.name} costs within this time frame for your
           team's projects.
         </Typography>
       )}

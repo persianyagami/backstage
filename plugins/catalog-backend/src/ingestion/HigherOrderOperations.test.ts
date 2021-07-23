@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -360,7 +360,10 @@ describe('HigherOrderOperations', () => {
         entities: [{ entity: desc, location, relations: [] }],
         errors: [],
       });
-      entitiesCatalog.entities.mockResolvedValue([]);
+      entitiesCatalog.entities.mockResolvedValue({
+        entities: [],
+        pageInfo: { hasNextPage: false },
+      });
       entitiesCatalog.batchAddOrUpdateEntities.mockResolvedValue([]);
 
       await expect(

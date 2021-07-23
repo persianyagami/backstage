@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import React from 'react';
 import { fireEvent } from '@testing-library/react';
 import { BarChart, BarChartProps } from './BarChart';
 import { ResourceData } from '../../types';
-import { createMockEntity } from '../../utils/mockData';
+import { createMockEntity } from '../../testUtils';
 import { resourceSort } from '../../utils/sort';
 import { renderInTestApp } from '@backstage/test-utils';
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,41 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState, useEffect, ReactNode } from 'react';
+
 import {
-  Link,
-  useParams,
-  useNavigate,
-  generatePath,
-  resolvePath,
-} from 'react-router-dom';
-import { useAsync } from 'react-use';
-import {
-  makeStyles,
+  Button,
   Grid,
   List,
   ListItem,
-  Button,
   ListItemIcon,
   ListItemText,
+  makeStyles,
 } from '@material-ui/core';
 import Alert from '@material-ui/lab/Alert';
+import React, { ReactNode, useEffect, useState } from 'react';
 import {
-  useApi,
-  InfoCard,
-  Header,
-  Page,
-  Content,
-  ContentHeader,
-  HeaderLabel,
-  Progress,
-} from '@backstage/core';
-
-import { lighthouseApiRef, Website, Audit } from '../../api';
+  generatePath,
+  Link,
+  resolvePath,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+import { useAsync } from 'react-use';
+import { Audit, lighthouseApiRef, Website } from '../../api';
+import { formatTime } from '../../utils';
 import AuditStatusIcon from '../AuditStatusIcon';
 import LighthouseSupportButton from '../SupportButton';
-import { formatTime } from '../../utils';
-import { viewAuditRouteRef, createAuditRouteRef } from '../../plugin';
+
+import {
+  Content,
+  ContentHeader,
+  Header,
+  HeaderLabel,
+  InfoCard,
+  Page,
+  Progress,
+} from '@backstage/core-components';
+import { useApi } from '@backstage/core-plugin-api';
+
+// TODO(freben): move all of this out of index
 
 const useStyles = makeStyles({
   contentGrid: {
@@ -78,12 +80,7 @@ const AuditLinkList = ({ audits = [], selectedId }: AuditLinkListProps) => (
         button
         component={Link}
         replace
-        to={resolvePath(
-          generatePath(viewAuditRouteRef.path, {
-            id: audit.id,
-          }),
-          '../../',
-        )}
+        to={resolvePath(generatePath('audit/:id', { id: audit.id }), '../../')}
       >
         <ListItemIcon>
           <AuditStatusIcon audit={audit} />
@@ -163,7 +160,7 @@ export const AuditViewContent = () => {
     );
   }
 
-  let createAuditButtonUrl = createAuditRouteRef.path;
+  let createAuditButtonUrl = 'create-audit';
   if (value?.url) {
     createAuditButtonUrl += `?url=${encodeURIComponent(value.url)}`;
   }

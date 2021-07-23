@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createPlugin } from '@backstage/core';
+import {
+  createComponentExtension,
+  createPlugin,
+} from '@backstage/core-plugin-api';
 
-export const plugin = createPlugin({
+export const orgPlugin = createPlugin({
   id: 'org',
 });
+
+export const EntityGroupProfileCard = orgPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () => import('./components').then(m => m.GroupProfileCard),
+    },
+  }),
+);
+export const EntityMembersListCard = orgPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () => import('./components').then(m => m.MembersListCard),
+    },
+  }),
+);
+export const EntityOwnershipCard = orgPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () => import('./components').then(m => m.OwnershipCard),
+    },
+  }),
+);
+export const EntityUserProfileCard = orgPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () => import('./components').then(m => m.UserProfileCard),
+    },
+  }),
+);

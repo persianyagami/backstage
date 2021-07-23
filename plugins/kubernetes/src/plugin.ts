@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,31 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { KubernetesBackendClient } from './api/KubernetesBackendClient';
+import { kubernetesApiRef } from './api/types';
+import { kubernetesAuthProvidersApiRef } from './kubernetes-auth-provider/types';
+import { KubernetesAuthProviders } from './kubernetes-auth-provider/KubernetesAuthProviders';
 import {
   createApiFactory,
   createPlugin,
   createRouteRef,
   discoveryApiRef,
+  identityApiRef,
   googleAuthApiRef,
-} from '@backstage/core';
-import { KubernetesBackendClient } from './api/KubernetesBackendClient';
-import { kubernetesApiRef } from './api/types';
-import { kubernetesAuthProvidersApiRef } from './kubernetes-auth-provider/types';
-import { KubernetesAuthProviders } from './kubernetes-auth-provider/KubernetesAuthProviders';
+  createRoutableExtension,
+} from '@backstage/core-plugin-api';
 
 export const rootCatalogKubernetesRouteRef = createRouteRef({
   path: '*',
   title: 'Kubernetes',
 });
 
-export const plugin = createPlugin({
+export const kubernetesPlugin = createPlugin({
   id: 'kubernetes',
   apis: [
     createApiFactory({
       api: kubernetesApiRef,
-      deps: { discoveryApi: discoveryApiRef },
-      factory: ({ discoveryApi }) =>
-        new KubernetesBackendClient({ discoveryApi }),
+      deps: {
+        discoveryApi: discoveryApiRef,
+        identityApi: identityApiRef,
+      },
+      factory: ({ discoveryApi, identityApi }) =>
+        new KubernetesBackendClient({ discoveryApi, identityApi }),
     }),
     createApiFactory({
       api: kubernetesAuthProvidersApiRef,
@@ -47,4 +52,14 @@ export const plugin = createPlugin({
       },
     }),
   ],
+  routes: {
+    entityContent: rootCatalogKubernetesRouteRef,
+  },
 });
+
+export const EntityKubernetesContent = kubernetesPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./Router').then(m => m.Router),
+    mountPoint: rootCatalogKubernetesRouteRef,
+  }),
+);

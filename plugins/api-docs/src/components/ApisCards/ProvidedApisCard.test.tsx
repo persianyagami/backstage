@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,17 @@
  */
 
 import { Entity, RELATION_PROVIDES_API } from '@backstage/catalog-model';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
-import { CatalogApi, catalogApiRef } from '@backstage/plugin-catalog';
+import {
+  CatalogApi,
+  catalogApiRef,
+  EntityProvider,
+} from '@backstage/plugin-catalog-react';
 import { renderInTestApp } from '@backstage/test-utils';
 import { waitFor } from '@testing-library/react';
 import React from 'react';
 import { ApiDocsConfig, apiDocsConfigRef } from '../../config';
 import { ProvidedApisCard } from './ProvidedApisCard';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 
 describe('<ProvidedApisCard />', () => {
   const apiDocsConfig: jest.Mocked<ApiDocsConfig> = {
@@ -63,12 +67,14 @@ describe('<ProvidedApisCard />', () => {
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ProvidedApisCard entity={entity} />
+        <EntityProvider entity={entity}>
+          <ProvidedApisCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
     expect(getByText(/Provided APIs/i)).toBeInTheDocument();
-    expect(getByText(/No APIs provided by this entity/i)).toBeInTheDocument();
+    expect(getByText(/does not provide any APIs/i)).toBeInTheDocument();
   });
 
   it('shows consumed APIs', async () => {
@@ -90,38 +96,31 @@ describe('<ProvidedApisCard />', () => {
         },
       ],
     };
-    catalogApi.getEntityByName.mockResolvedValue({
-      apiVersion: 'v1',
-      kind: 'API',
-      metadata: {
-        name: 'target-name',
-        namespace: 'my-namespace',
-      },
-      spec: {
-        type: 'openapi',
-        owner: 'Test',
-        lifecycle: 'production',
-        definition: '...',
-      },
-    });
-    apiDocsConfig.getApiDefinitionWidget.mockReturnValue({
-      type: 'openapi',
-      title: 'OpenAPI',
-      component: () => <div />,
+    catalogApi.getEntities.mockResolvedValue({
+      items: [
+        {
+          apiVersion: 'v1',
+          kind: 'API',
+          metadata: {
+            name: 'target-name',
+            namespace: 'my-namespace',
+          },
+          spec: {},
+        },
+      ],
     });
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ProvidedApisCard entity={entity} />
+        <EntityProvider entity={entity}>
+          <ProvidedApisCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
     await waitFor(() => {
       expect(getByText(/Provided APIs/i)).toBeInTheDocument();
       expect(getByText(/target-name/i)).toBeInTheDocument();
-      expect(getByText(/OpenAPI/)).toBeInTheDocument();
-      expect(getByText(/Test/i)).toBeInTheDocument();
-      expect(getByText(/production/i)).toBeInTheDocument();
     });
   });
 });

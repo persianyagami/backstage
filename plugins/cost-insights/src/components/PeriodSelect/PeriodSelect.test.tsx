@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import { renderInTestApp } from '@backstage/test-utils';
 import UserEvent from '@testing-library/user-event';
 import { PeriodSelect, getDefaultOptions } from './PeriodSelect';
 import { getDefaultPageFilters } from '../../utils/filters';
-import { MockBillingDateProvider } from '../../utils/tests';
+import { MockBillingDateProvider } from '../../testUtils';
 import { Group, Duration } from '../../types';
 
 const DefaultPageFilters = getDefaultPageFilters([{ id: 'tools' }] as Group[]);

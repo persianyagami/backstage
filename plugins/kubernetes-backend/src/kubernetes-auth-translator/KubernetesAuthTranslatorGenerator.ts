@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,18 @@
 import { KubernetesAuthTranslator } from './types';
 import { GoogleKubernetesAuthTranslator } from './GoogleKubernetesAuthTranslator';
 import { ServiceAccountKubernetesAuthTranslator } from './ServiceAccountKubernetesAuthTranslator';
+import { AwsIamKubernetesAuthTranslator } from './AwsIamKubernetesAuthTranslator';
 
 export class KubernetesAuthTranslatorGenerator {
   static getKubernetesAuthTranslatorInstance(
-    authProvider: String,
+    authProvider: string,
   ): KubernetesAuthTranslator {
     switch (authProvider) {
       case 'google': {
         return new GoogleKubernetesAuthTranslator();
+      }
+      case 'aws': {
+        return new AwsIamKubernetesAuthTranslator();
       }
       case 'serviceAccount': {
         return new ServiceAccountKubernetesAuthTranslator();

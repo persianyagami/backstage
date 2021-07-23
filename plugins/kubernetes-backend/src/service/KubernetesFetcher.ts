@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import http from 'http';
 import {
   AppsV1Api,
   AutoscalingV1Api,
@@ -27,20 +26,24 @@ import {
   V1Pod,
   V1ReplicaSet,
 } from '@kubernetes/client-node';
-import { KubernetesClientProvider } from './KubernetesClientProvider';
 import { V1Service } from '@kubernetes/client-node/dist/gen/model/v1Service';
+import http from 'http';
+import lodash, { Dictionary } from 'lodash';
 import { Logger } from 'winston';
 import {
-  KubernetesFetcher,
   ClusterDetails,
-  KubernetesObjectTypes,
-  FetchResponse,
   FetchResponseWrapper,
+  KubernetesFetcher,
+  KubernetesObjectTypes,
+  ObjectFetchParams,
+  CustomResource,
+} from '../types/types';
+import {
+  FetchResponse,
   KubernetesFetchError,
   KubernetesErrorTypes,
-  ObjectFetchParams,
-} from '..';
-import lodash, { Dictionary } from 'lodash';
+} from '@backstage/plugin-kubernetes-common';
+import { KubernetesClientProvider } from './KubernetesClientProvider';
 
 export interface Clients {
   core: CoreV1Api;
@@ -74,6 +77,8 @@ function fetchResultsToResponseWrapper(
 
 const statusCodeToErrorType = (statusCode: number): KubernetesErrorTypes => {
   switch (statusCode) {
+    case 400:
+      return 'BAD_REQUEST';
     case 401:
       return 'UNAUTHORIZED_ERROR';
     case 500:
@@ -118,7 +123,18 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
       ).catch(captureKubernetesErrorsRethrowOthers);
     });
 
-    return Promise.all(fetchResults).then(fetchResultsToResponseWrapper);
+    const customObjectsFetchResults = params.customResources.map(cr => {
+      return this.fetchCustomResource(
+        params.clusterDetails,
+        cr,
+        params.labelSelector ||
+          `backstage.io/kubernetes-id=${params.serviceId}`,
+      ).catch(captureKubernetesErrorsRethrowOthers);
+    });
+
+    return Promise.all(fetchResults.concat(customObjectsFetchResults)).then(
+      fetchResultsToResponseWrapper,
+    );
   }
 
   // TODO could probably do with a tidy up
@@ -169,6 +185,30 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
         // unrecognised type
         throw new Error(`unrecognised type=${type}`);
     }
+  }
+
+  private fetchCustomResource(
+    clusterDetails: ClusterDetails,
+    customResource: CustomResource,
+    labelSelector: string,
+  ): Promise<FetchResponse> {
+    const customObjects = this.kubernetesClientProvider.getCustomObjectsClient(
+      clusterDetails,
+    );
+
+    return customObjects
+      .listClusterCustomObject(
+        customResource.group,
+        customResource.apiVersion,
+        customResource.plural,
+        '',
+        '',
+        '',
+        labelSelector,
+      )
+      .then(r => {
+        return { type: 'customresources', resources: (r.body as any).items };
+      });
   }
 
   private singleClusterFetch<T>(

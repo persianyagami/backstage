@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ export default async (cmd: Command) => {
   try {
     await createDistWorkspace([pkg.name], {
       targetDir: tmpDir,
-      buildDependencies: Boolean(cmd.build),
+      buildDependencies: Boolean(cmd.buildDependencies),
       buildExcludes: [pkg.name],
       parallel: parseParallel(process.env[PARALLEL_ENV_VAR]),
       skeleton: SKELETON_FILE,

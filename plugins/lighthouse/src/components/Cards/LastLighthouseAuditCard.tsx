@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,20 @@
  */
 import React from 'react';
 import { Audit, AuditCompleted, LighthouseCategoryId } from '../../api';
+import { useWebsiteForEntity } from '../../hooks/useWebsiteForEntity';
+import AuditStatusIcon from '../AuditStatusIcon';
 import {
   InfoCard,
+  InfoCardVariants,
   Progress,
   StatusError,
   StatusOK,
   StatusWarning,
   StructuredMetadataTable,
-} from '@backstage/core';
-import { useWebsiteForEntity } from '../../hooks/useWebsiteForEntity';
-import AuditStatusIcon from '../AuditStatusIcon';
+} from '@backstage/core-components';
 
 const LighthouseCategoryScoreStatus = ({ score }: { score: number }) => {
-  const scoreAsPercentage = score * 100;
+  const scoreAsPercentage = Math.round(score * 100);
   switch (true) {
     case scoreAsPercentage >= 90:
       return (
@@ -58,7 +59,7 @@ const LighthouseCategoryScoreStatus = ({ score }: { score: number }) => {
 const LighthouseAuditStatus = ({ audit }: { audit: Audit }) => (
   <>
     <AuditStatusIcon audit={audit} />
-    {audit.status.toUpperCase()}
+    {audit.status.toLocaleUpperCase('en-US')}
   </>
 );
 
@@ -96,7 +97,7 @@ export const LastLighthouseAuditCard = ({
   variant,
 }: {
   dense?: boolean;
-  variant?: string;
+  variant?: InfoCardVariants;
 }) => {
   const { value: website, loading, error } = useWebsiteForEntity();
 

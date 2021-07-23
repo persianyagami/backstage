@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,18 @@
  */
 
 import { ConfigReader } from '@backstage/config';
-import { createDatabaseClient } from './connection';
+import {
+  createDatabaseClient,
+  createNameOverride,
+  parseConnectionString,
+} from './connection';
 
 describe('database connection', () => {
-  const createConfig = (data: any) =>
-    ConfigReader.fromConfigs([
-      {
-        context: '',
-        data,
-      },
-    ]);
-
   describe('createDatabaseClient', () => {
     it('returns a postgres connection', () => {
       expect(
         createDatabaseClient(
-          createConfig({
+          new ConfigReader({
             client: 'pg',
             connection: {
               host: 'acme',
@@ -46,7 +42,7 @@ describe('database connection', () => {
     it('returns an sqlite connection', () => {
       expect(
         createDatabaseClient(
-          createConfig({
+          new ConfigReader({
             client: 'sqlite3',
             connection: ':memory:',
           }),
@@ -54,11 +50,11 @@ describe('database connection', () => {
       ).toBeTruthy();
     });
 
-    it('tries to create a mysql connection as a passthrough', () => {
+    it('returns a mysql connection', () => {
       expect(() =>
         createDatabaseClient(
-          createConfig({
-            client: 'mysql',
+          new ConfigReader({
+            client: 'mysql2',
             connection: {
               host: '127.0.0.1',
               user: 'foo',
@@ -67,13 +63,13 @@ describe('database connection', () => {
             },
           }),
         ),
-      ).toThrowError(/Cannot find module 'mysql'/);
+      ).toBeTruthy();
     });
 
     it('accepts overrides', () => {
       expect(
         createDatabaseClient(
-          createConfig({
+          new ConfigReader({
             client: 'pg',
             connection: {
               host: 'acme',
@@ -94,7 +90,7 @@ describe('database connection', () => {
     it('throws an error without a client', () => {
       expect(() =>
         createDatabaseClient(
-          createConfig({
+          new ConfigReader({
             connection: '',
           }),
         ),
@@ -104,11 +100,56 @@ describe('database connection', () => {
     it('throws an error without a connection', () => {
       expect(() =>
         createDatabaseClient(
-          createConfig({
+          new ConfigReader({
             client: 'pg',
           }),
         ),
       ).toThrowError();
+    });
+  });
+
+  describe('createNameOverride', () => {
+    it('returns Knex config for postgres', () => {
+      expect(createNameOverride('pg', 'testpg')).toHaveProperty(
+        'connection.database',
+        'testpg',
+      );
+    });
+
+    it('returns Knex config for sqlite', () => {
+      expect(createNameOverride('sqlite3', 'testsqlite')).toHaveProperty(
+        'connection.filename',
+        'testsqlite',
+      );
+    });
+
+    it('returns Knex config for mysql', () => {
+      expect(createNameOverride('mysql', 'testmysql')).toHaveProperty(
+        'connection.database',
+        'testmysql',
+      );
+    });
+
+    it('throws an error for unknown connection', () => {
+      expect(() => createNameOverride('unknown', 'testname')).toThrowError();
+    });
+  });
+
+  describe('parseConnectionString', () => {
+    it('returns parsed Knex.StaticConnectionConfig for postgres', () => {
+      expect(
+        parseConnectionString('postgresql://foo:bar@acme:5432/foodb', 'pg'),
+      ).toHaveProperty('database', 'foodb');
+    });
+
+    it('returns parsed Knex.StaticConnectionConfig for mysql2', () => {
+      expect(
+        parseConnectionString('mysql://foo:bar@acme:3306/foodb', 'mysql2'),
+      ).toHaveProperty('database', 'foodb');
+    });
+
+    it('throws an error if client hint is not provided', () => {
+      expect(() => parseConnectionString('sqlite://')).toThrow();
     });
   });
 });

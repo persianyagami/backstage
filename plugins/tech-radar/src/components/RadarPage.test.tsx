@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,22 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { render, waitForElement } from '@testing-library/react';
-import { ThemeProvider } from '@material-ui/core';
+import {
+  MockErrorApi,
+  renderInTestApp,
+  wrapInTestApp,
+} from '@backstage/test-utils';
 import { lightTheme } from '@backstage/theme';
-import { ApiRegistry, ApiProvider, errorApiRef } from '@backstage/core';
-
+import { ThemeProvider } from '@material-ui/core';
+import { render, waitForElement } from '@testing-library/react';
+import React from 'react';
+import { act } from 'react-dom/test-utils';
 import GetBBoxPolyfill from '../utils/polyfills/getBBox';
 import { RadarPage } from './RadarPage';
-import { act } from 'react-dom/test-utils';
-import { MockErrorApi, wrapInTestApp } from '@backstage/test-utils';
+import { TechRadarLoaderResponse, techRadarApiRef, TechRadarApi } from '../api';
+
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
+import { errorApiRef } from '@backstage/core-plugin-api';
 
 describe('RadarPage', () => {
   beforeAll(() => {
@@ -33,6 +39,17 @@ describe('RadarPage', () => {
   afterAll(() => {
     GetBBoxPolyfill.remove();
   });
+  class MockClient implements TechRadarApi {
+    async load(): Promise<TechRadarLoaderResponse> {
+      return {
+        entries: [],
+        quadrants: [],
+        rings: [],
+      };
+    }
+  }
+
+  const mockClient = new MockClient();
 
   it('should render a progress bar', async () => {
     jest.useFakeTimers();
@@ -46,7 +63,9 @@ describe('RadarPage', () => {
     const { getByTestId, queryByTestId } = render(
       wrapInTestApp(
         <ThemeProvider theme={lightTheme}>
-          <RadarPage {...techRadarProps} />
+          <ApiProvider apis={ApiRegistry.from([[techRadarApiRef, mockClient]])}>
+            <RadarPage {...techRadarProps} />
+          </ApiProvider>
         </ThemeProvider>,
       ),
     );
@@ -66,13 +85,14 @@ describe('RadarPage', () => {
       height: 800,
       svgProps: { 'data-testid': 'tech-radar-svg' },
     };
+    jest.spyOn(mockClient, 'load');
 
-    const { getByText, getByTestId } = render(
-      wrapInTestApp(
-        <ThemeProvider theme={lightTheme}>
+    const { getByText, getByTestId } = await renderInTestApp(
+      <ThemeProvider theme={lightTheme}>
+        <ApiProvider apis={ApiRegistry.from([[techRadarApiRef, mockClient]])}>
           <RadarPage {...techRadarProps} />
-        </ThemeProvider>,
-      ),
+        </ApiProvider>
+      </ThemeProvider>,
     );
 
     await waitForElement(() => getByTestId('tech-radar-svg'));
@@ -81,22 +101,53 @@ describe('RadarPage', () => {
       getByText('Pick the recommended technologies for your projects'),
     ).toBeInTheDocument();
     expect(getByTestId('tech-radar-svg')).toBeInTheDocument();
+    expect(mockClient.load).toBeCalledWith(undefined);
+  });
+
+  it('should call load with id', async () => {
+    const techRadarProps = {
+      width: 1200,
+      height: 800,
+      svgProps: { 'data-testid': 'tech-radar-svg' },
+      id: 'myId',
+    };
+    jest.spyOn(mockClient, 'load');
+
+    const { getByTestId } = await renderInTestApp(
+      <ThemeProvider theme={lightTheme}>
+        <ApiProvider apis={ApiRegistry.from([[techRadarApiRef, mockClient]])}>
+          <RadarPage {...techRadarProps} />
+        </ApiProvider>
+      </ThemeProvider>,
+    );
+
+    await waitForElement(() => getByTestId('tech-radar-svg'));
+
+    expect(getByTestId('tech-radar-svg')).toBeInTheDocument();
+    expect(mockClient.load).toBeCalledWith('myId');
   });
 
   it('should call the errorApi if load fails', async () => {
     const errorApi = new MockErrorApi({ collect: true });
-    const techRadarLoadFail = () =>
-      Promise.reject(new Error('404 Page Not Found'));
+
+    jest
+      .spyOn(mockClient, 'load')
+      .mockRejectedValue(new Error('404 Page Not Found'));
+
     const techRadarProps = {
       width: 1200,
       height: 800,
-      getData: techRadarLoadFail,
       svgProps: { 'data-testid': 'tech-radar-svg' },
     };
 
-    const { queryByTestId } = render(
+    const { queryByTestId } = await renderInTestApp(
       <ThemeProvider theme={lightTheme}>
-        <ApiProvider apis={ApiRegistry.with(errorApiRef, errorApi)}>
+        <ApiProvider
+          apis={ApiRegistry.from([
+            [errorApiRef, errorApi],
+            [techRadarApiRef, mockClient],
+          ])}
+        >
           <RadarPage {...techRadarProps} />
         </ApiProvider>
       </ThemeProvider>,

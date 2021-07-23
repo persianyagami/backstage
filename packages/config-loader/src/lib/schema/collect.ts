@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,11 +118,15 @@ export async function collectConfigSchemas(
     }
 
     await Promise.all(
-      depNames.map(name => processItem({ name, parentPath: pkgPath })),
+      depNames.map(depName =>
+        processItem({ name: depName, parentPath: pkgPath }),
+      ),
     );
   }
 
-  await Promise.all(packageNames.map(name => processItem({ name })));
+  await Promise.all(
+    packageNames.map(name => processItem({ name, parentPath: currentDir })),
+  );
 
   const tsSchemas = compileTsSchemas(tsSchemaPaths);
 

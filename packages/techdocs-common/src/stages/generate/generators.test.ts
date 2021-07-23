@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { Generators, TechdocsGenerator } from '.';
-import { getVoidLogger } from '@backstage/backend-common';
+import { ContainerRunner, getVoidLogger } from '@backstage/backend-common';
 import { ConfigReader } from '@backstage/config';
+import { Generators } from './generators';
+import { TechdocsGenerator } from './techdocs';
 
 const logger = getVoidLogger();
 
@@ -29,6 +30,10 @@ const mockEntity = {
 };
 
 describe('generators', () => {
+  const containerRunner: jest.Mocked<ContainerRunner> = {
+    runContainer: jest.fn(),
+  };
+
   it('should return error if no generator is registered', async () => {
     const generators = new Generators();
 
@@ -39,10 +44,11 @@ describe('generators', () => {
 
   it('should return correct registered generator', async () => {
     const generators = new Generators();
-    const techdocs = new TechdocsGenerator(
+    const techdocs = new TechdocsGenerator({
       logger,
-      ConfigReader.fromConfigs([]),
-    );
+      containerRunner,
+      config: new ConfigReader({}),
+    });
 
     generators.register('techdocs', techdocs);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,15 @@
  */
 
 import {
-  createPlugin,
-  createRouteRef,
   createApiFactory,
+  createComponentExtension,
+  createPlugin,
+  createRoutableExtension,
+  createRouteRef,
   discoveryApiRef,
-} from '@backstage/core';
-import { jenkinsApiRef, JenkinsApi } from './api';
+  identityApiRef,
+} from '@backstage/core-plugin-api';
+import { JenkinsClient, jenkinsApiRef } from './api';
 
 export const rootRouteRef = createRouteRef({
   path: '',
@@ -28,17 +31,36 @@ export const rootRouteRef = createRouteRef({
 });
 
 export const buildRouteRef = createRouteRef({
-  path: 'run/:branch/:buildNumber',
-  title: 'Jenkins run',
+  path: 'build/:jobFullName/:buildNumber',
+  params: ['jobFullName', 'buildNumber'],
+  title: 'Jenkins build',
 });
 
-export const plugin = createPlugin({
+export const jenkinsPlugin = createPlugin({
   id: 'jenkins',
   apis: [
     createApiFactory({
       api: jenkinsApiRef,
-      deps: { discoveryApi: discoveryApiRef },
-      factory: ({ discoveryApi }) => new JenkinsApi({ discoveryApi }),
+      deps: { discoveryApi: discoveryApiRef, identityApi: identityApiRef },
+      factory: ({ discoveryApi, identityApi }) =>
+        new JenkinsClient({ discoveryApi, identityApi }),
     }),
   ],
+  routes: {
+    entityContent: rootRouteRef,
+  },
 });
+
+export const EntityJenkinsContent = jenkinsPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/Router').then(m => m.Router),
+    mountPoint: rootRouteRef,
+  }),
+);
+export const EntityLatestJenkinsRunCard = jenkinsPlugin.provide(
+  createComponentExtension({
+    component: {
+      lazy: () => import('./components/Cards').then(m => m.LatestRunCard),
+    },
+  }),
+);

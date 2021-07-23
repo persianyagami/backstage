@@ -1,8 +1,8 @@
 ---
 id: background
 title: The Spotify Story
-description: Backstage was born out of necessity at Spotify. We found that as we grew, our
-infrastructure was becoming more fragmented, our engineers less productive.
+# prettier-ignore
+description: Backstage was born out of necessity at Spotify. We found that as we grew, our infrastructure was becoming more fragmented, our engineers less productive.
 ---
 
 Backstage was born out of necessity at Spotify. We found that as we grew, our
@@ -22,8 +22,8 @@ Our idea was to centralize and simplify end-to-end software development with an
 abstraction layer that sits on top of all of our infrastructure and developer
 tooling. That’s Backstage.
 
-It’s a developer portal powered by a centralized service catalog — with a plugin
-architecture that makes it endlessly extensible and customizable.
+It’s a developer portal powered by a centralized software catalog — with a
+plugin architecture that makes it endlessly extensible and customizable.
 
 Manage all your services, software, tooling, and testing in Backstage. Start
 building a new microservice using an automated template in Backstage. Create,

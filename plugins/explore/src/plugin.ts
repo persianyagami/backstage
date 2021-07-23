@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,30 @@
  * limitations under the License.
  */
 
-import { createPlugin, createRouteRef } from '@backstage/core';
+import { exploreToolsConfigRef } from '@backstage/plugin-explore-react';
+import { catalogEntityRouteRef, exploreRouteRef } from './routes';
+import { exampleTools } from './util/examples';
+import { createApiFactory, createPlugin } from '@backstage/core-plugin-api';
 
-export const rootRouteRef = createRouteRef({ path: '', title: 'Explore' });
-export const plugin = createPlugin({
+export const explorePlugin = createPlugin({
   id: 'explore',
+  apis: [
+    // Register a default for exploreToolsConfigRef, you may want to override
+    // the API locally in your app.
+    createApiFactory({
+      api: exploreToolsConfigRef,
+      deps: {},
+      factory: () => ({
+        async getTools() {
+          return exampleTools;
+        },
+      }),
+    }),
+  ],
+  routes: {
+    explore: exploreRouteRef,
+  },
+  externalRoutes: {
+    catalogEntity: catalogEntityRouteRef,
+  },
 });

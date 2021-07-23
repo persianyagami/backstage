@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,4 +15,15 @@
  */
 
 export * from './components';
-export { plugin } from './plugin';
+export { apiDocsConfigRef } from './config';
+export {
+  apiDocsPlugin,
+  apiDocsPlugin as plugin,
+  ApiExplorerPage,
+  EntityApiDefinitionCard,
+  EntityConsumedApisCard,
+  EntityConsumingComponentsCard,
+  EntityHasApisCard,
+  EntityProvidedApisCard,
+  EntityProvidingComponentsCard,
+} from './plugin';

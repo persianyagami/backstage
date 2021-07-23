@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,29 @@
  * limitations under the License.
  */
 
-import { createPlugin } from '@backstage/core';
+import {
+  createPlugin,
+  createRoutableExtension,
+  createRouteRef,
+} from '@backstage/core-plugin-api';
 
-export const plugin = createPlugin({
-  id: 'register-component',
+const rootRouteRef = createRouteRef({
+  title: 'Register Component',
 });
+
+export const registerComponentPlugin = createPlugin({
+  id: 'register-component',
+  routes: {
+    root: rootRouteRef,
+  },
+});
+
+export const RegisterComponentPage = registerComponentPlugin.provide(
+  createRoutableExtension({
+    component: () =>
+      import('./components/RegisterComponentPage').then(
+        m => m.RegisterComponentPage,
+      ),
+    mountPoint: rootRouteRef,
+  }),
+);

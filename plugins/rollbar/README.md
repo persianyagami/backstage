@@ -9,57 +9,36 @@ Website: [https://rollbar.com/](https://rollbar.com/)
 2. If you have standalone app (you didn't clone this repo), then do
 
 ```bash
+# From your Backstage root directory
+cd packages/app
 yarn add @backstage/plugin-rollbar
 ```
 
-3. Add plugin to the list of plugins:
+3. Add to the app `EntityPage` component:
 
-```ts
-// packages/app/src/plugins.ts
-export { plugin as Rollbar } from '@backstage/plugin-rollbar';
+```tsx
+// In packages/app/src/components/catalog/EntityPage.tsx
+import { EntityRollbarContent } from '@backstage/plugin-rollbar';
+
+const serviceEntityPage = (
+  <EntityLayout>
+    {/* other tabs... */}
+    <EntityLayout.Route path="/rollbar" title="Rollbar">
+      <EntityRollbarContent />
+    </EntityLayout.Route>
 ```
 
-4. Add plugin API to your Backstage instance:
-
-```ts
-// packages/app/src/api.ts
-import { RollbarClient, rollbarApiRef } from '@backstage/plugin-rollbar';
-
-// ...
-builder.add(rollbarApiRef, new RollbarClient({ discoveryApi }));
-```
-
-5. Add to the app `EntityPage` component:
-
-```ts
-// packages/app/src/components/catalog/EntityPage.tsx
-import { Router as RollbarRouter } from '@backstage/plugin-rollbar';
-
-// ...
-const ServiceEntityPage = ({ entity }: { entity: Entity }) => (
-  <EntityPageLayout>
-    // ...
-    <EntityPageLayout.Content
-      path="/rollbar"
-      title="Errors"
-      element={<RollbarRouter entity={entity} />}
-    />
-  </EntityPageLayout>
-);
-```
-
-6. Setup the `app.config.yaml` and account token environment variable
+4. Setup the `app-config.yaml` and account token environment variable
 
 ```yaml
 # app.config.yaml
 rollbar:
   organization: organization-name
   # used by rollbar-backend
-  accountToken:
-    $env: ROLLBAR_ACCOUNT_TOKEN
+  accountToken: ${ROLLBAR_ACCOUNT_TOKEN}
 ```
 
-7. Annotate entities with the rollbar project slug
+5. Annotate entities with the rollbar project slug
 
 ```yaml
 # pump-station-catalog-component.yaml
@@ -71,7 +50,7 @@ metadata:
     rollbar.com/project-slug: project-name
 ```
 
-8. Run app with `yarn start` and navigate to `/rollbar` or a catalog entity
+6. Run app with `yarn start` and navigate to `/rollbar` or a catalog entity
 
 ## Features
 

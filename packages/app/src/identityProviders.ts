@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import {
   samlAuthApiRef,
   microsoftAuthApiRef,
   oneloginAuthApiRef,
+  oauth2ApiRef,
   oidcAuthApiRef,
-} from '@backstage/core';
+} from '@backstage/core-plugin-api';
 
 export const providers = [
   {
@@ -31,6 +32,12 @@ export const providers = [
     title: 'Oidc',
     message: 'Sign In using OpenId Connect',
     apiRef: oidcAuthApiRef,
+  },
+  {
+    id: 'oauth2-auth-provider',
+    title: 'OAuth 2.0',
+    message: 'Sign In using OAuth 2.0',
+    apiRef: oauth2ApiRef,
   },
   {
     id: 'google-auth-provider',

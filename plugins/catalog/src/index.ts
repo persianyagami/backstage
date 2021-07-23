@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,32 @@
  * limitations under the License.
  */
 
-export * from '@backstage/catalog-client';
-export { AboutCard, IconLinkVertical } from './components/AboutCard';
-export { EntityPageLayout } from './components/EntityPageLayout';
+export { CatalogClientWrapper } from './CatalogClientWrapper';
+export * from './components/AboutCard';
+export * from './components/CatalogResultListItem';
+export { CatalogTable } from './components/CatalogTable';
+export type { EntityRow as CatalogTableRow } from './components/CatalogTable';
+export * from './components/CatalogTable/columns';
+export * from './components/CreateComponentButton';
+export * from './components/EntityLayout';
+export * from './components/EntityOrphanWarning';
+export * from './components/EntityPageLayout';
+export * from './components/EntitySwitch';
+export * from './components/FilteredEntityLayout';
 export { Router } from './components/Router';
-export { useEntityCompoundName } from './components/useEntityCompoundName';
-export { EntityContext, useEntity } from './hooks/useEntity';
-export { catalogApiRef, plugin } from './plugin';
-export * from './routes';
+export {
+  CatalogEntityPage,
+  CatalogIndexPage,
+  catalogPlugin,
+  catalogPlugin as plugin,
+  EntityAboutCard,
+  EntityDependencyOfComponentsCard,
+  EntityDependsOnComponentsCard,
+  EntityDependsOnResourcesCard,
+  EntityHasComponentsCard,
+  EntityHasResourcesCard,
+  EntityHasSubcomponentsCard,
+  EntityHasSystemsCard,
+  EntityLinksCard,
+  EntitySystemDiagramCard,
+} from './plugin';

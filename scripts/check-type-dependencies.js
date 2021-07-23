@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ const chalk = require('chalk');
 async function main() {
   // This is from lerna, and cba polluting root package.json
   // eslint-disable-next-line import/no-extraneous-dependencies
-  const LernaProject = require('@lerna/project');
-  const project = new LernaProject(resolvePath('.'));
+  const { Project } = require('@lerna/project');
+  const project = new Project(resolvePath('.'));
   const packages = await project.getPackages();
 
   let hadErrors = false;
@@ -85,9 +85,10 @@ function checkTypes(pkg) {
     resolvePath(pkg.location, 'dist/index.d.ts'),
     'utf8',
   );
-  const deps = (typeDecl.match(/from '.*'/g) || [])
+  const allDeps = (typeDecl.match(/from '.*'/g) || [])
     .map(match => match.replace(/from '(.*)'/, '$1'))
     .filter(n => !n.startsWith('.'));
+  const deps = Array.from(new Set(allDeps));
 
   const errors = [];
   const typeDeps = [];

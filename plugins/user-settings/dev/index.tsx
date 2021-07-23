@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createDevApp } from '@backstage/dev-utils';
-import { plugin } from '../src/plugin';
 
-createDevApp().registerPlugin(plugin).render();
+import React from 'react';
+import { createDevApp } from '@backstage/dev-utils';
+import { userSettingsPlugin, UserSettingsPage } from '../src/plugin';
+
+createDevApp()
+  .registerPlugin(userSettingsPlugin)
+  .addPage({
+    title: 'Settings',
+    element: <UserSettingsPage />,
+  })
+  .render();

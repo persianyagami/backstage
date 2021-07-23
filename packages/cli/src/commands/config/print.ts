@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ export default async (cmd: Command) => {
   const { schema, appConfigs } = await loadCliConfig({
     args: cmd.config,
     fromPackage: cmd.package,
+    mockEnv: cmd.lax,
   });
   const visibility = getVisibilityOption(cmd);
   const data = serializeConfigData(appConfigs, schema, visibility);
@@ -62,8 +63,8 @@ function serializeConfigData(
   }
 
   const sanitizedConfigs = schema.process(appConfigs, {
-    valueTransform: (value, { visibility }) =>
-      visibility === 'secret' ? '<secret>' : value,
+    valueTransform: (value, context) =>
+      context.visibility === 'secret' ? '<secret>' : value,
   });
 
   return ConfigReader.fromConfigs(sanitizedConfigs).get();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,17 +26,16 @@ jest.mock('react-router-dom', () => {
   };
 });
 
-import React from 'react';
+import { msw, wrapInTestApp } from '@backstage/test-utils';
 import { render } from '@testing-library/react';
-import { wrapInTestApp, msw } from '@backstage/test-utils';
-import { ApiRegistry, ApiProvider } from '@backstage/core';
-import AuditView from '.';
-import { lighthouseApiRef, LighthouseRestApi, Audit, Website } from '../../api';
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+import React from 'react';
+import { Audit, lighthouseApiRef, LighthouseRestApi, Website } from '../../api';
 import { formatTime } from '../../utils';
 import * as data from '../../__fixtures__/website-response.json';
-
-import { setupServer } from 'msw/node';
-import { rest } from 'msw';
+import AuditView from './index';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 
 const { useParams }: { useParams: jest.Mock } = jest.requireMock(
   'react-router-dom',

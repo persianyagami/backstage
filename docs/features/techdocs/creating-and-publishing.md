@@ -28,10 +28,10 @@ scratch.
 ### Use the documentation template
 
 Your working Backstage instance should by default have a documentation template
-added. If not, follow these
-[instructions](../software-templates/installation.md#adding-templates) to add
-the documentation template. The template creates a component with only TechDocs
-configuration and default markdown files as below mentioned in manual
+added. If not, copy the catalog locations from the
+[create-app template](https://github.com/backstage/backstage/blob/master/packages/create-app/templates/default-app/app-config.yaml.hbs)
+to add the documentation template. The template creates a component with only
+TechDocs configuration and default markdown files as below mentioned in manual
 documentation setup, and is otherwise empty.
 
 ![Documentation Template](../../assets/techdocs/documentation-template.png)
@@ -41,7 +41,7 @@ setup for free.
 
 ### Manually add documentation setup to already existing repository
 
-Prerequisities:
+Prerequisites:
 
 - An existing component
   [registered in backstage](../software-catalog/index.md#adding-components-to-the-catalog)
@@ -66,12 +66,23 @@ Update your component's entity description by adding the following lines to its
 ```yaml
 metadata:
   annotations:
-    backstage.io/techdocs-ref: dir:./
+    backstage.io/techdocs-ref: url:https://github.com/org/repo
+    # Or
+    # backstage.io/techdocs-ref: url:https://github.com/org/repo/tree/branchName/subFolder
 ```
+
+The
+[`backstage.io/techdocs-ref` annotation](../software-catalog/well-known-annotations.md#backstageiotechdocs-ref)
+is used by TechDocs to download the documentation source files for generating an
+Entity's TechDocs site.
 
 Create a `/docs` folder in the root of the project with at least an `index.md`
 file. _(If you add more markdown files, make sure to update the nav in the
 mkdocs.yml file to get a proper navigation for your documentation.)_
+
+> Note - Although `docs` is a popular directory name for storing documentation,
+> it can be renamed to something else and can be configured by `mkdocs.yml`. See
+> https://www.mkdocs.org/user-guide/configuration/#docs_dir
 
 The `docs/index.md` can for example have the following content:
 

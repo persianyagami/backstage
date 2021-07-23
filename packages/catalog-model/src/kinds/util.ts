@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-import * as yup from 'yup';
+import { entityKindSchemaValidator } from '../validation';
 import { KindValidator } from './types';
 
-export function schemaValidator(
-  kind: string,
-  apiVersion: readonly string[],
-  schema: yup.Schema<any>,
-): KindValidator {
+// TODO(freben): Left here as a compatibility helper. It would be nicer to
+// just export the inner validator directly. However, all of the already
+// exported kind validators have the `KindValidator` signature which is
+// different. So let's postpone that change until a later time.
+export function ajvCompiledJsonSchemaValidator(schema: unknown): KindValidator {
+  const validator = entityKindSchemaValidator(schema);
   return {
-    async check(envelope) {
-      if (
-        kind !== envelope.kind ||
-        !apiVersion.includes(envelope.apiVersion as any)
-      ) {
-        return false;
-      }
-      await schema.validate(envelope, { strict: true });
-      return true;
+    async check(data) {
+      return validator(data) === data;
     },
   };
 }

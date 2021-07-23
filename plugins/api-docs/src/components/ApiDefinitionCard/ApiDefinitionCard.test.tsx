@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,14 @@
  */
 
 import { ApiEntity } from '@backstage/catalog-model';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
+import { EntityProvider } from '@backstage/plugin-catalog-react';
 import { renderInTestApp } from '@backstage/test-utils';
 import { waitFor } from '@testing-library/react';
 import React from 'react';
 import { ApiDocsConfig, apiDocsConfigRef } from '../../config';
 import { OpenApiDefinitionWidget } from '../OpenApiDefinitionWidget';
 import { ApiDefinitionCard } from './ApiDefinitionCard';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 
 describe('<ApiDefinitionCard />', () => {
   const apiDocsConfig: jest.Mocked<ApiDocsConfig> = {
@@ -54,7 +55,7 @@ paths:
     get:
       summary: List all artists
       responses:
-        "200": 
+        "200":
           description: Success
         `;
     const apiEntity: ApiEntity = {
@@ -74,14 +75,16 @@ paths:
       type: 'openapi',
       title: 'OpenAPI',
       rawLanguage: 'yaml',
-      component: definition => (
-        <OpenApiDefinitionWidget definition={definition} />
+      component: definitionString => (
+        <OpenApiDefinitionWidget definition={definitionString} />
       ),
     });
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ApiDefinitionCard apiEntity={apiEntity} />
+        <EntityProvider entity={apiEntity}>
+          <ApiDefinitionCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
@@ -110,7 +113,9 @@ paths:
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ApiDefinitionCard apiEntity={apiEntity} />
+        <EntityProvider entity={apiEntity}>
+          <ApiDefinitionCard />
+        </EntityProvider>
       </Wrapper>,
     );
 

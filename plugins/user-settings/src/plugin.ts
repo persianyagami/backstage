@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createPlugin, createRouteRef } from '@backstage/core';
+
+import {
+  createPlugin,
+  createRoutableExtension,
+  createRouteRef,
+} from '@backstage/core-plugin-api';
 
 export const settingsRouteRef = createRouteRef({
   path: '/settings',
   title: 'Settings',
 });
 
-export const plugin = createPlugin({
+export const userSettingsPlugin = createPlugin({
   id: 'user-settings',
+  routes: {
+    settingsPage: settingsRouteRef,
+  },
 });
+
+export const UserSettingsPage = userSettingsPlugin.provide(
+  createRoutableExtension({
+    component: () =>
+      import('./components/SettingsPage').then(m => m.SettingsPage),
+    mountPoint: settingsRouteRef,
+  }),
+);

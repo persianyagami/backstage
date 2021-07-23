@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import {
   Duration,
   Cost,
 } from '../types';
-import { MockAggregatedDailyCosts, trendlineOf, changeOf } from './mockData';
+import { MockAggregatedDailyCosts, trendlineOf, changeOf } from '../testUtils';
 
 const GrowthMap = {
   [GrowthType.Negligible]: 'negligible growth',
@@ -32,23 +32,23 @@ const GrowthMap = {
 
 describe.each`
   ratio                           | amount                     | expected
-  ${0.0}                          | ${undefined}               | ${GrowthType.Negligible}
+  ${undefined}                    | ${0}                       | ${GrowthType.Negligible}
+  ${0.0}                          | ${0}                       | ${GrowthType.Negligible}
   ${0.0}                          | ${EngineerThreshold}       | ${GrowthType.Negligible}
   ${ChangeThreshold.lower}        | ${0}                       | ${GrowthType.Negligible}
-  ${ChangeThreshold.lower + 0.01} | ${undefined}               | ${GrowthType.Negligible}
+  ${ChangeThreshold.lower + 0.01} | ${0}                       | ${GrowthType.Negligible}
   ${ChangeThreshold.lower + 0.01} | ${EngineerThreshold}       | ${GrowthType.Negligible}
   ${ChangeThreshold.lower + 0.01} | ${EngineerThreshold + 0.1} | ${GrowthType.Negligible}
   ${ChangeThreshold.lower - 0.01} | ${EngineerThreshold - 0.1} | ${GrowthType.Negligible}
-  ${ChangeThreshold.upper - 0.01} | ${undefined}               | ${GrowthType.Negligible}
+  ${ChangeThreshold.lower - 0.01} | ${0}                       | ${GrowthType.Negligible}
+  ${ChangeThreshold.upper}        | ${0}                       | ${GrowthType.Negligible}
+  ${ChangeThreshold.upper - 0.01} | ${0}                       | ${GrowthType.Negligible}
   ${ChangeThreshold.upper + 0.01} | ${EngineerThreshold - 0.1} | ${GrowthType.Negligible}
-  ${ChangeThreshold.lower}        | ${undefined}               | ${GrowthType.Savings}
+  ${ChangeThreshold.upper + 0.01} | ${0}                       | ${GrowthType.Negligible}
   ${ChangeThreshold.lower}        | ${EngineerThreshold}       | ${GrowthType.Savings}
-  ${ChangeThreshold.lower - 0.01} | ${undefined}               | ${GrowthType.Savings}
   ${ChangeThreshold.lower - 0.01} | ${EngineerThreshold}       | ${GrowthType.Savings}
   ${ChangeThreshold.lower - 0.01} | ${EngineerThreshold + 0.1} | ${GrowthType.Savings}
-  ${ChangeThreshold.upper}        | ${undefined}               | ${GrowthType.Excess}
   ${ChangeThreshold.upper}        | ${EngineerThreshold}       | ${GrowthType.Excess}
-  ${ChangeThreshold.upper + 0.01} | ${undefined}               | ${GrowthType.Excess}
   ${ChangeThreshold.upper + 0.01} | ${EngineerThreshold}       | ${GrowthType.Excess}
   ${ChangeThreshold.upper + 0.01} | ${EngineerThreshold + 0.1} | ${GrowthType.Excess}
 `(
@@ -63,7 +63,7 @@ describe.each`
     expected: GrowthType;
   }) => {
     it(`should display ${GrowthMap[expected]}`, () => {
-      expect(growthOf(ratio, amount)).toBe(expected);
+      expect(growthOf({ ratio, amount })).toBe(expected);
     });
   },
 );
@@ -76,13 +76,13 @@ describe('getPreviousPeriodTotalCost', () => {
       change: changeOf(MockAggregatedDailyCosts),
       trendline: trendlineOf(MockAggregatedDailyCosts),
     };
-    const exclusiveEndDate = '2020-09-30';
+    const inclusiveEndDate = '2020-09-30';
     expect(
       getPreviousPeriodTotalCost(
         mockGroupDailyCost.aggregation,
         Duration.P30D,
-        exclusiveEndDate,
+        inclusiveEndDate,
       ),
-    ).toEqual(100_000);
+    ).toEqual(96_600);
   });
 });

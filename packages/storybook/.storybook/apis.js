@@ -1,32 +1,35 @@
 import {
   AlertApiForwarder,
-  alertApiRef,
   ApiRegistry,
   ErrorAlerter,
   ErrorApiForwarder,
-  errorApiRef,
   GithubAuth,
-  githubAuthApiRef,
   GitlabAuth,
-  gitlabAuthApiRef,
   GoogleAuth,
-  googleAuthApiRef,
-  identityApiRef,
   OAuth2,
-  oauth2ApiRef,
-  oauthRequestApiRef,
   OAuthRequestManager,
   OktaAuth,
-  oktaAuthApiRef,
   Auth0Auth,
+  ConfigReader,
+} from '@backstage/core-app-api';
+
+import {
+  alertApiRef,
+  errorApiRef,
+  githubAuthApiRef,
+  gitlabAuthApiRef,
+  googleAuthApiRef,
+  identityApiRef,
+  oauth2ApiRef,
+  oauthRequestApiRef,
+  oktaAuthApiRef,
   auth0AuthApiRef,
   configApiRef,
-  ConfigReader,
-} from '@backstage/core';
+} from '@backstage/core-plugin-api';
 
 const builder = ApiRegistry.builder();
 
-builder.add(configApiRef, ConfigReader.fromConfigs([]));
+builder.add(configApiRef, new ConfigReader({}));
 
 const alertApi = builder.add(alertApiRef, new AlertApiForwarder());
 

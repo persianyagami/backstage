@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
+import { Entity, GroupEntity } from '@backstage/catalog-model';
+import {
+  CatalogApi,
+  catalogApiRef,
+  EntityProvider,
+} from '@backstage/plugin-catalog-react';
 import { renderWithEffects, wrapInTestApp } from '@backstage/test-utils';
 import React from 'react';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
-import { CatalogApi, catalogApiRef } from '@backstage/plugin-catalog';
-import { Entity } from '@backstage/catalog-model';
 import { MembersListCard } from './MembersListCard';
+import { ApiProvider, ApiRegistry } from '@backstage/core-app-api';
 
 describe('MemberTab Test', () => {
-  const groupEntity = {
-    apiVersion: 'v1',
+  const groupEntity: GroupEntity = {
+    apiVersion: 'backstage.io/v1alpha1',
     kind: 'Group',
     metadata: {
       name: 'team-d',
@@ -33,9 +37,7 @@ describe('MemberTab Test', () => {
     spec: {
       type: 'team',
       parent: 'boxoffice',
-      ancestors: ['boxoffice', 'acme-corp'],
       children: [],
-      descendants: [],
     },
   };
 
@@ -45,10 +47,10 @@ describe('MemberTab Test', () => {
         items: [
           {
             apiVersion: 'backstage.io/v1alpha1',
-            kind: 'Group',
+            kind: 'User',
             metadata: {
               name: 'tara.macgovern',
-              namespace: 'default',
+              namespace: 'foo-bar',
               uid: 'a5gerth56',
             },
             relations: [
@@ -70,6 +72,33 @@ describe('MemberTab Test', () => {
               memberOf: ['team-d'],
             },
           },
+          {
+            apiVersion: 'backstage.io/v1alpha1',
+            kind: 'User',
+            metadata: {
+              name: 'sara.macgovern',
+              namespace: 'default',
+              uid: 'a5gerth57',
+            },
+            relations: [
+              {
+                type: 'memberOf',
+                target: {
+                  kind: 'group',
+                  name: 'team-d',
+                  namespace: 'foo-bar',
+                },
+              },
+            ],
+            spec: {
+              profile: {
+                displayName: 'Sara MacGovern',
+                email: 'sara-macgovern@example.com',
+                picture: 'https://example.com/staff/sara.jpeg',
+              },
+              memberOf: ['foo-bar/team-d'],
+            },
+          },
         ] as Entity[],
       }),
   };
@@ -80,7 +109,10 @@ describe('MemberTab Test', () => {
     const rendered = await renderWithEffects(
       wrapInTestApp(
         <ApiProvider apis={apis}>
-          <MembersListCard entity={groupEntity} />
+          <EntityProvider entity={groupEntity}>
+            <MembersListCard />
+          </EntityProvider>
+          ,
         </ApiProvider>,
       ),
     );
@@ -94,7 +126,9 @@ describe('MemberTab Test', () => {
     ).toBeInTheDocument();
     expect(rendered.getByText('Tara MacGovern')).toHaveAttribute(
       'href',
-      '/catalog/default/user/tara.macgovern',
+      '/catalog/foo-bar/user/tara.macgovern',
     );
+
+    expect(rendered.getByText('Members (1)')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,100 @@
 # @backstage/config-loader
 
+## 0.6.5
+
+### Patch Changes
+
+- ae84b20cf: Revert the upgrade to `fs-extra@10.0.0` as that seemed to have broken all installs inexplicably.
+
+## 0.6.4
+
+### Patch Changes
+
+- f00493739: Removed workaround for breaking change in typescript 4.3 and bump `typescript-json-schema` instead. This should again allow the usage of `@items.visibility <value>` to set the visibility of array items.
+
+## 0.6.3
+
+### Patch Changes
+
+- 2cf98d279: Resolve the path to app-config.yaml from the current working directory. This will allow use of `yarn link` or running the CLI in other directories and improve the experience for local backstage development.
+- 438a512eb: Fixed configuration schema parsing when using TypeScript `4.3`.
+
+## 0.6.2
+
+### Patch Changes
+
+- 290405276: Updated dependencies
+
+## 0.6.1
+
+### Patch Changes
+
+- d8b81fd28: Bump `json-schema` dependency from `0.2.5` to `0.3.0`.
+- Updated dependencies [d8b81fd28]
+  - @backstage/config@0.1.5
+
+## 0.6.0
+
+### Minor Changes
+
+- 82c66b8cd: Fix bug where `${...}` was not being escaped to `${...}`
+
+  Add support for environment variable substitution in `$include`, `$file` and
+  `$env` transform values.
+
+  - This change allows for including dynamic paths, such as environment specific
+    secrets by using the same environment variable substitution (`${..}`) already
+    supported outside of the various include transforms.
+  - If you are currently using the syntax `${...}` in your include transform values,
+    you will need to escape the substitution by using `${...}` instead to maintain
+    the same behavior.
+
+## 0.5.1
+
+### Patch Changes
+
+- 062df71db: Bump `config-loader` to `ajv` 7, to enable v7 feature use elsewhere
+- e9aab60c7: Each piece of the configuration schema is now validated upfront, in order to produce more informative errors.
+
+## 0.5.0
+
+### Minor Changes
+
+- ef7957be4: Removed support for the deprecated `$data` placeholder.
+- ef7957be4: Enable further processing of configuration files included using the `$include` placeholder. Meaning that for example for example `$env` includes will be processed as usual in included files.
+
+### Patch Changes
+
+- ef7957be4: Added support for environment variable substitutions in string configuration values using a `${VAR}` placeholder. All environment variables must be available, or the entire expression will be evaluated to `undefined`. To escape a substitution, use `${...}`, which will end up as `${...}`.
+
+  For example:
+
+  ```yaml
+  app:
+    baseUrl: https://${BASE_HOST}
+  ```
+
+## 0.4.1
+
+### Patch Changes
+
+- ad5c56fd9: Deprecate `$data` and replace it with `$include` which allows for any type of json value to be read from external files. In addition, `$include` can be used without a path, which causes the value at the root of the file to be loaded.
+
+  Most usages of `$data` can be directly replaced with `$include`, except if the referenced value is not a string, in which case the value needs to be changed. For example:
+
+  ```yaml
+  # app-config.yaml
+  foo:
+    $data: foo.yaml#myValue # replacing with $include will turn the value into a number
+    $data: bar.yaml#myValue # replacing with $include is safe
+
+  # foo.yaml
+  myValue: 0xf00
+
+  # bar.yaml
+  myValue: bar
+  ```
+
 ## 0.4.0
 
 ### Minor Changes

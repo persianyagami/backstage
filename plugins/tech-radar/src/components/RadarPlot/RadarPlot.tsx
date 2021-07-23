@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,7 +73,9 @@ const RadarPlot = (props: Props): JSX.Element => {
             color={entry.color || ''}
             value={(entry?.index || 0) + 1}
             url={entry.url}
+            description={entry.description}
             moved={entry.moved}
+            title={entry.title}
             onMouseEnter={onEntryMouseEnter && (() => onEntryMouseEnter(entry))}
             onMouseLeave={onEntryMouseLeave && (() => onEntryMouseLeave(entry))}
           />

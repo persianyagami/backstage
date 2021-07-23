@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,19 @@
 import React from 'react';
 import { TechDocsPage } from './TechDocsPage';
 import { render, act } from '@testing-library/react';
+import { ConfigReader } from '@backstage/config';
+import {
+  ScmIntegrationsApi,
+  scmIntegrationsApiRef,
+} from '@backstage/integration-react';
 import { wrapInTestApp } from '@backstage/test-utils';
-import { ApiRegistry, ApiProvider } from '@backstage/core-api';
 import {
   techdocsApiRef,
   TechDocsApi,
   techdocsStorageApiRef,
   TechDocsStorageApi,
 } from '../../api';
+import { ApiRegistry, ApiProvider } from '@backstage/core-app-api';
 
 jest.mock('react-router-dom', () => {
   const actual = jest.requireActual('react-router-dom');
@@ -50,16 +55,34 @@ describe('<TechDocsPage />', () => {
       entityId: 'Component::backstage',
     });
 
+    const scmIntegrationsApi: ScmIntegrationsApi = ScmIntegrationsApi.fromConfig(
+      new ConfigReader({
+        integrations: {},
+      }),
+    );
     const techdocsApi: Partial<TechDocsApi> = {
-      getEntityMetadata: () => Promise.resolve([]),
-      getTechDocsMetadata: () => Promise.resolve([]),
+      getEntityMetadata: () =>
+        Promise.resolve({
+          apiVersion: 'v1',
+          kind: 'Component',
+          metadata: {
+            name: 'backstage',
+          },
+        }),
+      getTechDocsMetadata: () =>
+        Promise.resolve({
+          site_name: 'string',
+          site_description: 'string',
+        }),
     };
     const techdocsStorageApi: Partial<TechDocsStorageApi> = {
       getEntityDocs: (): Promise<string> => Promise.resolve('String'),
-      getBaseUrl: (): string => '',
+      getBaseUrl: (): Promise<string> => Promise.resolve('String'),
+      getApiOrigin: (): Promise<string> => Promise.resolve('String'),
     };
 
     const apiRegistry = ApiRegistry.from([
+      [scmIntegrationsApiRef, scmIntegrationsApi],
       [techdocsApiRef, techdocsApi],
       [techdocsStorageApiRef, techdocsStorageApi],
     ]);

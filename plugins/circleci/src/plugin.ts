@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
+import { circleCIApiRef, CircleCIApi } from './api';
+import { circleCIRouteRef } from './route-refs';
 import {
   createPlugin,
   createApiFactory,
   discoveryApiRef,
-} from '@backstage/core';
-import { circleCIApiRef, CircleCIApi } from './api';
+  createRoutableExtension,
+} from '@backstage/core-plugin-api';
 
-export const plugin = createPlugin({
+export const circleCIPlugin = createPlugin({
   id: 'circleci',
   apis: [
     createApiFactory({
@@ -31,3 +33,10 @@ export const plugin = createPlugin({
     }),
   ],
 });
+
+export const EntityCircleCIContent = circleCIPlugin.provide(
+  createRoutableExtension({
+    component: () => import('./components/Router').then(m => m.Router),
+    mountPoint: circleCIRouteRef,
+  }),
+);

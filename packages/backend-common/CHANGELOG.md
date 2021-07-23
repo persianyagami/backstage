@@ -1,5 +1,639 @@
 # @backstage/backend-common
 
+## 0.8.7
+
+### Patch Changes
+
+- f25357273: Implement the etag functionality in the `readUrl` method of `FetchUrlReader`.
+- bdd6ab5f1: It's possible to customize the request logging handler when building the service. For example in your `backend`
+
+  ```
+    const service = createServiceBuilder(module)
+      .loadConfig(config)
+      .setRequestLoggingHandler((logger?: Logger): RequestHandler => {
+        const actualLogger = (logger || getRootLogger()).child({
+          type: 'incomingRequest',
+        });
+        return expressWinston.logger({ ...
+  ```
+
+## 0.8.6
+
+### Patch Changes
+
+- 5f6f2fd96: Support a `ensureExists` config option to skip ensuring a configured database exists. This allows deployment scenarios where
+  limited permissions are given for provisioned databases without privileges to create new databases. If set to `false`, the
+  database connection will not be validated prior to use which means the backend will not attempt to create the database if it
+  doesn't exist. You can configure this in your app-config.yaml:
+
+  ```yaml
+  backend:
+    database:
+      ensureExists: false
+  ```
+
+  This defaults to `true` if unspecified. You can also configure this per plugin connection and will override the base option.
+
+- ad93bb035: Document the default behavior of `statusCheck` option in `createStatusCheckRouter`.
+- ae84b20cf: Revert the upgrade to `fs-extra@10.0.0` as that seemed to have broken all installs inexplicably.
+- Updated dependencies
+  - @backstage/config-loader@0.6.5
+
+## 0.8.5
+
+### Patch Changes
+
+- 09d3eb684: Added a `readUrl` method to the `UrlReader` interface that allows for complex response objects and is intended to replace the `read` method. This new method is currently optional to implement which allows for a soft migration to `readUrl` instead of `read` in the future.
+
+  The main use case for `readUrl` returning an object instead of solely a read buffer is to allow for additional metadata such as ETag, which is a requirement for more efficient catalog processing.
+
+  The `GithubUrlReader` and `GitlabUrlReader` readers fully implement `readUrl`. The other existing readers implement the new method but do not propagate or return ETags.
+
+  While the `readUrl` method is not yet required, it will be in the future, and we already log deprecation warnings when custom `UrlReader` implementations that do not implement `readUrl` are used. We therefore recommend that any existing custom implementations are migrated to implement `readUrl`.
+
+  The old `read` and the new `readUrl` methods can easily be implemented using one another, but we recommend moving the chunk of the implementation to the new `readUrl` method as `read` is being removed, for example this:
+
+  ```ts
+  class CustomUrlReader implements UrlReader {
+    read(url: string): Promise<Buffer> {
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        // error handling ...
+      }
+
+      return Buffer.from(await res.text());
+    }
+  }
+  ```
+
+  Can be migrated to something like this:
+
+  ```ts
+  class CustomUrlReader implements UrlReader {
+    read(url: string): Promise<Buffer> {
+      const res = await this.readUrl(url);
+      return res.buffer();
+    }
+
+    async readUrl(
+      url: string,
+      _options?: ReadUrlOptions,
+    ): Promise<ReadUrlResponse> {
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        // error handling ...
+      }
+
+      const buffer = Buffer.from(await res.text());
+      return { buffer: async () => buffer };
+    }
+  }
+  ```
+
+  While there is no usage of the ETag capability yet in the main Backstage packages, you can already add it to your custom implementations. To do so, refer to the documentation of the `readUrl` method and surrounding types, and the existing implementation in `packages/backend-common/src/reading/GithubUrlReader.ts`.
+
+- 6841e0113: fix minor version of git-url-parse as 11.5.x introduced a bug for Bitbucket Server
+- c2db794f5: add defaultBranch property for publish GitHub action
+- Updated dependencies
+  - @backstage/integration@0.5.8
+
+## 0.8.4
+
+### Patch Changes
+
+- 88d742eb8: Download archives as compressed tar files for GitLab to fix the `readTree` bug in TODO Plugin.
+- ab5cc376f: Add new `isChildPath` and `resolveSafeChildPath` exports
+- Updated dependencies
+  - @backstage/cli-common@0.1.2
+  - @backstage/integration@0.5.7
+
+## 0.8.3
+
+### Patch Changes
+
+- e5cdf0560: Provide a more clear error message when database connection fails.
+- 772dbdb51: Deprecates `SingleConnectionDatabaseManager` and provides an API compatible database
+  connection manager, `DatabaseManager`, which allows developers to configure database
+  connections on a per plugin basis.
+
+  The `backend.database` config path allows you to set `prefix` to use an
+  alternate prefix for automatically generated database names, the default is
+  `backstage_plugin_`. Use `backend.database.plugin.<pluginId>` to set plugin
+  specific database connection configuration, e.g.
+
+  ```yaml
+  backend:
+    database:
+      client: 'pg',
+      prefix: 'custom_prefix_'
+      connection:
+        host: 'localhost'
+        user: 'foo'
+        password: 'bar'
+      plugin:
+        catalog:
+          connection:
+            database: 'database_name_overriden'
+        scaffolder:
+          client: 'sqlite3'
+          connection: ':memory:'
+  ```
+
+  Migrate existing backstage installations by swapping out the database manager in the
+  `packages/backend/src/index.ts` file as shown below:
+
+  ```diff
+  import {
+  -  SingleConnectionDatabaseManager,
+  +  DatabaseManager,
+  } from '@backstage/backend-common';
+
+  // ...
+
+  function makeCreateEnv(config: Config) {
+    // ...
+  -  const databaseManager = SingleConnectionDatabaseManager.fromConfig(config);
+  +  const databaseManager = DatabaseManager.fromConfig(config);
+    // ...
+  }
+  ```
+
+- Updated dependencies
+  - @backstage/config-loader@0.6.4
+
+## 0.8.2
+
+### Patch Changes
+
+- 92963779b: Omits the `upgrade-insecure-requests` Content-Security-Policy directive by default, to prevent automatic HTTPS request upgrading for HTTP-deployed Backstage sites.
+
+  If you previously disabled this using `false` in your `app-config.yaml`, this line is no longer necessary:
+
+  ```diff
+  backend:
+    csp:
+  -    upgrade-insecure-requests: false
+  ```
+
+  To keep the existing behavior of `upgrade-insecure-requests` Content-Security-Policy being _enabled_, add the key with an empty array as the value in your `app-config.yaml`:
+
+  ```diff
+  backend:
+  +  csp:
+  +    upgrade-insecure-requests: []
+  ```
+
+  Read more on [upgrade-insecure-requests here](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/upgrade-insecure-requests).
+
+- eda9dbd5f: Download archives as compressed tar files for Bitbucket to keep executable permissions.
+- Updated dependencies [eda9dbd5f]
+  - @backstage/integration@0.5.6
+
+## 0.8.1
+
+### Patch Changes
+
+- c7dad9218: All cache-related connection errors are now handled and logged by the cache manager. App Integrators may provide an optional error handler when instantiating the cache manager if custom error handling is needed.
+
+  ```typescript
+  // Providing an error handler
+  const cacheManager = CacheManager.fromConfig(config, {
+    onError: e => {
+      if (isSomehowUnrecoverable(e)) {
+        gracefullyShutThingsDown();
+        process.exit(1);
+      }
+    },
+  });
+  ```
+
+- 65e6c4541: Remove circular dependencies
+- 5001de908: Change GitlabUrlReader to SHA timestamp compare using only commits that modify given file path, if file path given
+- Updated dependencies [65e6c4541]
+- Updated dependencies [290405276]
+  - @backstage/integration@0.5.3
+  - @backstage/config-loader@0.6.2
+
+## 0.8.0
+
+### Minor Changes
+
+- 22fd8ce2a: Introducing: a standard API for App Integrators to configure cache stores and Plugin Developers to interact with them.
+
+  Two cache stores are currently supported.
+
+  - `memory`, which is a very simple in-memory key/value store, intended for local development.
+  - `memcache`, which can be used to connect to a memcache host.
+
+  Configuring and working with cache stores is very similar to the process for database connections.
+
+  ```yaml
+  backend:
+    cache:
+      store: memcache
+      connection: user:pass@cache.example.com:11211
+  ```
+
+  ```typescript
+  import { CacheManager } from '@backstage/backend-common';
+
+  // Instantiating a cache client for a plugin.
+  const cacheManager = CacheManager.fromConfig(config);
+  const somePluginCache = cacheManager.forPlugin('somePlugin');
+  const cacheClient = somePluginCache.getClient();
+
+  // Using the cache client:
+  const cachedValue = await cacheClient.get('someKey');
+  if (cachedValue) {
+    return cachedValue;
+  } else {
+    const someValue = await someExpensiveProcess();
+    await cacheClient.set('someKey', someValue);
+  }
+  await cacheClient.delete('someKey');
+  ```
+
+  Cache clients deal with TTLs in milliseconds. A TTL can be provided as a defaultTtl when getting a client, or may be passed when setting specific objects. If no TTL is provided, data will be persisted indefinitely.
+
+  ```typescript
+  // Getting a client with a default TTL
+  const cacheClient = somePluginCache.getClient({
+    defaultTtl: 3600000,
+  });
+
+  // Setting a TTL on a per-object basis.
+  cacheClient.set('someKey', data, { ttl: 3600000 });
+  ```
+
+  Configuring a cache store is optional. Even when no cache store is configured, the cache manager will dutifully pass plugins a manager that resolves a cache client that does not actually write or read any data.
+
+### Patch Changes
+
+- f9fb4a205: Prep work for mysql support in backend-common
+
+## 0.7.0
+
+### Minor Changes
+
+- e0bfd3d44: Refactor the `runDockerContainer(…)` function to an interface-based api.
+  This gives the option to replace the docker runtime in the future.
+
+  Packages and plugins that previously used the `dockerode` as argument should be migrated to use the new `ContainerRunner` interface instead.
+
+  ```diff
+    import {
+  -   runDockerContainer,
+  +   ContainerRunner,
+      PluginEndpointDiscovery,
+    } from '@backstage/backend-common';
+  - import Docker from 'dockerode';
+
+    type RouterOptions = {
+      // ...
+  -   dockerClient: Docker,
+  +   containerRunner: ContainerRunner;
+    };
+
+    export async function createRouter({
+      // ...
+  -   dockerClient,
+  +   containerRunner,
+    }: RouterOptions): Promise<express.Router> {
+      // ...
+
+  +   await containerRunner.runContainer({
+  -   await runDockerContainer({
+        image: 'docker',
+        // ...
+  -     dockerClient,
+      });
+
+      // ...
+    }
+  ```
+
+  To keep the `dockerode` based runtime, use the `DockerContainerRunner` implementation:
+
+  ```diff
+  + import {
+  +   ContainerRunner,
+  +   DockerContainerRunner
+  + } from '@backstage/backend-common';
+  - import { runDockerContainer } from '@backstage/backend-common';
+
+  + const containerRunner: ContainerRunner = new DockerContainerRunner({dockerClient});
+  + await containerRunner.runContainer({
+  - await runDockerContainer({
+      image: 'docker',
+      // ...
+  -   dockerClient,
+    });
+  ```
+
+### Patch Changes
+
+- 38ca05168: The default `@octokit/rest` dependency was bumped to `"^18.5.3"`.
+- Updated dependencies [38ca05168]
+- Updated dependencies [d8b81fd28]
+  - @backstage/integration@0.5.2
+  - @backstage/config-loader@0.6.1
+  - @backstage/config@0.1.5
+
+## 0.6.3
+
+### Patch Changes
+
+- d367f63b5: remove use of deprecated type HelmetOptions
+- b42531cfe: Support configuration of file storage for SQLite databases. Every plugin has its
+  own database file at the specified path.
+
+## 0.6.2
+
+### Patch Changes
+
+- b779b5fee: Add UrlReader for Google Cloud Storage
+- Updated dependencies [82c66b8cd]
+  - @backstage/config-loader@0.6.0
+
+## 0.6.1
+
+### Patch Changes
+
+- 37e3a69f5: Export `ReadTreeResponseFile` and `SearchResponseFile`.
+
+## 0.6.0
+
+### Minor Changes
+
+- 8686eb38c: Encode thrown errors in the backend as a JSON payload. This is technically a breaking change, since the response format even of errors are part of the contract. If you relied on the response being text, you will now have some extra JSON "noise" in it. It should still be readable by end users though.
+
+  Before:
+
+  ```
+  NotFoundError: No entity named 'tara.macgovern2' found, with kind 'user' in namespace 'default'
+      at eval (webpack-internal:///../../plugins/catalog-backend/src/service/router.ts:117:17)
+  ```
+
+  After:
+
+  ```json
+  {
+    "error": {
+      "name": "NotFoundError",
+      "message": "No entity named 'tara.macgovern2' found, with kind 'user' in namespace 'default'",
+      "stack": "NotFoundError: No entity named 'tara.macgovern2' found, with kind 'user' in namespace 'default'\n    at eval (webpack-internal:///../../plugins/catalog-backend/src/service/router.ts:117:17)"
+    },
+    "request": {
+      "method": "GET",
+      "url": "/entities/by-name/user/default/tara.macgovern2"
+    },
+    "response": {
+      "statusCode": 404
+    }
+  }
+  ```
+
+- 8686eb38c: Removed the custom error types (e.g. `NotFoundError`). Those are now instead in the new `@backstage/errors` package. This is a breaking change, and you will have to update your imports if you were using these types.
+
+  ```diff
+  -import { NotFoundError } from '@backstage/backend-common';
+  +import { NotFoundError } from '@backstage/errors';
+  ```
+
+### Patch Changes
+
+- Updated dependencies [0434853a5]
+  - @backstage/config@0.1.4
+
+## 0.5.6
+
+### Patch Changes
+
+- d7245b733: Add a utility function runDockerContainer used to run a docker container (currently used by Scaffolder and TechDocs for their 'generate' processes)
+- 761698831: Bump to the latest version of the Knex library.
+
+  You will most likely want to bump your own `packages/backend/package.json` as well:
+
+  ```diff
+  -    "knex": "^0.21.18",
+  +    "knex": "^0.95.1",
+  ```
+
+  Note that the recent versions of the Knex library have some changes that may affect your internal plugins' database migration files. Importantly, they now support `ALTER TABLE` on SQLite, and no longer accidentally remove indices when making some modifications. It now also exports the `Knex` typescript type as a named export.
+
+  ```ts
+  import { Knex } from 'knex';
+  ```
+
+- Updated dependencies [277644e09]
+- Updated dependencies [52f613030]
+- Updated dependencies [905cbfc96]
+- Updated dependencies [d4e77ec5f]
+  - @backstage/integration@0.5.1
+
+## 0.5.5
+
+### Patch Changes
+
+- 497859088: Add optional `logClientErrors` to errorHandler to log 4XX errors
+- 8adb48df4: Change debug log format to print as color grey
+
+## 0.5.4
+
+### Patch Changes
+
+- 16fb1d03a: pass registered logger to requestLoggingHandler
+- 491f3a0ec: Implement `UrlReader.search` for the other providers (Azure, Bitbucket, GitLab) as well.
+
+  The `UrlReader` subclasses now are implemented in terms of the respective `Integration` class.
+
+- 434b4e81a: Support globs in `FileReaderProcessor`.
+- fb28da212: Switched to using `'x-access-token'` for authenticating Git over HTTPS towards GitHub.
+- Updated dependencies [491f3a0ec]
+  - @backstage/integration@0.5.0
+
+## 0.5.3
+
+### Patch Changes
+
+- ffffea8e6: Minor updates to reflect the changes in `@backstage/integration` that made the fields `apiBaseUrl` and `apiUrl` mandatory.
+- 82b2c11b6: Set explicit content-type in error handler responses.
+- 965e200c6: Slight refactoring in support of a future search implementation in `UrlReader`. Mostly moving code around.
+- 5a5163519: Implement `UrlReader.search` which implements glob matching.
+- Updated dependencies [ffffea8e6]
+  - @backstage/integration@0.4.0
+
+## 0.5.2
+
+### Patch Changes
+
+- 2430ee7c2: Updated the `rootLogger` in `@backstage/backend-common` to support custom logging options. This is useful when you want to make some changes without re-implementing the entire logger and calling `setRootLogger` or `logger.configure`. For example you can add additional `defaultMeta` tags to each log entry. The following changes are included:
+
+  - Added `createRootLogger` which accepts winston `LoggerOptions`. These options allow overriding the default keys.
+
+  Example Usage:
+
+  ```ts
+  // Create the logger
+  const logger = createRootLogger({
+    defaultMeta: { appName: 'backstage', appEnv: 'prod' },
+  });
+
+  // Add a custom logger transport
+  logger.add(new MyCustomTransport());
+
+  const config = await loadBackendConfig({
+    argv: process.argv,
+    logger: getRootLogger(), // already set to new logger instance
+  });
+  ```
+
+- Updated dependencies [c4abcdb60]
+- Updated dependencies [062df71db]
+- Updated dependencies [064c513e1]
+- Updated dependencies [e9aab60c7]
+- Updated dependencies [3149bfe63]
+- Updated dependencies [2e62aea6f]
+  - @backstage/integration@0.3.2
+  - @backstage/config-loader@0.5.1
+
+## 0.5.1
+
+### Patch Changes
+
+- 26a3a6cf0: Honor the branch ref in the url when cloning.
+
+  This fixes a bug in the scaffolder prepare stage where a non-default branch
+  was specified in the scaffolder URL but the default branch was cloned.
+  For example, even though the `other` branch is specified in this example, the
+  `master` branch was actually cloned:
+
+  ```yaml
+  catalog:
+    locations:
+      - type: url
+        target: https://github.com/backstage/backstage/blob/other/plugins/scaffolder-backend/sample-templates/docs-template/template.yaml
+  ```
+
+  This also fixes a 404 in the prepare stage for GitLab URLs.
+
+- 664dd08c9: URL Reader's readTree: Fix bug with github.com URLs.
+- 9dd057662: Upgrade [git-url-parse](https://www.npmjs.com/package/git-url-parse) to [v11.4.4](https://github.com/IonicaBizau/git-url-parse/pull/125) which fixes parsing an Azure DevOps branch ref.
+- Updated dependencies [6800da78d]
+- Updated dependencies [9dd057662]
+- Updated dependencies [ef7957be4]
+- Updated dependencies [ef7957be4]
+- Updated dependencies [ef7957be4]
+  - @backstage/integration@0.3.1
+  - @backstage/config-loader@0.5.0
+
+## 0.5.0
+
+### Minor Changes
+
+- 5345a1f98: Remove fallback option from `UrlReaders.create` and `UrlReaders.default`, as well as the default fallback reader.
+
+  To be able to read data from endpoints outside of the configured integrations, you now need to explicitly allow it by
+  adding an entry in the `backend.reading.allow` list. For example:
+
+  ```yml
+  backend:
+    baseUrl: ...
+    reading:
+      allow:
+        - host: example.com
+        - host: '*.examples.org'
+  ```
+
+  Apart from adding the above configuration, most projects should not need to take any action to migrate existing code. If you do happen to have your own fallback reader configured, this needs to be replaced with a reader factory that selects a specific set of URLs to work with. If you where wrapping the existing fallback reader, the new one that handles the allow list is created using `FetchUrlReader.factory`.
+
+- 09a370426: Remove support for HTTPS certificate generation parameters. Use `backend.https = true` instead.
+
+### Patch Changes
+
+- 0b135e7e0: Add support for GitHub Apps authentication for backend plugins.
+
+  `GithubCredentialsProvider` requests and caches GitHub credentials based on a repository or organization url.
+
+  The `GithubCredentialsProvider` class should be considered stateful since tokens will be cached internally.
+  Consecutive calls to get credentials will return the same token, tokens older than 50 minutes will be considered expired and reissued.
+  `GithubCredentialsProvider` will default to the configured access token if no GitHub Apps are configured.
+
+  More information on how to create and configure a GitHub App to use with backstage can be found in the documentation.
+
+  Usage:
+
+  ```javascript
+  const credentialsProvider = new GithubCredentialsProvider(config);
+  const { token, headers } = await credentialsProvider.getCredentials({
+    url: 'https://github.com/',
+  });
+  ```
+
+  Updates `GithubUrlReader` to use the `GithubCredentialsProvider`.
+
+- 294a70cab: 1. URL Reader's `readTree` method now returns an `etag` in the response along with the blob. The etag is an identifier of the blob and will only change if the blob is modified on the target. Usually it is set to the latest commit SHA on the target.
+
+  `readTree` also takes an optional `etag` in its options and throws a `NotModifiedError` if the etag matches with the etag of the resource.
+
+  So, the `etag` can be used in building a cache when working with URL Reader.
+
+  An example -
+
+  ```ts
+  const response = await reader.readTree(
+    'https://github.com/backstage/backstage',
+  );
+
+  const etag = response.etag;
+
+  // Will throw a new NotModifiedError (exported from @backstage/backstage-common)
+  await reader.readTree('https://github.com/backstage/backstage', {
+    etag,
+  });
+  ```
+
+  2. URL Reader's readTree method can now detect the default branch. So, `url:https://github.com/org/repo/tree/master` can be replaced with `url:https://github.com/org/repo` in places like `backstage.io/techdocs-ref`.
+
+- 0ea032763: URL Reader: Use API response headers for archive filename in readTree. Fixes bug for users with hosted Bitbucket.
+- Updated dependencies [0b135e7e0]
+- Updated dependencies [fa8ba330a]
+- Updated dependencies [ed6baab66]
+  - @backstage/integration@0.3.0
+
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [466354aaa]
+  - @backstage/integration@0.2.0
+
+## 0.4.2
+
+### Patch Changes
+
+- 5ecd50f8a: Fix HTTPS certificate generation and add new config switch, enabling it simply by setting `backend.https = true`. Also introduces caching of generated certificates in order to avoid having to add a browser override every time the backend is restarted.
+- 00042e73c: Moving the Git actions to isomorphic-git instead of the node binding version of nodegit
+- 0829ff126: Tweaked development log formatter to include extra fields at the end of each log line
+- 036a84373: Provide support for on-prem azure devops
+- Updated dependencies [ad5c56fd9]
+- Updated dependencies [036a84373]
+  - @backstage/config-loader@0.4.1
+  - @backstage/integration@0.1.5
+
+## 0.4.1
+
+### Patch Changes
+
+- 1d1c2860f: Implement readTree on BitBucketUrlReader and getBitbucketDownloadUrl
+- 4eafdec4a: Introduce readTree method for GitLab URL Reader
+- Updated dependencies [1d1c2860f]
+- Updated dependencies [4eafdec4a]
+- Updated dependencies [178e09323]
+  - @backstage/integration@0.1.4
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 import React from 'react';
 import { render } from '@testing-library/react';
-import { useApi, configApiRef } from '@backstage/core';
 import { createDevApp } from './render';
+import { useApi, configApiRef } from '@backstage/core-plugin-api';
 
 const anyEnv = (process.env = { ...process.env }) as any;
 
@@ -33,7 +33,7 @@ describe('DevAppBuilder', () => {
     };
 
     const DevApp = createDevApp()
-      .addRootChild(<MyComponent />)
+      .addRootChild(<MyComponent key="test-key" />)
       .build();
 
     const rendered = render(<DevApp />);

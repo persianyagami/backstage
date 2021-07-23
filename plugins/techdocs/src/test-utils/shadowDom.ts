@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import transformer from '../reader/transformers';
 import type { Transformer } from '../reader/transformers';
+import { transform as transformer } from '../reader/transformers';
 
 export type CreateTestShadowDomOptions = {
   preTransformers: Transformer[];
   postTransformers: Transformer[];
 };
 
-export const createTestShadowDom = (
+export const createTestShadowDom = async (
   fixture: string,
   opts: CreateTestShadowDomOptions = {
     preTransformers: [],
     postTransformers: [],
   },
-): ShadowRoot => {
+): Promise<ShadowRoot> => {
   const divElement = document.createElement('div');
   divElement.attachShadow({ mode: 'open' });
   document.body.appendChild(divElement);
@@ -39,7 +39,7 @@ export const createTestShadowDom = (
     'text/html',
   ).documentElement;
   if (opts.preTransformers) {
-    dom = transformer(dom, opts.preTransformers);
+    dom = await transformer(dom, opts.preTransformers);
   }
 
   // Mount the UI
@@ -47,7 +47,7 @@ export const createTestShadowDom = (
 
   // Transformers after the UI is rendered
   if (opts.postTransformers) {
-    transformer(dom, opts.postTransformers);
+    await transformer(dom, opts.postTransformers);
   }
 
   return divElement.shadowRoot!;

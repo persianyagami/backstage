@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ export const rateOf = (cost: number, duration: Duration) => {
   switch (duration) {
     case Duration.P30D:
       return cost / 12;
+    case Duration.P7D:
     case Duration.P90D:
     case Duration.P3M:
       return cost / 4;

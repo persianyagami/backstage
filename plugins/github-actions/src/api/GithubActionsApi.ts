@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import { createApiRef } from '@backstage/core';
-import {
-  ActionsListWorkflowRunsForRepoResponseData,
-  ActionsGetWorkflowResponseData,
-  ActionsGetWorkflowRunResponseData,
-  EndpointInterface,
-} from '@octokit/types';
+import { RestEndpointMethodTypes } from '@octokit/rest';
+import { createApiRef } from '@backstage/core-plugin-api';
 
 export const githubActionsApiRef = createApiRef<GithubActionsApi>({
   id: 'plugin.githubactions.service',
@@ -29,62 +24,87 @@ export const githubActionsApiRef = createApiRef<GithubActionsApi>({
 
 export type GithubActionsApi = {
   listWorkflowRuns: ({
-    token,
+    hostname,
     owner,
     repo,
     pageSize,
     page,
     branch,
   }: {
-    token: string;
+    hostname?: string;
     owner: string;
     repo: string;
     pageSize?: number;
     page?: number;
     branch?: string;
-  }) => Promise<ActionsListWorkflowRunsForRepoResponseData>;
+  }) => Promise<
+    RestEndpointMethodTypes['actions']['listWorkflowRuns']['response']['data']
+  >;
   getWorkflow: ({
-    token,
+    hostname,
     owner,
     repo,
     id,
   }: {
-    token: string;
+    hostname?: string;
     owner: string;
     repo: string;
     id: number;
-  }) => Promise<ActionsGetWorkflowResponseData>;
+  }) => Promise<
+    RestEndpointMethodTypes['actions']['getWorkflow']['response']['data']
+  >;
   getWorkflowRun: ({
-    token,
+    hostname,
     owner,
     repo,
     id,
   }: {
-    token: string;
+    hostname?: string;
     owner: string;
     repo: string;
     id: number;
-  }) => Promise<ActionsGetWorkflowRunResponseData>;
+  }) => Promise<
+    RestEndpointMethodTypes['actions']['getWorkflowRun']['response']['data']
+  >;
   reRunWorkflow: ({
-    token,
+    hostname,
     owner,
     repo,
     runId,
   }: {
-    token: string;
+    hostname?: string;
     owner: string;
     repo: string;
     runId: number;
   }) => Promise<any>;
+  listJobsForWorkflowRun: ({
+    hostname,
+    owner,
+    repo,
+    id,
+    pageSize,
+    page,
+  }: {
+    hostname?: string;
+    owner: string;
+    repo: string;
+    id: number;
+    pageSize?: number;
+    page?: number;
+  }) => Promise<
+    RestEndpointMethodTypes['actions']['listJobsForWorkflowRun']['response']['data']
+  >;
   downloadJobLogsForWorkflowRun: ({
-    token,
+    hostname,
     owner,
     repo,
     runId,
   }: {
-    token: string;
+    hostname?: string;
     owner: string;
     repo: string;
     runId: number;
-  }) => Promise<EndpointInterface>;
+  }) => Promise<
+    RestEndpointMethodTypes['actions']['downloadJobLogsForWorkflowRun']['response']['data']
+  >;
 };

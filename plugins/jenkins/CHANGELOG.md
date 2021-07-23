@@ -1,5 +1,323 @@
 # @backstage/plugin-jenkins
 
+## 0.5.0
+
+### Minor Changes
+
+- 6c7f00eb0: ## Extract an entity-oriented Jenkins Backend
+
+  Change the Jenkins plugin from talking directly with a single Jenkins instance (via the proxy) to having a specific
+  backend plugin which talks to the Jenkins instances.
+
+  Existing users of the Jenkins plugin will need to configure a Jenkins backend instead of a proxy.
+  Typically, this means creating a `src/plugins/jenkins.ts` file, adding a reference to it to `src/index.ts` and changing app-config.yaml
+
+  ### jenkins.ts
+
+  ```typescript
+  import {
+    createRouter,
+    DefaultJenkinsInfoProvider,
+  } from '@backstage/plugin-jenkins-backend';
+  import { CatalogClient } from '@backstage/catalog-client';
+  import { Router } from 'express';
+  import { PluginEnvironment } from '../types';
+
+  export default async function createPlugin({
+    logger,
+    config,
+    discovery,
+  }: PluginEnvironment): Promise<Router> {
+    const catalogClient = new CatalogClient({ discoveryApi: discovery });
+
+    return await createRouter({
+      logger,
+      jenkinsInfoProvider: new DefaultJenkinsInfoProvider(
+        catalogClient,
+        config,
+      ),
+    });
+  }
+  ```
+
+  ### app-config.yaml
+
+  For example
+
+  ```yaml
+  proxy:
+    '/jenkins/api':
+      target: 'https://jenkins.example.com:8080' # your Jenkins URL
+      changeOrigin: true
+      headers:
+        Authorization: Basic ${JENKINS_BASIC_AUTH_HEADER}
+  ```
+
+  Would become:
+
+  ```yaml
+  jenkins:
+    baseUrl: https://jenkins.example.com:8080
+    username: backstage-bot
+    apiKey: ${JENKINS_PASSWORD}
+  ```
+
+  ## Change JavaScript API
+
+  As part of the above change, the JavaScript API exposed by the plugin as a possible place for customisation has changed.
+  The ApiRef now has an id of `plugin.jenkins.service2` and has entity-based functions to match the endpoints exposed by
+  the new backend plugin
+
+  ## Change BuildWithStepsPage route
+
+  The plugin originally provided a route to view a particular build of a particular branch so that if you wanted to view
+  the master branch of an entity annotated with `'jenkins.io/github-folder': teamA/artistLookup-build` you could typically
+  access `/catalog/default/component/artist-lookup/ci-cd/run/master/7` but would now have to access
+  `/catalog/default/component/artist-lookup/ci-cd/build/teamA%2FartistLookup-build%2Fmaster/7`
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/plugin-catalog-react@0.3.0
+
+## 0.4.7
+
+### Patch Changes
+
+- Updated dependencies
+  - @backstage/core-components@0.1.5
+  - @backstage/catalog-model@0.9.0
+  - @backstage/plugin-catalog-react@0.2.6
+
+## 0.4.6
+
+### Patch Changes
+
+- 48c9fcd33: Migrated to use the new `@backstage/core-*` packages rather than `@backstage/core`.
+- Updated dependencies
+  - @backstage/core-plugin-api@0.1.3
+  - @backstage/catalog-model@0.8.4
+  - @backstage/plugin-catalog-react@0.2.4
+
+## 0.4.5
+
+### Patch Changes
+
+- b861c082b: Support showing build details for branches with slashes in their names
+- Updated dependencies
+  - @backstage/plugin-catalog-react@0.2.3
+  - @backstage/catalog-model@0.8.3
+  - @backstage/core@0.7.13
+
+## 0.4.4
+
+### Patch Changes
+
+- 5baf2ff0f: Show error in Jenkins card for errors exposed by the Jenkins API
+- Updated dependencies [add62a455]
+- Updated dependencies [cc592248b]
+- Updated dependencies [17c497b81]
+- Updated dependencies [704875e26]
+  - @backstage/catalog-model@0.8.0
+  - @backstage/core@0.7.11
+  - @backstage/plugin-catalog-react@0.2.0
+
+## 0.4.3
+
+### Patch Changes
+
+- 062bbf90f: chore: bump `@testing-library/user-event` from 12.8.3 to 13.1.8
+- 675a569a9: chore: bump `react-use` dependency in all packages
+- Updated dependencies [062bbf90f]
+- Updated dependencies [10c008a3a]
+- Updated dependencies [889d89b6e]
+- Updated dependencies [16be1d093]
+- Updated dependencies [3f988cb63]
+- Updated dependencies [675a569a9]
+  - @backstage/core@0.7.9
+  - @backstage/plugin-catalog-react@0.1.6
+  - @backstage/catalog-model@0.7.9
+
+## 0.4.2
+
+### Patch Changes
+
+- c614ede9a: Updated README to have up-to-date install instructions.
+- Updated dependencies [9afcac5af]
+- Updated dependencies [e0c9ed759]
+- Updated dependencies [6eaecbd81]
+  - @backstage/core@0.7.7
+
+## 0.4.1
+
+### Patch Changes
+
+- 01ccef4c7: Introduce `useRouteRefParams` to `core-api` to retrieve typed route parameters.
+- Updated dependencies [01ccef4c7]
+- Updated dependencies [fcc3ada24]
+- Updated dependencies [4618774ff]
+- Updated dependencies [df59930b3]
+  - @backstage/plugin-catalog-react@0.1.3
+  - @backstage/core@0.7.3
+  - @backstage/theme@0.2.5
+
+## 0.4.0
+
+### Minor Changes
+
+- e8b2ed9cc: Changed the way project slug is extracted from an entity. Up until now, the plugin assumed that the project slug is always of the format "owner/repo". However, this is not something that is enforced by Jenkins and sometimes the project name doesn't contain an owner.
+  Since this split is not used anywhere and the entire project slug is always used as-is, removed this distinction and just read the project slug from the annotation as-is.
+
+### Patch Changes
+
+- 9ca0e4009: use local version of lowerCase and upperCase methods
+- Updated dependencies [8686eb38c]
+- Updated dependencies [9ca0e4009]
+- Updated dependencies [34ff49b0f]
+  - @backstage/core@0.7.2
+  - @backstage/plugin-catalog-react@0.1.2
+
+## 0.3.12
+
+### Patch Changes
+
+- 0452ba238: - Add Jenkins logo to project page.
+  - Move to new Backstage breadcrumb component.
+  - Change references of deprecated "Job" terminology to "Project" per [Jenkins Glossary](https://www.jenkins.io/doc/book/glossary/).
+- Updated dependencies [12d8f27a6]
+- Updated dependencies [40c0fdbaa]
+- Updated dependencies [2a271d89e]
+- Updated dependencies [bece09057]
+- Updated dependencies [169f48deb]
+- Updated dependencies [8a1566719]
+- Updated dependencies [9d455f69a]
+- Updated dependencies [4c049a1a1]
+- Updated dependencies [02816ecd7]
+  - @backstage/catalog-model@0.7.3
+  - @backstage/core@0.7.0
+  - @backstage/plugin-catalog-react@0.1.1
+
+## 0.3.11
+
+### Patch Changes
+
+- Updated dependencies [3a58084b6]
+- Updated dependencies [e799e74d4]
+- Updated dependencies [d0760ecdf]
+- Updated dependencies [1407b34c6]
+- Updated dependencies [88f1f1b60]
+- Updated dependencies [bad21a085]
+- Updated dependencies [9615e68fb]
+- Updated dependencies [49f9b7346]
+- Updated dependencies [5c2e2863f]
+- Updated dependencies [3a58084b6]
+- Updated dependencies [2c1f2a7c2]
+  - @backstage/core@0.6.3
+  - @backstage/plugin-catalog-react@0.1.0
+  - @backstage/catalog-model@0.7.2
+
+## 0.3.10
+
+### Patch Changes
+
+- f4c2bcf54: Use a more strict type for `variant` of cards.
+- Updated dependencies [fd3f2a8c0]
+- Updated dependencies [d34d26125]
+- Updated dependencies [0af242b6d]
+- Updated dependencies [f4c2bcf54]
+- Updated dependencies [10a0124e0]
+- Updated dependencies [07e226872]
+- Updated dependencies [f62e7abe5]
+- Updated dependencies [96f378d10]
+- Updated dependencies [688b73110]
+  - @backstage/core@0.6.2
+  - @backstage/plugin-catalog-react@0.0.4
+
+## 0.3.9
+
+### Patch Changes
+
+- 53348f0af: Improve display of duration in latest build card
+- 025c0c7bf: Migrate to new composability API, exporting the plugin instance as `jenkinsPlugin`, the entity content as `EntityJenkinsContent`, the entity conditional as `isJenkinsAvailable`, and the entity card as `EntityLatestJenkinsRunCard`.
+- Updated dependencies [19d354c78]
+- Updated dependencies [b51ee6ece]
+  - @backstage/plugin-catalog-react@0.0.3
+  - @backstage/core@0.6.1
+
+## 0.3.8
+
+### Patch Changes
+
+- 019fe39a0: Switch dependency from `@backstage/plugin-catalog` to `@backstage/plugin-catalog-react`.
+- Updated dependencies [12ece98cd]
+- Updated dependencies [d82246867]
+- Updated dependencies [7fc89bae2]
+- Updated dependencies [c810082ae]
+- Updated dependencies [5fa3bdb55]
+- Updated dependencies [6e612ce25]
+- Updated dependencies [025e122c3]
+- Updated dependencies [21e624ba9]
+- Updated dependencies [da9f53c60]
+- Updated dependencies [32c95605f]
+- Updated dependencies [7881f2117]
+- Updated dependencies [54c7d02f7]
+- Updated dependencies [11cb5ef94]
+  - @backstage/core@0.6.0
+  - @backstage/plugin-catalog-react@0.0.2
+  - @backstage/theme@0.2.3
+  - @backstage/catalog-model@0.7.1
+
+## 0.3.7
+
+### Patch Changes
+
+- 9f8faed25: Update Jenkins card with build date, duration, and rename card to "latest" build.
+- Updated dependencies [a4e636c8f]
+- Updated dependencies [099c5cf4f]
+- Updated dependencies [a08db734c]
+  - @backstage/plugin-catalog@0.2.13
+
+## 0.3.6
+
+### Patch Changes
+
+- Updated dependencies [def2307f3]
+- Updated dependencies [efd6ef753]
+- Updated dependencies [593632f07]
+- Updated dependencies [33846acfc]
+- Updated dependencies [a187b8ad0]
+- Updated dependencies [f04db53d7]
+- Updated dependencies [a93f42213]
+  - @backstage/catalog-model@0.7.0
+  - @backstage/core@0.5.0
+  - @backstage/plugin-catalog@0.2.12
+
+## 0.3.5
+
+### Patch Changes
+
+- feabc7f0c: Handle missing ObjectMetadataAction in Jenkins API
+- Updated dependencies [f3b064e1c]
+- Updated dependencies [c00488983]
+- Updated dependencies [265a7ab30]
+- Updated dependencies [abbee6fff]
+- Updated dependencies [147fadcb9]
+  - @backstage/catalog-model@0.6.1
+  - @backstage/plugin-catalog@0.2.11
+  - @backstage/core@0.4.4
+
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [c911061b7]
+- Updated dependencies [8ef71ed32]
+- Updated dependencies [0e6298f7e]
+- Updated dependencies [ac3560b42]
+  - @backstage/catalog-model@0.6.0
+  - @backstage/core@0.4.1
+  - @backstage/plugin-catalog@0.2.7
+
 ## 0.3.3
 
 ### Patch Changes

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,62 +13,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PreparerBase } from './types';
+
+import { UrlReader } from '@backstage/backend-common';
 import { Entity } from '@backstage/catalog-model';
-import path from 'path';
-import { parseReferenceAnnotation, checkoutGitRepository } from '../../helpers';
-import { InputError } from '@backstage/backend-common';
-import parseGitUrl from 'git-url-parse';
+import { Config } from '@backstage/config';
+import { InputError } from '@backstage/errors';
+import {
+  ScmIntegrationRegistry,
+  ScmIntegrations,
+} from '@backstage/integration';
 import { Logger } from 'winston';
+import { parseReferenceAnnotation, transformDirLocation } from '../../helpers';
+import { PreparerBase, PreparerResponse } from './types';
 
 export class DirectoryPreparer implements PreparerBase {
-  private readonly logger: Logger;
+  private readonly scmIntegrations: ScmIntegrationRegistry;
+  private readonly reader: UrlReader;
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor(config: Config, _logger: Logger, reader: UrlReader) {
+    this.reader = reader;
+    this.scmIntegrations = ScmIntegrations.fromConfig(config);
   }
 
-  private async resolveManagedByLocationToDir(entity: Entity) {
-    const { type, target } = parseReferenceAnnotation(
-      'backstage.io/managed-by-location',
-      entity,
-    );
-
-    this.logger.debug(
-      `Building docs for entity with type 'dir' and managed-by-location '${type}'`,
-    );
-    switch (type) {
-      case 'github':
-      case 'gitlab':
-      case 'url':
-      case 'azure/api': {
-        const parsedGitLocation = parseGitUrl(target);
-        const repoLocation = await checkoutGitRepository(target, this.logger);
-
-        return path.dirname(
-          path.join(repoLocation, parsedGitLocation.filepath),
-        );
-      }
-
-      case 'file':
-        return path.dirname(target);
-      default:
-        throw new InputError(`Unable to resolve location type ${type}`);
-    }
-  }
-
-  async prepare(entity: Entity): Promise<string> {
-    const { target } = parseReferenceAnnotation(
+  async prepare(
+    entity: Entity,
+    options?: { logger?: Logger; etag?: string },
+  ): Promise<PreparerResponse> {
+    const annotation = parseReferenceAnnotation(
       'backstage.io/techdocs-ref',
       entity,
     );
-
-    const managedByLocationDirectory = await this.resolveManagedByLocationToDir(
+    const { type, target } = transformDirLocation(
       entity,
+      annotation,
+      this.scmIntegrations,
     );
 
-    return new Promise(resolve => {
-      resolve(path.resolve(managedByLocationDirectory, target));
-    });
+    switch (type) {
+      case 'url': {
+        options?.logger?.debug(`Reading files from ${target}`);
+        // the target is an absolute url since it has already been transformed
+        const response = await this.reader.readTree(target, {
+          etag: options?.etag,
+        });
+        const preparedDir = await response.dir();
+
+        options?.logger?.debug(`Tree downloaded and stored at ${preparedDir}`);
+
+        return {
+          preparedDir,
+          etag: response.etag,
+        };
+      }
+
+      case 'dir': {
+        return {
+          // the transformation already validated that the target is in a safe location
+          preparedDir: target,
+          // Instead of supporting caching on local sources, use techdocs-cli for local development and debugging.
+          etag: '',
+        };
+      }
+
+      default:
+        throw new InputError(`Unable to resolve location type ${type}`);
+    }
   }
 }

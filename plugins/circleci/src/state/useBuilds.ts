@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { errorApiRef, useApi } from '@backstage/core';
+import { useEntity } from '@backstage/plugin-catalog-react';
 import { BuildSummary, GitType } from 'circleci-api';
+import { getOr } from 'lodash/fp';
 import { useCallback, useEffect, useState } from 'react';
 import { useAsyncRetry } from 'react-use';
 import { circleCIApiRef } from '../api';
 import type { CITableBuildInfo } from '../components/BuildsPage/lib/CITable';
-import { useEntity } from '@backstage/plugin-catalog';
 import { CIRCLECI_ANNOTATION } from '../constants';
-import { getOr } from 'lodash/fp';
+import { errorApiRef, useApi } from '@backstage/core-plugin-api';
 
 const makeReadableStatus = (status: string | undefined) => {
   if (!status) return '';

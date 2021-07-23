@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,18 +96,12 @@ describe('util', () => {
       b = lodash.cloneDeep(a);
       b.metadata.labels.labelKey += 'a';
       expect(entityHasChanges(a, b)).toBe(true);
-    });
-
-    it('detects annotation changes, but not removals', () => {
-      let b: any = lodash.cloneDeep(a);
+      b = lodash.cloneDeep(a);
       b.metadata.annotations.annotationKey += 'a';
       expect(entityHasChanges(a, b)).toBe(true);
       b = lodash.cloneDeep(a);
-      b.metadata.annotations.n = 'n';
-      expect(entityHasChanges(a, b)).toBe(true);
-      b = lodash.cloneDeep(a);
       delete b.metadata.annotations.annotationKey;
-      expect(entityHasChanges(a, b)).toBe(false);
+      expect(entityHasChanges(a, b)).toBe(true);
     });
 
     it('detects spec changes', () => {

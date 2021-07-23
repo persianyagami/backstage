@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,30 +25,16 @@ import {
 import RetryIcon from '@material-ui/icons/Replay';
 import GitHubIcon from '@material-ui/icons/GitHub';
 import { Link as RouterLink, generatePath } from 'react-router-dom';
-import { EmptyState, Table, TableColumn } from '@backstage/core';
-import { useWorkflowRuns } from '../useWorkflowRuns';
+import { useWorkflowRuns, WorkflowRun } from '../useWorkflowRuns';
 import { WorkflowRunStatus } from '../WorkflowRunStatus';
 import SyncIcon from '@material-ui/icons/Sync';
-import { buildRouteRef } from '../../plugin';
+import { buildRouteRef } from '../../routes';
 import { useProjectName } from '../useProjectName';
 import { Entity } from '@backstage/catalog-model';
+import { readGitHubIntegrationConfigs } from '@backstage/integration';
 
-export type WorkflowRun = {
-  id: string;
-  message: string;
-  url?: string;
-  githubUrl?: string;
-  source: {
-    branchName: string;
-    commit: {
-      hash: string;
-      url: string;
-    };
-  };
-  status: string;
-  conclusion: string;
-  onReRunClick: () => void;
-};
+import { EmptyState, Table, TableColumn } from '@backstage/core-components';
+import { configApiRef, useApi } from '@backstage/core-plugin-api';
 
 const generatedColumns: TableColumn[] = [
   {
@@ -78,6 +64,10 @@ const generatedColumns: TableColumn[] = [
         <p>{row.source?.commit.hash}</p>
       </Typography>
     ),
+  },
+  {
+    title: 'Workflow',
+    field: 'workflowName',
   },
   {
     title: 'Status',
@@ -162,16 +152,24 @@ export const WorkflowRunsTable = ({
   entity: Entity;
   branch?: string;
 }) => {
+  const config = useApi(configApiRef);
   const { value: projectName, loading } = useProjectName(entity);
+  // TODO: Get github hostname from metadata annotation
+  const hostname = readGitHubIntegrationConfigs(
+    config.getOptionalConfigArray('integrations.github') ?? [],
+  )[0].host;
   const [owner, repo] = (projectName ?? '/').split('/');
   const [
     { runs, ...tableProps },
     { retry, setPage, setPageSize },
   ] = useWorkflowRuns({
+    hostname,
     owner,
     repo,
     branch,
   });
+
+  const githubHost = hostname || 'github.com';
 
   return !runs ? (
     <EmptyState
@@ -182,7 +180,7 @@ export const WorkflowRunsTable = ({
         <Button
           variant="contained"
           color="primary"
-          href={`https://github.com/${projectName}/actions/new`}
+          href={`https://${githubHost}/${projectName}/actions/new`}
         >
           Create new Workflow
         </Button>

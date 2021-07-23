@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,8 @@
  */
 
 import React from 'react';
-import moment from 'moment';
+import { DateTime } from 'luxon';
 import { Box, Typography } from '@material-ui/core';
-import { InfoCard } from '@backstage/core';
 import { AlertInstructionsLayout } from '../AlertInstructionsLayout';
 import { ProductInsightsChart } from '../ProductInsightsCard';
 import {
@@ -28,9 +27,10 @@ import {
   Product,
   ProjectGrowthData,
 } from '../../types';
-import { ProjectGrowthAlert } from '../../utils/alerts';
+import { ProjectGrowthAlert } from '../../alerts';
+import { InfoCard } from '@backstage/core-components';
 
-const today = moment().format(DEFAULT_DATE_FORMAT);
+const today = DateTime.now().toFormat(DEFAULT_DATE_FORMAT);
 
 export const ProjectGrowthInstructionsPage = () => {
   const alertData: ProjectGrowthData = {
@@ -135,7 +135,7 @@ export const ProjectGrowthInstructionsPage = () => {
         <Typography paragraph>
           Next, evaluate whether the growth is significant. This helps avoid
           premature optimization, where cost in engineering time is more than
-          would be saved from the optimization over a reasonable timeframe.
+          would be saved from the optimization over a reasonable time frame.
         </Typography>
         <Typography paragraph>
           We recommend reframing the cost growth itself in terms of engineering
@@ -205,7 +205,7 @@ export const ProjectGrowthInstructionsPage = () => {
           Is the workload using cloud resources efficiently? For compute
           resources, do the utilization metrics look reasonable? Autoscaling
           infrastructure, such as Kubernetes, can run workloads more efficiently
-          without comprimising reliability.
+          without compromising reliability.
         </Typography>
         <Typography variant="h5">Lifecycle</Typography>
         <Typography paragraph>

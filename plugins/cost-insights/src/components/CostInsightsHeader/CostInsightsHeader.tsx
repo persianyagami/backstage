@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,13 @@
 
 import React from 'react';
 import { Typography } from '@material-ui/core';
-import { identityApiRef, ProfileInfo, useApi } from '@backstage/core';
 import { useCostInsightsStyles } from '../../utils/styles';
 import { Group } from '../../types';
+import {
+  identityApiRef,
+  ProfileInfo,
+  useApi,
+} from '@backstage/core-plugin-api';
 
 function name(profile: ProfileInfo | undefined): string {
   return profile?.displayName || 'Mysterious Stranger';
@@ -29,16 +33,6 @@ type CostInsightsHeaderProps = {
   groups: Group[];
   hasCostData: boolean;
   alerts: number;
-};
-
-export const CostInsightsHeader = (props: CostInsightsHeaderProps) => {
-  if (!props.hasCostData) {
-    return <CostInsightsHeaderNoData {...props} />;
-  }
-  if (props.alerts) {
-    return <CostInsightsHeaderAlerts {...props} />;
-  }
-  return <CostInsightsHeaderNoAlerts {...props} />;
 };
 
 const CostInsightsHeaderNoData = ({
@@ -131,4 +125,14 @@ export const CostInsightsHeaderNoGroups = () => {
       </Typography>
     </>
   );
+};
+
+export const CostInsightsHeader = (props: CostInsightsHeaderProps) => {
+  if (!props.hasCostData) {
+    return <CostInsightsHeaderNoData {...props} />;
+  }
+  if (props.alerts) {
+    return <CostInsightsHeaderAlerts {...props} />;
+  }
+  return <CostInsightsHeaderNoAlerts {...props} />;
 };

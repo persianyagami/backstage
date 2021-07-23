@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,9 +38,7 @@ describe('createRouter', () => {
     const router = await createRouter({
       rollbarApi,
       logger: getVoidLogger(),
-      config: ConfigReader.fromConfigs([
-        { context: 'abc', data: { rollbar: { accountToken: 'foo' } } },
-      ]),
+      config: new ConfigReader({ rollbar: { accountToken: 'foo' } }),
     });
     app = express().use(router);
   });
@@ -106,7 +104,7 @@ describe('createRouter', () => {
             level: 50,
             occurrences: 100,
             projectId: 12345,
-            title: 'error occured',
+            title: 'error occurred',
             uniqueOccurrences: 10,
           },
           counts: [10, 10, 10, 10, 10, 50],

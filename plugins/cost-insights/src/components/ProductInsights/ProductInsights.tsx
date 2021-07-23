@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@material-ui/core';
 import { default as Alert } from '@material-ui/lab/Alert';
-import { useApi } from '@backstage/core';
 import { costInsightsApiRef } from '../../api';
 import { ProductInsightsCardList } from '../ProductInsightsCard/ProductInsightsCardList';
 import { Duration, Entity, Maybe, Product } from '../../types';
@@ -34,6 +33,7 @@ import {
   useLastCompleteBillingDate,
   MapLoadingToProps,
 } from '../../hooks';
+import { useApi } from '@backstage/core-plugin-api';
 
 type LoadingProps = (isLoading: boolean) => void;
 
@@ -82,12 +82,7 @@ export const ProductInsights = ({
   );
 
   useEffect(() => {
-    async function getAllProductInsights(
-      group: string,
-      project: Maybe<string>,
-      products: Product[],
-      lastCompleteBillingDate: string,
-    ) {
+    async function getAllProductInsights() {
       try {
         dispatchLoadingProducts(true);
         const responses = await Promise.allSettled(
@@ -101,10 +96,10 @@ export const ProductInsights = ({
           ),
         ).then(settledResponseOf);
 
-        const initialStates = initialStatesOf(products, responses).sort(
+        const updatedInitialStates = initialStatesOf(products, responses).sort(
           totalAggregationSort,
         );
-        setStates(initialStates);
+        setStates(updatedInitialStates);
       } catch (e) {
         setError(e);
       } finally {
@@ -112,7 +107,7 @@ export const ProductInsights = ({
       }
     }
 
-    getAllProductInsights(group, project, products, lastCompleteBillingDate);
+    getAllProductInsights();
   }, [
     client,
     group,
@@ -125,8 +120,8 @@ export const ProductInsights = ({
   useEffect(
     function handleOnLoaded() {
       if (onceRef.current) {
-        const products = initialStates.map(state => state.product);
-        onLoaded(products);
+        const initialProducts = initialStates.map(state => state.product);
+        onLoaded(initialProducts);
       } else {
         onceRef.current = true;
       }

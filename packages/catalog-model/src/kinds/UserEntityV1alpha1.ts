@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,41 +14,13 @@
  * limitations under the License.
  */
 
-import * as yup from 'yup';
 import type { Entity } from '../entity/Entity';
-import { schemaValidator } from './util';
-
-const API_VERSION = ['backstage.io/v1alpha1', 'backstage.io/v1beta1'] as const;
-const KIND = 'User' as const;
-
-const schema = yup.object<Partial<UserEntityV1alpha1>>({
-  apiVersion: yup.string().required().oneOf(API_VERSION),
-  kind: yup.string().required().equals([KIND]),
-  spec: yup
-    .object({
-      profile: yup
-        .object({
-          displayName: yup.string().min(1).notRequired(),
-          email: yup.string().min(1).notRequired(),
-          picture: yup.string().min(1).notRequired(),
-        })
-        .notRequired(),
-      // Use this manual test because yup .required() requires at least one
-      // element and there is no simple workaround -_-
-      // the cast is there to convince typescript that the array itself is
-      // required without using .required()
-      memberOf: yup.array(yup.string().required()).test({
-        name: 'isDefined',
-        message: 'memberOf must be defined',
-        test: v => Boolean(v),
-      }) as yup.ArraySchema<string, object>,
-    })
-    .required(),
-});
+import schema from '../schema/kinds/User.v1alpha1.schema.json';
+import { ajvCompiledJsonSchemaValidator } from './util';
 
 export interface UserEntityV1alpha1 extends Entity {
-  apiVersion: typeof API_VERSION[number];
-  kind: typeof KIND;
+  apiVersion: 'backstage.io/v1alpha1' | 'backstage.io/v1beta1';
+  kind: 'User';
   spec: {
     profile?: {
       displayName?: string;
@@ -59,8 +31,6 @@ export interface UserEntityV1alpha1 extends Entity {
   };
 }
 
-export const userEntityV1alpha1Validator = schemaValidator(
-  KIND,
-  API_VERSION,
+export const userEntityV1alpha1Validator = ajvCompiledJsonSchemaValidator(
   schema,
 );

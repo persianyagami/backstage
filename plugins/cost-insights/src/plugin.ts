@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-import { createPlugin, createRouteRef, PluginConfig } from '@backstage/core';
-import { CostInsightsPage } from './components/CostInsightsPage';
-import { ProjectGrowthInstructionsPage } from './components/ProjectGrowthInstructionsPage';
-import { LabelDataflowInstructionsPage } from './components/LabelDataflowInstructionsPage';
+import {
+  createPlugin,
+  createRouteRef,
+  createRoutableExtension,
+} from '@backstage/core-plugin-api';
 
 export const rootRouteRef = createRouteRef({
   path: '/cost-insights',
@@ -34,14 +35,42 @@ export const unlabeledDataflowAlertRef = createRouteRef({
   title: 'Labeling Dataflow Jobs',
 });
 
-export const pluginConfig: PluginConfig = {
+export const costInsightsPlugin = createPlugin({
   id: 'cost-insights',
-  register({ router, featureFlags }) {
-    router.addRoute(rootRouteRef, CostInsightsPage);
-    router.addRoute(projectGrowthAlertRef, ProjectGrowthInstructionsPage);
-    router.addRoute(unlabeledDataflowAlertRef, LabelDataflowInstructionsPage);
+  register({ featureFlags }) {
     featureFlags.register('cost-insights-currencies');
   },
-};
+  routes: {
+    root: rootRouteRef,
+    growthAlerts: projectGrowthAlertRef,
+    unlabeledDataflowAlerts: unlabeledDataflowAlertRef,
+  },
+});
 
-export const plugin = createPlugin(pluginConfig);
+export const CostInsightsPage = costInsightsPlugin.provide(
+  createRoutableExtension({
+    component: () =>
+      import('./components/CostInsightsPage').then(m => m.CostInsightsPage),
+    mountPoint: rootRouteRef,
+  }),
+);
+
+export const CostInsightsProjectGrowthInstructionsPage = costInsightsPlugin.provide(
+  createRoutableExtension({
+    component: () =>
+      import('./components/ProjectGrowthInstructionsPage').then(
+        m => m.ProjectGrowthInstructionsPage,
+      ),
+    mountPoint: projectGrowthAlertRef,
+  }),
+);
+
+export const CostInsightsLabelDataflowInstructionsPage = costInsightsPlugin.provide(
+  createRoutableExtension({
+    component: () =>
+      import('./components/LabelDataflowInstructionsPage').then(
+        m => m.LabelDataflowInstructionsPage,
+      ),
+    mountPoint: unlabeledDataflowAlertRef,
+  }),
+);

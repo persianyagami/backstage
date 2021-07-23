@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,9 @@ import { AzureUrlReader } from './AzureUrlReader';
 import { BitbucketUrlReader } from './BitbucketUrlReader';
 import { GithubUrlReader } from './GithubUrlReader';
 import { GitlabUrlReader } from './GitlabUrlReader';
+import { DefaultReadTreeResponseFactory } from './tree';
 import { FetchUrlReader } from './FetchUrlReader';
-import { ReadTreeResponseFactory } from './tree';
+import { GoogleGcsUrlReader } from './GoogleGcsUrlReader';
 
 type CreateOptions = {
   /** Root config object */
@@ -32,8 +33,6 @@ type CreateOptions = {
   logger: Logger;
   /** A list of factories used to construct individual readers that match on URLs */
   factories?: ReaderFactory[];
-  /** Fallback reader to use if none of the readers created by the factories match */
-  fallback?: UrlReader;
 };
 
 /**
@@ -43,14 +42,11 @@ export class UrlReaders {
   /**
    * Creates a UrlReader without any known types.
    */
-  static create({
-    logger,
-    config,
-    factories,
-    fallback,
-  }: CreateOptions): UrlReader {
-    const mux = new UrlReaderPredicateMux({ fallback: fallback });
-    const treeResponseFactory = ReadTreeResponseFactory.create({ config });
+  static create({ logger, config, factories }: CreateOptions): UrlReader {
+    const mux = new UrlReaderPredicateMux(logger);
+    const treeResponseFactory = DefaultReadTreeResponseFactory.create({
+      config,
+    });
 
     for (const factory of factories ?? []) {
       const tuples = factory({ config, logger: logger, treeResponseFactory });
@@ -67,10 +63,8 @@ export class UrlReaders {
    * Creates a UrlReader that includes all the default factories from this package.
    *
    * Any additional factories passed will be loaded before the default ones.
-   *
-   * If no fallback reader is passed, a plain fetch reader will be used.
    */
-  static default({ logger, config, factories = [], fallback }: CreateOptions) {
+  static default({ logger, config, factories = [] }: CreateOptions) {
     return UrlReaders.create({
       logger,
       config,
@@ -79,8 +73,9 @@ export class UrlReaders {
         BitbucketUrlReader.factory,
         GithubUrlReader.factory,
         GitlabUrlReader.factory,
+        GoogleGcsUrlReader.factory,
+        FetchUrlReader.factory,
       ]),
-      fallback: fallback ?? new FetchUrlReader(),
     });
   }
 }

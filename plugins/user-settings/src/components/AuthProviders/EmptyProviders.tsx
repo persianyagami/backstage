@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,15 @@
  */
 
 import React from 'react';
-import { CodeSnippet, EmptyState } from '@backstage/core';
 import { Button, Typography } from '@material-ui/core';
+import { CodeSnippet, EmptyState } from '@backstage/core-components';
 
 const EXAMPLE = `auth:
   providers:
     google:
       development:
-        clientId:
-          $env: AUTH_GOOGLE_CLIENT_ID
-        clientSecret:
-          $env: AUTH_GOOGLE_CLIENT_SECRET
+        clientId: \${AUTH_GOOGLE_CLIENT_ID}
+        clientSecret: \${AUTH_GOOGLE_CLIENT_SECRET}
 `;
 
 export const EmptyProviders = () => (

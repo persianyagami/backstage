@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,6 +68,8 @@ export type Entry = {
   url?: string;
   // How this entry has recently moved; -1 for "down", +1 for "up", 0 for not moved
   moved?: MovedState;
+  // Most recent description to display in the UI
+  description?: string;
   active?: boolean;
   timeline?: Array<EntrySnapshot>;
 };

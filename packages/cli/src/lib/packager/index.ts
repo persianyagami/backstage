@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -219,10 +219,10 @@ async function moveToDistWorkspace(
 }
 
 async function findTargetPackages(pkgNames: string[]): Promise<LernaPackage[]> {
-  const LernaProject = require('@lerna/project');
-  const PackageGraph = require('@lerna/package-graph');
+  const { Project } = require('@lerna/project');
+  const { PackageGraph } = require('@lerna/package-graph');
 
-  const project = new LernaProject(paths.targetDir);
+  const project = new Project(paths.targetDir);
   const packages = await project.getPackages();
   const graph = new PackageGraph(packages);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ export const transforms = (options: TransformOptions): Transforms => {
         /\.jpe?g$/,
         /\.png$/,
         /\.frag/,
-        { test: /\.svg/, not: [/\.icon\.svg/] },
+        { and: [/\.svg/, { not: [/\.icon\.svg/] }] },
         /\.xml/,
       ],
       loader: require.resolve('url-loader'),

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,40 @@
  */
 
 import { errorHandler } from '@backstage/backend-common';
-import {
-  locationSpecSchema,
-  analyzeLocationSchema,
-} from '@backstage/catalog-model';
 import type { Entity } from '@backstage/catalog-model';
+import {
+  analyzeLocationSchema,
+  locationSpecSchema,
+} from '@backstage/catalog-model';
+import { Config } from '@backstage/config';
+import { NotFoundError } from '@backstage/errors';
 import express from 'express';
 import Router from 'express-promise-router';
 import { Logger } from 'winston';
 import yn from 'yn';
 import { EntitiesCatalog, LocationsCatalog } from '../catalog';
-import { LocationAnalyzer, HigherOrderOperation } from '../ingestion/types';
-import { translateQueryToFieldMapper } from './filterQuery';
-import { EntityFilters } from './EntityFilters';
-import { requireRequestBody, validateRequestBody } from './util';
+import { HigherOrderOperation, LocationAnalyzer } from '../ingestion/types';
+import { LocationService } from '../next/types';
+import {
+  basicEntityFilter,
+  parseEntityFilterParams,
+  parseEntityPaginationParams,
+  parseEntityTransformParams,
+} from './request';
+import {
+  disallowReadonlyMode,
+  requireRequestBody,
+  validateRequestBody,
+} from './util';
 
 export interface RouterOptions {
   entitiesCatalog?: EntitiesCatalog;
   locationsCatalog?: LocationsCatalog;
   higherOrderOperation?: HigherOrderOperation;
   locationAnalyzer?: LocationAnalyzer;
+  locationService?: LocationService;
   logger: Logger;
+  config: Config;
 }
 
 export async function createRouter(
@@ -46,61 +59,126 @@ export async function createRouter(
     locationsCatalog,
     higherOrderOperation,
     locationAnalyzer,
+    locationService,
+    config,
+    logger,
   } = options;
 
   const router = Router();
   router.use(express.json());
 
+  const readonlyEnabled =
+    config.getOptionalBoolean('catalog.readonly') || false;
+  if (readonlyEnabled) {
+    logger.info('Catalog is running in readonly mode');
+  }
+
   if (entitiesCatalog) {
     router
       .get('/entities', async (req, res) => {
-        const filter = EntityFilters.ofQuery(req.query);
-        const fieldMapper = translateQueryToFieldMapper(req.query);
-        const entities = await entitiesCatalog.entities(filter);
-        res.status(200).send(entities.map(fieldMapper));
+        const { entities, pageInfo } = await entitiesCatalog.entities({
+          filter: parseEntityFilterParams(req.query),
+          fields: parseEntityTransformParams(req.query),
+          pagination: parseEntityPaginationParams(req.query),
+        });
+
+        // Add a Link header to the next page
+        if (pageInfo.hasNextPage) {
+          const url = new URL(`http://ignored${req.url}`);
+          url.searchParams.delete('offset');
+          url.searchParams.set('after', pageInfo.endCursor);
+          res.setHeader('link', `<${url.pathname}${url.search}>; rel="next"`);
+        }
+
+        // TODO(freben): encode the pageInfo in the response
+        res.json(entities);
       })
       .post('/entities', async (req, res) => {
+        /*
+         * NOTE: THIS METHOD IS DEPRECATED AND NOT RECOMMENDED TO USE
+         *
+         * Posting entities to this method has unclear semantics and will not
+         * properly subject them to limitations, processing, or resolution of
+         * relations.
+         *
+         * It stays around in the service for the time being, but may be
+         * removed or change semantics at any time without prior notice.
+         */
+        disallowReadonlyMode(readonlyEnabled);
+
         const body = await requireRequestBody(req);
         const [result] = await entitiesCatalog.batchAddOrUpdateEntities([
           { entity: body as Entity, relations: [] },
         ]);
-        const [entity] = await entitiesCatalog.entities(
-          EntityFilters.ofMatchers({ 'metadata.uid': result.entityId }),
-        );
-        res.status(200).send(entity);
+        const response = await entitiesCatalog.entities({
+          filter: basicEntityFilter({ 'metadata.uid': result.entityId }),
+        });
+        res.status(200).json(response.entities[0]);
       })
       .get('/entities/by-uid/:uid', async (req, res) => {
         const { uid } = req.params;
-        const entities = await entitiesCatalog.entities(
-          EntityFilters.ofMatchers({ 'metadata.uid': uid }),
-        );
+        const { entities } = await entitiesCatalog.entities({
+          filter: basicEntityFilter({ 'metadata.uid': uid }),
+        });
         if (!entities.length) {
-          res.status(404).send(`No entity with uid ${uid}`);
+          throw new NotFoundError(`No entity with uid ${uid}`);
         }
-        res.status(200).send(entities[0]);
+        res.status(200).json(entities[0]);
       })
       .delete('/entities/by-uid/:uid', async (req, res) => {
         const { uid } = req.params;
         await entitiesCatalog.removeEntityByUid(uid);
-        res.status(204).send();
+        res.status(204).end();
       })
       .get('/entities/by-name/:kind/:namespace/:name', async (req, res) => {
         const { kind, namespace, name } = req.params;
-        const entities = await entitiesCatalog.entities(
-          EntityFilters.ofMatchers({
+        const { entities } = await entitiesCatalog.entities({
+          filter: basicEntityFilter({
             kind: kind,
             'metadata.namespace': namespace,
             'metadata.name': name,
           }),
-        );
+        });
         if (!entities.length) {
-          res
-            .status(404)
-            .send(
-              `No entity with kind ${kind} namespace ${namespace} name ${name}`,
-            );
+          throw new NotFoundError(
+            `No entity named '${name}' found, with kind '${kind}' in namespace '${namespace}'`,
+          );
         }
-        res.status(200).send(entities[0]);
+        res.status(200).json(entities[0]);
+      });
+  }
+
+  if (locationService) {
+    router
+      .post('/locations', async (req, res) => {
+        const input = await validateRequestBody(req, locationSpecSchema);
+        const dryRun = yn(req.query.dryRun, { default: false });
+
+        // when in dryRun addLocation is effectively a read operation so we don't
+        // need to disallow readonly
+        if (!dryRun) {
+          disallowReadonlyMode(readonlyEnabled);
+        }
+
+        const output = await locationService.createLocation(input, dryRun);
+        res.status(201).json(output);
+      })
+      .get('/locations', async (_req, res) => {
+        const locations = await locationService.listLocations();
+        res.status(200).json(locations.map(l => ({ data: l })));
+      })
+
+      .get('/locations/:id', async (req, res) => {
+        const { id } = req.params;
+        const output = await locationService.getLocation(id);
+        res.status(200).json(output);
+      })
+      .delete('/locations/:id', async (req, res) => {
+        disallowReadonlyMode(readonlyEnabled);
+
+        const { id } = req.params;
+        await locationService.deleteLocation(id);
+        res.status(204).end();
       });
   }
 
@@ -108,8 +186,15 @@ export async function createRouter(
     router.post('/locations', async (req, res) => {
       const input = await validateRequestBody(req, locationSpecSchema);
       const dryRun = yn(req.query.dryRun, { default: false });
+
+      // when in dryRun addLocation is effectively a read operation so we don't
+      // need to disallow readonly
+      if (!dryRun) {
+        disallowReadonlyMode(readonlyEnabled);
+      }
+
       const output = await higherOrderOperation.addLocation(input, { dryRun });
-      res.status(201).send(output);
+      res.status(201).json(output);
     });
   }
 
@@ -117,22 +202,24 @@ export async function createRouter(
     router
       .get('/locations', async (_req, res) => {
         const output = await locationsCatalog.locations();
-        res.status(200).send(output);
+        res.status(200).json(output);
       })
       .get('/locations/:id/history', async (req, res) => {
         const { id } = req.params;
         const output = await locationsCatalog.locationHistory(id);
-        res.status(200).send(output);
+        res.status(200).json(output);
       })
       .get('/locations/:id', async (req, res) => {
         const { id } = req.params;
         const output = await locationsCatalog.location(id);
-        res.status(200).send(output);
+        res.status(200).json(output);
       })
       .delete('/locations/:id', async (req, res) => {
+        disallowReadonlyMode(readonlyEnabled);
+
         const { id } = req.params;
         await locationsCatalog.removeLocation(id);
-        res.status(204).send();
+        res.status(204).end();
       });
   }
 
@@ -140,7 +227,7 @@ export async function createRouter(
     router.post('/analyze-location', async (req, res) => {
       const input = await validateRequestBody(req, analyzeLocationSchema);
       const output = await locationAnalyzer.analyzeLocation(input);
-      res.status(200).send(output);
+      res.status(200).json(output);
     });
   }
 

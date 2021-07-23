@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ export interface Config {
   /** Configuration options for the rollbar-backend plugin */
   rollbar?: {
     /**
-     * The autentication token for accessing the Rollbar API
+     * The authentication token for accessing the Rollbar API
      * @see https://explorer.docs.rollbar.com/#section/Authentication
      */
     accountToken: string;

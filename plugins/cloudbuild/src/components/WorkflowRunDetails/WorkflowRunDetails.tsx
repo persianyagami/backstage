@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 import { Entity } from '@backstage/catalog-model';
-import { Link, WarningPanel } from '@backstage/core';
 import {
-  Breadcrumbs,
+  Box,
   LinearProgress,
   Link as MaterialLink,
   makeStyles,
@@ -35,6 +34,7 @@ import React from 'react';
 import { useProjectName } from '../useProjectName';
 import { WorkflowRunStatus } from '../WorkflowRunStatus';
 import { useWorkflowRunsDetails } from './useWorkflowRunsDetails';
+import { Breadcrumbs, Link, WarningPanel } from '@backstage/core-components';
 
 const useStyles = makeStyles<Theme>(theme => ({
   root: {
@@ -86,10 +86,12 @@ export const WorkflowRunDetails = ({ entity }: { entity: Entity }) => {
 
   return (
     <div className={classes.root}>
-      <Breadcrumbs aria-label="breadcrumb">
-        <Link to="..">Workflow runs</Link>
-        <Typography>Workflow run details</Typography>
-      </Breadcrumbs>
+      <Box mb={3}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link to="..">Build history</Link>
+          <Typography>Build details</Typography>
+        </Breadcrumbs>
+      </Box>
       <TableContainer component={Paper} className={classes.table}>
         <Table>
           <TableBody>

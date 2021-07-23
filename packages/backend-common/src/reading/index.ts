@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-export type { UrlReader, ReadTreeResponse } from './types';
-export { UrlReaders } from './UrlReaders';
 export { AzureUrlReader } from './AzureUrlReader';
 export { BitbucketUrlReader } from './BitbucketUrlReader';
 export { GithubUrlReader } from './GithubUrlReader';
 export { GitlabUrlReader } from './GitlabUrlReader';
+export type {
+  ReadTreeResponse,
+  ReadTreeResponseFile,
+  SearchResponse,
+  SearchResponseFile,
+  UrlReader,
+} from './types';
+export { UrlReaders } from './UrlReaders';

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { ConflictError, NotFoundError } from '@backstage/backend-common';
+import { ConflictError, NotFoundError } from '@backstage/errors';
 import { CatalogApi } from '@backstage/catalog-client';
 import { UserEntity } from '@backstage/catalog-model';
+import { TokenIssuer } from '../../identity';
 
 type UserQuery = {
   annotations: Record<string, string>;
@@ -27,9 +28,11 @@ type UserQuery = {
  */
 export class CatalogIdentityClient {
   private readonly catalogApi: CatalogApi;
+  private readonly tokenIssuer: TokenIssuer;
 
-  constructor(options: { catalogApi: CatalogApi }) {
+  constructor(options: { catalogApi: CatalogApi; tokenIssuer: TokenIssuer }) {
     this.catalogApi = options.catalogApi;
+    this.tokenIssuer = options.tokenIssuer;
   }
 
   /**
@@ -45,7 +48,11 @@ export class CatalogIdentityClient {
       filter[`metadata.annotations.${key}`] = value;
     }
 
-    const { items } = await this.catalogApi.getEntities({ filter });
+    // TODO(Rugvip): cache the token
+    const token = await this.tokenIssuer.issueToken({
+      claims: { sub: 'backstage.io/auth-backend' },
+    });
+    const { items } = await this.catalogApi.getEntities({ filter }, { token });
 
     if (items.length !== 1) {
       if (items.length > 1) {

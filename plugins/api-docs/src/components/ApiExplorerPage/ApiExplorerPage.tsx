@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,41 +14,98 @@
  * limitations under the License.
  */
 
-import { Content, ContentHeader, SupportButton, useApi } from '@backstage/core';
-import { catalogApiRef } from '@backstage/plugin-catalog';
+import {
+  Content,
+  ContentHeader,
+  PageWithHeader,
+  SupportButton,
+  TableColumn,
+} from '@backstage/core-components';
+import { configApiRef, useApi, useRouteRef } from '@backstage/core-plugin-api';
+import {
+  CatalogTable,
+  CatalogTableRow,
+  FilteredEntityLayout,
+  EntityListContainer,
+  FilterContainer,
+} from '@backstage/plugin-catalog';
+import {
+  EntityKindPicker,
+  EntityLifecyclePicker,
+  EntityListProvider,
+  EntityOwnerPicker,
+  EntityTagPicker,
+  EntityTypePicker,
+  UserListFilterKind,
+  UserListPicker,
+} from '@backstage/plugin-catalog-react';
 import { Button } from '@material-ui/core';
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { useAsync } from 'react-use';
-import { ApiExplorerTable } from '../ApiExplorerTable';
-import { ApiExplorerLayout } from './ApiExplorerLayout';
+import { createComponentRouteRef } from '../../routes';
 
-export const ApiExplorerPage = () => {
-  const catalogApi = useApi(catalogApiRef);
-  const { loading, error, value: catalogResponse } = useAsync(() => {
-    return catalogApi.getEntities({ filter: { kind: 'API' } });
-  }, [catalogApi]);
+const defaultColumns: TableColumn<CatalogTableRow>[] = [
+  CatalogTable.columns.createNameColumn({ defaultKind: 'API' }),
+  CatalogTable.columns.createSystemColumn(),
+  CatalogTable.columns.createOwnerColumn(),
+  CatalogTable.columns.createSpecTypeColumn(),
+  CatalogTable.columns.createSpecLifecycleColumn(),
+  CatalogTable.columns.createMetadataDescriptionColumn(),
+  CatalogTable.columns.createTagsColumn(),
+];
+
+type ApiExplorerPageProps = {
+  initiallySelectedFilter?: UserListFilterKind;
+  columns?: TableColumn<CatalogTableRow>[];
+};
+
+export const ApiExplorerPage = ({
+  initiallySelectedFilter = 'all',
+  columns,
+}: ApiExplorerPageProps) => {
+  const createComponentLink = useRouteRef(createComponentRouteRef);
+  const configApi = useApi(configApiRef);
+  const generatedSubtitle = `${
+    configApi.getOptionalString('organization.name') ?? 'Backstage'
+  } API Explorer`;
 
   return (
-    <ApiExplorerLayout>
+    <PageWithHeader
+      themeId="apis"
+      title="APIs"
+      subtitle={generatedSubtitle}
+      pageTitleOverride="APIs"
+    >
       <Content>
         <ContentHeader title="">
-          <Button
-            variant="contained"
-            color="primary"
-            component={RouterLink}
-            to="/register-component"
-          >
-            Register Existing API
-          </Button>
+          {createComponentLink && (
+            <Button
+              variant="contained"
+              color="primary"
+              component={RouterLink}
+              to={createComponentLink()}
+            >
+              Register Existing API
+            </Button>
+          )}
           <SupportButton>All your APIs</SupportButton>
         </ContentHeader>
-        <ApiExplorerTable
-          entities={catalogResponse?.items ?? []}
-          loading={loading}
-          error={error}
-        />
+        <EntityListProvider>
+          <FilteredEntityLayout>
+            <FilterContainer>
+              <EntityKindPicker initialFilter="api" hidden />
+              <EntityTypePicker />
+              <UserListPicker initialFilter={initiallySelectedFilter} />
+              <EntityOwnerPicker />
+              <EntityLifecyclePicker />
+              <EntityTagPicker />
+            </FilterContainer>
+            <EntityListContainer>
+              <CatalogTable columns={columns || defaultColumns} />
+            </EntityListContainer>
+          </FilteredEntityLayout>
+        </EntityListProvider>
       </Content>
-    </ApiExplorerLayout>
+    </PageWithHeader>
   );
 };

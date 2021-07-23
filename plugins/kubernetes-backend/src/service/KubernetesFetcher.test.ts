@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 import { getVoidLogger } from '@backstage/backend-common';
 import { KubernetesClientBasedFetcher } from './KubernetesFetcher';
-import { ObjectFetchParams } from '..';
 
-describe('KubernetesClientProvider', () => {
+describe('KubernetesFetcher', () => {
   let clientMock: any;
   let kubernetesClientProvider: any;
   let sut: KubernetesClientBasedFetcher;
@@ -35,6 +34,7 @@ describe('KubernetesClientProvider', () => {
       getAppsClientByClusterDetails: jest.fn(() => clientMock),
       getAutoscalingClientByClusterDetails: jest.fn(() => clientMock),
       getNetworkingBeta1Client: jest.fn(() => clientMock),
+      getCustomObjectsClient: jest.fn(() => clientMock),
     };
 
     sut = new KubernetesClientBasedFetcher({
@@ -58,7 +58,7 @@ describe('KubernetesClientProvider', () => {
 
     clientMock.listServiceForAllNamespaces.mockRejectedValue(errorResponse);
 
-    const result = await sut.fetchObjectsForService(<ObjectFetchParams>{
+    const result = await sut.fetchObjectsForService({
       serviceId: 'some-service',
       clusterDetails: {
         name: 'cluster1',
@@ -68,6 +68,7 @@ describe('KubernetesClientProvider', () => {
       },
       objectTypesToFetch: new Set(['pods', 'services']),
       labelSelector: '',
+      customResources: [],
     });
 
     expect(result).toStrictEqual({
@@ -122,7 +123,7 @@ describe('KubernetesClientProvider', () => {
       },
     });
 
-    const result = await sut.fetchObjectsForService(<ObjectFetchParams>{
+    const result = await sut.fetchObjectsForService({
       serviceId: 'some-service',
       clusterDetails: {
         name: 'cluster1',
@@ -132,6 +133,7 @@ describe('KubernetesClientProvider', () => {
       },
       objectTypesToFetch: new Set(['pods', 'services']),
       labelSelector: '',
+      customResources: [],
     });
 
     expect(result).toStrictEqual({
@@ -172,7 +174,7 @@ describe('KubernetesClientProvider', () => {
   });
   it('should throw error on unknown type', () => {
     expect(() =>
-      sut.fetchObjectsForService(<ObjectFetchParams>{
+      sut.fetchObjectsForService({
         serviceId: 'some-service',
         clusterDetails: {
           name: 'cluster1',
@@ -182,6 +184,7 @@ describe('KubernetesClientProvider', () => {
         },
         objectTypesToFetch: new Set<any>(['foo']),
         labelSelector: '',
+        customResources: [],
       }),
     ).toThrow('unrecognised type=foo');
 
@@ -194,6 +197,27 @@ describe('KubernetesClientProvider', () => {
     expect(
       kubernetesClientProvider.getCoreClientByClusterDetails.mock.calls.length,
     ).toBe(0);
+  });
+  // they're in testErrorResponse
+  // eslint-disable-next-line jest/expect-expect
+  it('should return pods, bad request error', async () => {
+    await testErrorResponse(
+      {
+        response: {
+          statusCode: 400,
+          request: {
+            uri: {
+              pathname: '/some/path',
+            },
+          },
+        },
+      },
+      {
+        errorType: 'BAD_REQUEST',
+        resourcePath: '/some/path',
+        statusCode: 400,
+      },
+    );
   });
   // they're in testErrorResponse
   // eslint-disable-next-line jest/expect-expect
@@ -283,7 +307,7 @@ describe('KubernetesClientProvider', () => {
       },
     });
 
-    await sut.fetchObjectsForService(<ObjectFetchParams>{
+    await sut.fetchObjectsForService({
       serviceId: 'some-service',
       clusterDetails: {
         name: 'cluster1',
@@ -293,6 +317,7 @@ describe('KubernetesClientProvider', () => {
       },
       objectTypesToFetch: new Set(['pods', 'services']),
       labelSelector: '',
+      customResources: [],
     });
 
     const mockCall = clientMock.listPodForAllNamespaces.mock.calls[0];

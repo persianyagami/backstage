@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { getVoidLogger } from '@backstage/backend-common';
 import fs from 'fs-extra';
-import os from 'os';
-import { resolve as resolvePath } from 'path';
-import Stream, { PassThrough } from 'stream';
-import Docker from 'dockerode';
 import mockFs from 'mock-fs';
-import * as winston from 'winston';
-import {
-  runDockerContainer,
-  getGeneratorKey,
-  isValidRepoUrlForMkdocs,
-  getRepoUrlFromLocationAnnotation,
-  patchMkdocsYmlPreBuild,
-} from './helpers';
-import { RemoteProtocol } from '../prepare/types';
+import os from 'os';
+import path, { resolve as resolvePath } from 'path';
 import { ParsedLocationAnnotation } from '../../helpers';
+import { RemoteProtocol } from '../prepare/types';
+import {
+  addBuildTimestampMetadata,
+  getGeneratorKey,
+  getRepoUrlFromLocationAnnotation,
+  isValidRepoUrlForMkdocs,
+  patchMkdocsYmlPreBuild,
+  storeEtagMetadata,
+  validateMkdocsYaml,
+} from './helpers';
 
 const mockEntity = {
   apiVersion: 'version',
@@ -38,124 +38,29 @@ const mockEntity = {
   },
 };
 
-const mockDocker = new Docker() as jest.Mocked<Docker>;
-
 const mkdocsYml = fs.readFileSync(
   resolvePath(__filename, '../__fixtures__/mkdocs.yml'),
+);
+const mkdocsYmlWithExtensions = fs.readFileSync(
+  resolvePath(__filename, '../__fixtures__/mkdocs_with_extensions.yml'),
 );
 const mkdocsYmlWithRepoUrl = fs.readFileSync(
   resolvePath(__filename, '../__fixtures__/mkdocs_with_repo_url.yml'),
 );
-const mockLogger = winston.createLogger();
+const mkdocsYmlWithValidDocDir = fs.readFileSync(
+  resolvePath(__filename, '../__fixtures__/mkdocs_valid_doc_dir.yml'),
+);
+const mkdocsYmlWithInvalidDocDir = fs.readFileSync(
+  resolvePath(__filename, '../__fixtures__/mkdocs_invalid_doc_dir.yml'),
+);
+const mockLogger = getVoidLogger();
+const rootDir = os.platform() === 'win32' ? 'C:\\rootDir' : '/rootDir';
 
 describe('helpers', () => {
   describe('getGeneratorKey', () => {
     it('should return techdocs as the only generator key', () => {
       const key = getGeneratorKey(mockEntity);
       expect(key).toBe('techdocs');
-    });
-  });
-
-  describe('runDockerContainer', () => {
-    beforeEach(() => {
-      jest.spyOn(mockDocker, 'pull').mockImplementation((async (
-        _image: string,
-        _something: any,
-        handler: (err: Error | undefined, stream: PassThrough) => void,
-      ) => {
-        const mockStream = new PassThrough();
-        handler(undefined, mockStream);
-        mockStream.end();
-      }) as any);
-
-      jest
-        .spyOn(mockDocker, 'run')
-        .mockResolvedValue([{ Error: null, StatusCode: 0 }]);
-
-      jest
-        .spyOn(mockDocker, 'ping')
-        .mockResolvedValue(Buffer.from('OK', 'utf-8'));
-    });
-
-    const imageName = 'spotify/techdocs';
-    const args = ['build', '-d', '/result'];
-    const docsDir = os.tmpdir();
-    const resultDir = os.tmpdir();
-
-    it('should pull the techdocs docker container', async () => {
-      await runDockerContainer({
-        imageName,
-        args,
-        docsDir,
-        resultDir,
-        dockerClient: mockDocker,
-      });
-
-      expect(mockDocker.pull).toHaveBeenCalledWith(
-        imageName,
-        {},
-        expect.any(Function),
-      );
-    });
-
-    it('should run the techdocs docker container', async () => {
-      await runDockerContainer({
-        imageName,
-        args,
-        docsDir,
-        resultDir,
-        dockerClient: mockDocker,
-      });
-
-      expect(mockDocker.run).toHaveBeenCalledWith(
-        imageName,
-        args,
-        expect.any(Stream),
-        {
-          Volumes: {
-            '/content': {},
-            '/result': {},
-          },
-          WorkingDir: '/content',
-          HostConfig: {
-            Binds: [`${docsDir}:/content`, `${resultDir}:/result`],
-          },
-        },
-      );
-    });
-
-    it('should ping docker to test availability', async () => {
-      await runDockerContainer({
-        imageName,
-        args,
-        docsDir,
-        resultDir,
-        dockerClient: mockDocker,
-      });
-
-      expect(mockDocker.ping).toHaveBeenCalled();
-    });
-
-    describe('where docker is unavailable', () => {
-      const dockerError = 'a docker error';
-
-      beforeEach(() => {
-        jest.spyOn(mockDocker, 'ping').mockImplementationOnce(() => {
-          throw new Error(dockerError);
-        });
-      });
-
-      it('should throw with a descriptive error message including the docker error message', async () => {
-        await expect(
-          runDockerContainer({
-            imageName,
-            args,
-            docsDir,
-            resultDir,
-            dockerClient: mockDocker,
-          }),
-        ).rejects.toThrow(new RegExp(`.+: ${dockerError}`));
-      });
     });
   });
 
@@ -276,11 +181,12 @@ describe('helpers', () => {
     });
   });
 
-  describe('pathMkdocsPreBuild', () => {
+  describe('patchMkdocsYmlPreBuild', () => {
     beforeEach(() => {
       mockFs({
         '/mkdocs.yml': mkdocsYml,
         '/mkdocs_with_repo_url.yml': mkdocsYmlWithRepoUrl,
+        '/mkdocs_with_extensions.yml': mkdocsYmlWithExtensions,
       });
     });
 
@@ -303,7 +209,29 @@ describe('helpers', () => {
       const updatedMkdocsYml = await fs.readFile('/mkdocs.yml');
 
       expect(updatedMkdocsYml.toString()).toContain(
-        "repo_url: 'https://github.com/backstage/backstage'",
+        'repo_url: https://github.com/backstage/backstage',
+      );
+    });
+
+    it('should add repo_url to mkdocs.yml that contains custom yaml tags', async () => {
+      const parsedLocationAnnotation: ParsedLocationAnnotation = {
+        type: 'github',
+        target: 'https://github.com/backstage/backstage',
+      };
+
+      await patchMkdocsYmlPreBuild(
+        '/mkdocs_with_extensions.yml',
+        mockLogger,
+        parsedLocationAnnotation,
+      );
+
+      const updatedMkdocsYml = await fs.readFile('/mkdocs_with_extensions.yml');
+
+      expect(updatedMkdocsYml.toString()).toContain(
+        'repo_url: https://github.com/backstage/backstage',
+      );
+      expect(updatedMkdocsYml.toString()).toContain(
+        "emoji_index: !!python/name:materialx.emoji.twemoji ''",
       );
     });
 
@@ -322,11 +250,133 @@ describe('helpers', () => {
       const updatedMkdocsYml = await fs.readFile('/mkdocs_with_repo_url.yml');
 
       expect(updatedMkdocsYml.toString()).toContain(
-        "repo_url: 'https://github.com/backstage/backstage'",
+        'repo_url: https://github.com/backstage/backstage',
       );
       expect(updatedMkdocsYml.toString()).not.toContain(
-        "repo_url: 'https://github.com/neworg/newrepo'",
+        'repo_url: https://github.com/neworg/newrepo',
       );
+    });
+  });
+
+  describe('addBuildTimestampMetadata', () => {
+    beforeEach(() => {
+      mockFs.restore();
+      mockFs({
+        [rootDir]: {
+          'invalid_techdocs_metadata.json': 'dsds',
+          'techdocs_metadata.json': '{"site_name": "Tech Docs"}',
+        },
+      });
+    });
+
+    afterEach(() => {
+      mockFs.restore();
+    });
+
+    it('should create the file if it does not exist', async () => {
+      const filePath = path.join(rootDir, 'wrong_techdocs_metadata.json');
+      await addBuildTimestampMetadata(filePath, mockLogger);
+
+      // Check if the file exists
+      await expect(
+        fs.access(filePath, fs.constants.F_OK),
+      ).resolves.not.toThrowError();
+    });
+
+    it('should throw error when the JSON is invalid', async () => {
+      const filePath = path.join(rootDir, 'invalid_techdocs_metadata.json');
+
+      await expect(
+        addBuildTimestampMetadata(filePath, mockLogger),
+      ).rejects.toThrowError('Unexpected token d in JSON at position 0');
+    });
+
+    it('should add build timestamp to the metadata json', async () => {
+      const filePath = path.join(rootDir, 'techdocs_metadata.json');
+
+      await addBuildTimestampMetadata(filePath, mockLogger);
+
+      const json = await fs.readJson(filePath);
+      expect(json.build_timestamp).toBeLessThanOrEqual(Date.now());
+    });
+  });
+
+  describe('storeEtagMetadata', () => {
+    beforeEach(() => {
+      mockFs.restore();
+      mockFs({
+        [rootDir]: {
+          'invalid_techdocs_metadata.json': 'dsds',
+          'techdocs_metadata.json': '{"site_name": "Tech Docs"}',
+        },
+      });
+    });
+
+    afterEach(() => {
+      mockFs.restore();
+    });
+
+    it('should throw error when the JSON is invalid', async () => {
+      const filePath = path.join(rootDir, 'invalid_techdocs_metadata.json');
+
+      await expect(
+        storeEtagMetadata(filePath, 'etag123abc'),
+      ).rejects.toThrowError('Unexpected token d in JSON at position 0');
+    });
+
+    it('should add etag to the metadata json', async () => {
+      const filePath = path.join(rootDir, 'techdocs_metadata.json');
+
+      await storeEtagMetadata(filePath, 'etag123abc');
+
+      const json = await fs.readJson(filePath);
+      expect(json.etag).toBe('etag123abc');
+    });
+  });
+
+  describe('validateMkdocsYaml', () => {
+    beforeEach(() => {
+      mockFs({
+        '/mkdocs.yml': mkdocsYml,
+        '/mkdocs_with_extensions.yml': mkdocsYmlWithExtensions,
+        '/mkdocs_valid_doc_dir.yml': mkdocsYmlWithValidDocDir,
+        '/mkdocs_invalid_doc_dir.yml': mkdocsYmlWithInvalidDocDir,
+      });
+    });
+
+    afterEach(() => {
+      mockFs.restore();
+    });
+
+    const inputDir = resolvePath(__filename, '../__fixtures__/');
+    it('should return true on when no docs_dir present', async () => {
+      await expect(
+        validateMkdocsYaml(inputDir, '/mkdocs.yml'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should return true on when a valid docs_dir is present', async () => {
+      await expect(
+        validateMkdocsYaml(inputDir, '/mkdocs_valid_doc_dir.yml'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should return false on absolute doc_dir path', async () => {
+      await expect(
+        validateMkdocsYaml(inputDir, '/mkdocs_invalid_doc_dir.yml'),
+      ).rejects.toThrow();
+    });
+
+    it('should return false on doc_dir path that traverses directory structure backwards', async () => {
+      await expect(
+        validateMkdocsYaml(inputDir, '/mkdocs_invalid_doc_dir2.yml'),
+      ).rejects.toThrow();
+    });
+
+    it('should validate files with custom yaml tags', async () => {
+      await expect(
+        validateMkdocsYaml(inputDir, '/mkdocs_with_extensions.yml'),
+      ).resolves.toBeUndefined();
     });
   });
 });

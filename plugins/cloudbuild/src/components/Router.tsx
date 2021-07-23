@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,21 +15,30 @@
  */
 import React from 'react';
 import { Entity } from '@backstage/catalog-model';
+import { useEntity } from '@backstage/plugin-catalog-react';
 import { Routes, Route } from 'react-router';
-import { rootRouteRef, buildRouteRef } from '../plugin';
+import { rootRouteRef, buildRouteRef } from '../routes';
 import { WorkflowRunDetails } from './WorkflowRunDetails';
 import { WorkflowRunsTable } from './WorkflowRunsTable';
 import { CLOUDBUILD_ANNOTATION } from './useProjectName';
-import { MissingAnnotationEmptyState } from '@backstage/core';
+import { MissingAnnotationEmptyState } from '@backstage/core-components';
 
-export const isPluginApplicableToEntity = (entity: Entity) =>
+export const isCloudbuildAvailable = (entity: Entity) =>
   Boolean(entity.metadata.annotations?.[CLOUDBUILD_ANNOTATION]);
 
-export const Router = ({ entity }: { entity: Entity }) =>
-  // TODO(shmidt-i): move warning to a separate standardized component
-  !isPluginApplicableToEntity(entity) ? (
-    <MissingAnnotationEmptyState annotation={CLOUDBUILD_ANNOTATION} />
-  ) : (
+type Props = {
+  /** @deprecated The entity is now grabbed from context instead */
+  entity?: Entity;
+};
+
+export const Router = (_props: Props) => {
+  const { entity } = useEntity();
+
+  if (!isCloudbuildAvailable(entity)) {
+    // TODO(shmidt-i): move warning to a separate standardized component
+    return <MissingAnnotationEmptyState annotation={CLOUDBUILD_ANNOTATION} />;
+  }
+  return (
     <Routes>
       <Route
         path={`/${rootRouteRef.path}`}
@@ -42,3 +51,4 @@ export const Router = ({ entity }: { entity: Entity }) =>
       )
     </Routes>
   );
+};

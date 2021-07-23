@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,11 @@ const fileHandlers = [
   {
     patterns: ['package.json'],
     handler: handlers.packageJson,
+  },
+  {
+    // Not all plugins have routes
+    patterns: ['src/routes.ts'],
+    handler: handlers.skip,
   },
   {
     // make sure files in 1st level of src/ and dev/ exist

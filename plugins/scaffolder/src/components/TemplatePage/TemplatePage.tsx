@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,173 +13,182 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { TemplateEntityV1alpha1 } from '@backstage/catalog-model';
+import { JsonObject, JsonValue } from '@backstage/config';
+import { LinearProgress } from '@material-ui/core';
+import { FormValidation, IChangeEvent } from '@rjsf/core';
+import React, { useCallback, useState } from 'react';
+import { generatePath, Navigate, useNavigate } from 'react-router';
+import { useParams } from 'react-router-dom';
+import { useAsync } from 'react-use';
+import { scaffolderApiRef } from '../../api';
+import { CustomFieldValidator, FieldExtensionOptions } from '../../extensions';
+import { rootRouteRef } from '../../routes';
+import { MultistepJsonForm } from '../MultistepJsonForm';
+
 import {
   Content,
-  errorApiRef,
   Header,
   InfoCard,
   Lifecycle,
   Page,
-  useApi,
-} from '@backstage/core';
+} from '@backstage/core-components';
 import {
-  catalogApiRef,
-  entityRoute,
-  entityRouteParams,
-} from '@backstage/plugin-catalog';
-import { LinearProgress } from '@material-ui/core';
-import { IChangeEvent } from '@rjsf/core';
-import React, { useState, useCallback } from 'react';
-import { generatePath, Navigate } from 'react-router';
-import { useParams } from 'react-router-dom';
-import { useAsync } from 'react-use';
-import { scaffolderApiRef } from '../../api';
-import { rootRoute } from '../../routes';
-import { JobStatusModal } from '../JobStatusModal';
-import { MultistepJsonForm } from '../MultistepJsonForm';
-import { useJobPolling } from '../hooks/useJobPolling';
+  ApiHolder,
+  errorApiRef,
+  useApi,
+  useApiHolder,
+  useRouteRef,
+} from '@backstage/core-plugin-api';
 
-const useTemplate = (
-  templateName: string,
-  catalogApi: typeof catalogApiRef.T,
-) => {
-  const { value, loading, error } = useAsync(async () => {
-    const response = await catalogApi.getEntities({
-      filter: { kind: 'Template', 'metadata.name': templateName },
-    });
-    return response.items as TemplateEntityV1alpha1[];
-  });
-  return { template: value?.[0], loading, error };
-};
-
-const OWNER_REPO_SCHEMA = {
-  $schema: 'http://json-schema.org/draft-07/schema#' as const,
-  required: ['storePath', 'owner'],
-  properties: {
-    owner: {
-      type: 'string' as const,
-      title: 'Owner',
-      description: 'Who is going to own this component',
-    },
-    storePath: {
-      format: 'GitHub user or org / Repo name',
-      type: 'string' as const,
-      title: 'Store path',
-      description: 'GitHub store path in org/repo format',
-    },
-    access: {
-      type: 'string' as const,
-      title: 'Access',
-      description: 'Who should have access, in org/team or user format',
-    },
-  },
-};
-
-const REPO_FORMAT = {
-  'GitHub user or org / Repo name': /[^\/]*\/[^\/]*/,
-};
-
-export const TemplatePage = () => {
-  const errorApi = useApi(errorApiRef);
-  const catalogApi = useApi(catalogApiRef);
+const useTemplateParameterSchema = (templateName: string) => {
   const scaffolderApi = useApi(scaffolderApiRef);
-  const { templateName } = useParams();
-  const [catalogLink, setCatalogLink] = useState<string | undefined>();
-  const { template, loading } = useTemplate(templateName, catalogApi);
-  const [formState, setFormState] = useState({});
-  const [modalOpen, setModalOpen] = useState(false);
-  const handleFormReset = () => setFormState({});
-  const handleChange = useCallback(
-    (e: IChangeEvent) => setFormState({ ...formState, ...e.formData }),
-    [setFormState, formState],
+  const { value, loading, error } = useAsync(
+    () =>
+      scaffolderApi.getTemplateParameterSchema({
+        name: templateName,
+        kind: 'template',
+        namespace: 'default',
+      }),
+    [scaffolderApi, templateName],
   );
+  return { schema: value, loading, error };
+};
 
-  const [jobId, setJobId] = useState<string | null>(null);
-  const job = useJobPolling(jobId, async job => {
-    if (!job.metadata.catalogInfoUrl) {
-      errorApi.post(
-        new Error(`No catalogInfoUrl returned from the scaffolder`),
-      );
+function isObject(obj: unknown): obj is JsonObject {
+  return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+}
+
+export const createValidator = (
+  rootSchema: JsonObject,
+  validators: Record<string, undefined | CustomFieldValidator<unknown>>,
+  context: {
+    apiHolder: ApiHolder;
+  },
+) => {
+  function validate(
+    schema: JsonObject,
+    formData: JsonObject,
+    errors: FormValidation,
+  ) {
+    const schemaProps = schema.properties;
+    if (!isObject(schemaProps)) {
       return;
     }
 
-    try {
-      const {
-        entities: [createdEntity],
-      } = await catalogApi.addLocation({ target: job.metadata.catalogInfoUrl });
+    for (const [key, propData] of Object.entries(formData)) {
+      const propValidation = errors[key];
 
-      const resolvedPath = generatePath(
-        `/catalog/${entityRoute.path}`,
-        entityRouteParams(createdEntity),
-      );
-
-      setCatalogLink(resolvedPath);
-    } catch (ex) {
-      errorApi.post(
-        new Error(
-          `Something went wrong trying to add the new 'catalog-info.yaml' to the catalog`,
-        ),
-      );
+      if (isObject(propData)) {
+        const propSchemaProps = schemaProps[key];
+        if (isObject(propSchemaProps)) {
+          validate(
+            propSchemaProps,
+            propData as JsonObject,
+            propValidation as FormValidation,
+          );
+        }
+      } else {
+        const propSchema = schemaProps[key];
+        const fieldName =
+          isObject(propSchema) && (propSchema['ui:field'] as string);
+        if (fieldName && typeof validators[fieldName] === 'function') {
+          validators[fieldName]!(
+            propData as JsonValue,
+            propValidation,
+            context,
+          );
+        }
+      }
     }
-  });
+  }
+
+  return (formData: JsonObject, errors: FormValidation) => {
+    validate(rootSchema, formData, errors);
+    return errors;
+  };
+};
+
+export const TemplatePage = ({
+  customFieldExtensions = [],
+}: {
+  customFieldExtensions?: FieldExtensionOptions[];
+}) => {
+  const apiHolder = useApiHolder();
+  const errorApi = useApi(errorApiRef);
+  const scaffolderApi = useApi(scaffolderApiRef);
+  const { templateName } = useParams();
+  const navigate = useNavigate();
+  const rootLink = useRouteRef(rootRouteRef);
+  const { schema, loading, error } = useTemplateParameterSchema(templateName);
+  const [formState, setFormState] = useState({});
+  const handleFormReset = () => setFormState({});
+  const handleChange = useCallback(
+    (e: IChangeEvent) => setFormState(e.formData),
+    [setFormState],
+  );
 
   const handleCreate = async () => {
     try {
-      const jobId = await scaffolderApi.scaffold(templateName, formState);
-      setJobId(jobId);
-      setModalOpen(true);
+      const id = await scaffolderApi.scaffold(templateName, formState);
+
+      navigate(generatePath(`${rootLink()}/tasks/:taskId`, { taskId: id }));
     } catch (e) {
       errorApi.post(e);
     }
   };
 
-  if (!loading && !template) {
+  if (error) {
+    errorApi.post(new Error(`Failed to load template, ${error}`));
+    return <Navigate to={rootLink()} />;
+  }
+  if (!loading && !schema) {
     errorApi.post(new Error('Template was not found.'));
-    return <Navigate to={rootRoute.path} />;
+    return <Navigate to={rootLink()} />;
   }
 
-  if (template && !template?.spec?.schema) {
-    errorApi.post(
-      new Error(
-        'Template schema is corrupted, please check the template.yaml file.',
-      ),
-    );
-    return <Navigate to={rootRoute.path} />;
-  }
+  const customFieldComponents = Object.fromEntries(
+    customFieldExtensions.map(({ name, component }) => [name, component]),
+  );
+
+  const customFieldValidators = Object.fromEntries(
+    customFieldExtensions.map(({ name, validation }) => [name, validation]),
+  );
 
   return (
     <Page themeId="home">
       <Header
-        pageTitleOverride="Create a new component"
+        pageTitleOverride="Create a New Component"
         title={
           <>
-            Create a new component <Lifecycle alpha shorthand />
+            Create a New Component <Lifecycle alpha shorthand />
           </>
         }
         subtitle="Create new software components using standard templates"
       />
       <Content>
         {loading && <LinearProgress data-testid="loading-progress" />}
-        {modalOpen && <JobStatusModal job={job} toCatalogLink={catalogLink} />}
-        {template && (
-          <InfoCard title={template.metadata.title} noPadding>
+        {schema && (
+          <InfoCard
+            title={schema.title}
+            noPadding
+            titleTypographyProps={{ component: 'h2' }}
+          >
             <MultistepJsonForm
               formData={formState}
+              fields={customFieldComponents}
               onChange={handleChange}
               onReset={handleFormReset}
               onFinish={handleCreate}
-              steps={[
-                {
-                  label: 'Fill in template parameters',
-                  schema: template.spec.schema,
-                },
-                {
-                  label: 'Choose owner and repo',
-                  schema: OWNER_REPO_SCHEMA,
-                  customFormats: REPO_FORMAT,
-                },
-              ]}
+              steps={schema.steps.map(step => {
+                return {
+                  ...step,
+                  validate: createValidator(
+                    step.schema,
+                    customFieldValidators,
+                    { apiHolder },
+                  ),
+                };
+              })}
             />
           </InfoCard>
         )}

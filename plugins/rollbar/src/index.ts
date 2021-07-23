@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
-export { plugin } from './plugin';
 export * from './api';
-export * from './routes';
-export { Router } from './components/Router';
-export { RollbarProjectPage } from './components/RollbarProjectPage/RollbarProjectPage';
 export { EntityPageRollbar } from './components/EntityPageRollbar/EntityPageRollbar';
+export {
+  isPluginApplicableToEntity,
+  isPluginApplicableToEntity as isRollbarAvailable,
+  Router,
+} from './components/Router';
 export { ROLLBAR_ANNOTATION } from './constants';
+export {
+  EntityRollbarContent,
+  rollbarPlugin as plugin,
+  rollbarPlugin,
+} from './plugin';
