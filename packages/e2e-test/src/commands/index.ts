@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-import { CommanderStatic } from 'commander';
-import { run } from './run';
+import { Command } from 'commander';
+import { runCommand } from './runCommand';
 
-export function registerCommands(program: CommanderStatic) {
-  program.command('run').description('Run e2e tests').action(run);
+export function registerCommands(program: Command) {
+  program
+    .command('run')
+    .option('--keep', 'Do not remove the temporary dir after tests complete')
+    .description('Run e2e tests')
+    .action(runCommand);
 }

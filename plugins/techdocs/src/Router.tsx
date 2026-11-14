@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,43 +14,122 @@
  * limitations under the License.
  */
 
-import React from 'react';
+import { ReactElement, PropsWithChildren } from 'react';
+import { Route, Routes, useRoutes } from 'react-router-dom';
+
 import { Entity } from '@backstage/catalog-model';
-import { Route, Routes } from 'react-router-dom';
-import { MissingAnnotationEmptyState } from '@backstage/core';
-import {
-  rootRouteRef,
-  rootDocsRouteRef,
-  rootCatalogDocsRouteRef,
-} from './plugin';
-import { TechDocsHome } from './reader/components/TechDocsHome';
-import { TechDocsPage } from './reader/components/TechDocsPage';
 import { EntityPageDocs } from './EntityPageDocs';
+import { TechDocsIndexPage } from './home/components/TechDocsIndexPage';
+import { TechDocsReaderPage } from './reader/components/TechDocsReaderPage';
+import {
+  useEntity,
+  MissingAnnotationEmptyState,
+} from '@backstage/plugin-catalog-react';
+import {
+  TECHDOCS_ANNOTATION,
+  TECHDOCS_EXTERNAL_ANNOTATION,
+} from '@backstage/plugin-techdocs-common';
 
-const TECHDOCS_ANNOTATION = 'backstage.io/techdocs-ref';
+/**
+ * Helper that takes in entity and returns true/false if TechDocs is available for the entity
+ *
+ * @public
+ */
+export const isTechDocsAvailable = (entity: Entity) =>
+  Boolean(entity?.metadata?.annotations?.[TECHDOCS_ANNOTATION]) ||
+  Boolean(entity?.metadata?.annotations?.[TECHDOCS_EXTERNAL_ANNOTATION]);
 
+/**
+ * Responsible for registering routes for TechDocs, TechDocs Homepage and separate TechDocs page
+ *
+ * @public
+ */
 export const Router = () => {
   return (
     <Routes>
-      <Route path={`/${rootRouteRef.path}`} element={<TechDocsHome />} />
-      <Route path={`/${rootDocsRouteRef.path}`} element={<TechDocsPage />} />
+      <Route path="/" element={<TechDocsIndexPage />} />
+      <Route
+        path="/:namespace/:kind/:name/*"
+        element={<TechDocsReaderPage />}
+      />
     </Routes>
   );
 };
 
-export const EmbeddedDocsRouter = ({ entity }: { entity: Entity }) => {
-  const projectId = entity.metadata.annotations?.[TECHDOCS_ANNOTATION];
+export const TechDocsReaderRouter = (props: PropsWithChildren) => {
+  const { children } = props;
+
+  // Using objects instead of <Route> elements, otherwise "outlet" will be null on sub-pages and add-ons won't render
+  const element = useRoutes([
+    {
+      path: '*',
+      element: <TechDocsReaderPage />,
+      children: [
+        {
+          path: '*',
+          element: children,
+        },
+      ],
+    },
+  ]);
+
+  return element;
+};
+
+export const EmbeddedDocsRouter = (
+  props: PropsWithChildren<{
+    emptyState?: ReactElement;
+    withSearch?: boolean;
+    withFeedbackLink?: boolean;
+  }>,
+) => {
+  const { children, emptyState, withSearch = true, withFeedbackLink } = props;
+  const { entity } = useEntity();
+
+  // Using objects instead of <Route> elements, otherwise "outlet" will be null on sub-pages and add-ons won't render
+  const element = useRoutes([
+    {
+      path: '/*',
+      element: (
+        <EntityPageDocs
+          entity={entity}
+          withSearch={withSearch}
+          withFeedbackLink={withFeedbackLink}
+        />
+      ),
+      children: [
+        {
+          path: '*',
+          element: children,
+        },
+      ],
+    },
+  ]);
+
+  const projectId =
+    entity.metadata.annotations?.[TECHDOCS_ANNOTATION] ||
+    entity.metadata.annotations?.[TECHDOCS_EXTERNAL_ANNOTATION];
 
   if (!projectId) {
-    return <MissingAnnotationEmptyState annotation={TECHDOCS_ANNOTATION} />;
+    return (
+      emptyState ?? (
+        <MissingAnnotationEmptyState annotation={[TECHDOCS_ANNOTATION]} />
+      )
+    );
   }
+  return element;
+};
 
-  return (
-    <Routes>
-      <Route
-        path={`/${rootCatalogDocsRouteRef.path}`}
-        element={<EntityPageDocs entity={entity} />}
-      />
-    </Routes>
-  );
+/**
+ * Responsible for registering route to view docs on Entity page
+ *
+ * @public
+ */
+export const LegacyEmbeddedDocsRouter = ({
+  children,
+  withSearch = true,
+}: PropsWithChildren<{ withSearch?: boolean }>) => {
+  // Wrap the Router to avoid exposing the emptyState prop in the non-alpha
+  // public API and make it easier for us to change later.
+  return <EmbeddedDocsRouter children={children} withSearch={withSearch} />;
 };

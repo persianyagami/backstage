@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,24 +15,49 @@
  */
 
 import { Config, ConfigReader } from '@backstage/config';
+import { loadConfigSchema } from '@backstage/config-loader';
 import {
-  GitHubIntegrationConfig,
-  readGitHubIntegrationConfig,
-  readGitHubIntegrationConfigs,
+  GithubIntegrationConfig,
+  readGithubIntegrationConfig,
+  readGithubIntegrationConfigs,
 } from './config';
 
-describe('readGitHubIntegrationConfig', () => {
-  function buildConfig(provider: Partial<GitHubIntegrationConfig>) {
-    return ConfigReader.fromConfigs([{ context: '', data: provider }]);
+describe('readGithubIntegrationConfig', () => {
+  function buildConfig(provider: Partial<GithubIntegrationConfig>) {
+    return new ConfigReader(provider);
+  }
+
+  async function buildFrontendConfig(
+    data: Partial<GithubIntegrationConfig>,
+  ): Promise<Config> {
+    const fullSchema = await loadConfigSchema({
+      dependencies: ['@backstage/integration'],
+    });
+    const serializedSchema = fullSchema.serialize() as {
+      schemas: { value: { properties?: { integrations?: object } } }[];
+    };
+    const schema = await loadConfigSchema({
+      serialized: {
+        ...serializedSchema, // only include schemas that apply to integrations
+        schemas: serializedSchema.schemas.filter(
+          s => s.value?.properties?.integrations,
+        ),
+      },
+    });
+    const processed = schema.process(
+      [{ data: { integrations: { github: [data] } }, context: 'app' }],
+      { visibility: ['frontend'] },
+    );
+    return new ConfigReader((processed[0].data as any).integrations.github[0]);
   }
 
   it('reads all values', () => {
-    const output = readGitHubIntegrationConfig(
+    const output = readGithubIntegrationConfig(
       buildConfig({
         host: 'a.com',
         apiBaseUrl: 'https://a.com/api',
         rawBaseUrl: 'https://a.com/raw',
-        token: 't',
+        token: '\nt\t',
       }),
     );
     expect(output).toEqual({
@@ -44,7 +69,7 @@ describe('readGitHubIntegrationConfig', () => {
   });
 
   it('injects the correct GitHub API base URL when missing', () => {
-    const output = readGitHubIntegrationConfig(
+    const output = readGithubIntegrationConfig(
       buildConfig({ host: 'github.com' }),
     );
     expect(output).toEqual({
@@ -62,31 +87,46 @@ describe('readGitHubIntegrationConfig', () => {
       token: 't',
     };
     expect(() =>
-      readGitHubIntegrationConfig(buildConfig({ ...valid, host: 7 })),
+      readGithubIntegrationConfig(buildConfig({ ...valid, host: 7 })),
     ).toThrow(/host/);
     expect(() =>
-      readGitHubIntegrationConfig(buildConfig({ ...valid, apiBaseUrl: 7 })),
+      readGithubIntegrationConfig(buildConfig({ ...valid, apiBaseUrl: 7 })),
     ).toThrow(/apiBaseUrl/);
     expect(() =>
-      readGitHubIntegrationConfig(buildConfig({ ...valid, rawBaseUrl: 7 })),
+      readGithubIntegrationConfig(buildConfig({ ...valid, rawBaseUrl: 7 })),
     ).toThrow(/rawBaseUrl/);
     expect(() =>
-      readGitHubIntegrationConfig(buildConfig({ ...valid, token: 7 })),
+      readGithubIntegrationConfig(buildConfig({ ...valid, token: 7 })),
     ).toThrow(/token/);
+  });
+
+  it('works on the frontend', async () => {
+    expect(
+      readGithubIntegrationConfig(
+        await buildFrontendConfig({
+          host: 'a.com',
+          apiBaseUrl: 'https://a.com/api',
+          rawBaseUrl: 'https://a.com/raw',
+          token: 't',
+        }),
+      ),
+    ).toEqual({
+      host: 'a.com',
+      apiBaseUrl: 'https://a.com/api',
+      rawBaseUrl: 'https://a.com/raw',
+    });
   });
 });
 
-describe('readGitHubIntegrationConfigs', () => {
+describe('readGithubIntegrationConfigs', () => {
   function buildConfig(
-    providers: Partial<GitHubIntegrationConfig>[],
+    providers: Partial<GithubIntegrationConfig>[],
   ): Config[] {
-    return providers.map(provider =>
-      ConfigReader.fromConfigs([{ context: '', data: provider }]),
-    );
+    return providers.map(provider => new ConfigReader(provider));
   }
 
   it('reads all values', () => {
-    const output = readGitHubIntegrationConfigs(
+    const output = readGithubIntegrationConfigs(
       buildConfig([
         {
           host: 'a.com',
@@ -105,7 +145,7 @@ describe('readGitHubIntegrationConfigs', () => {
   });
 
   it('adds a default GitHub entry when missing', () => {
-    const output = readGitHubIntegrationConfigs(buildConfig([]));
+    const output = readGithubIntegrationConfigs(buildConfig([]));
     expect(output).toEqual([
       {
         host: 'github.com',

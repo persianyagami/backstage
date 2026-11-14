@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,137 +14,36 @@
  * limitations under the License.
  */
 
-import {
-  ExtensionsV1beta1Ingress,
-  V1ConfigMap,
-  V1Deployment,
-  V1HorizontalPodAutoscaler,
-  V1Pod,
-  V1ReplicaSet,
-  V1Service,
-} from '@kubernetes/client-node';
-import { Entity } from '@backstage/catalog-model';
+import { Config } from '@backstage/config';
+import type { KubernetesRequestBody } from '@backstage/plugin-kubernetes-common';
+import * as k8sTypes from '@backstage/plugin-kubernetes-node';
+import { LoggerService } from '@backstage/backend-plugin-api';
 
-export interface ClusterDetails {
-  name: string;
-  url: string;
-  authProvider: string;
-  serviceAccountToken?: string | undefined;
+/**
+ *
+ * @public
+ */
+export type ServiceLocatorMethod =
+  | 'multiTenant'
+  | 'singleTenant'
+  | 'catalogRelation'
+  | 'http'; // TODO implement http
+
+/**
+ *
+ * @public
+ */
+export interface KubernetesObjectsProviderOptions {
+  logger: LoggerService;
+  config: Config;
+  fetcher: k8sTypes.KubernetesFetcher;
+  serviceLocator: k8sTypes.KubernetesServiceLocator;
+  customResources: k8sTypes.CustomResource[];
+  objectTypesToFetch?: k8sTypes.ObjectToFetch[];
 }
 
-export interface KubernetesRequestBody {
-  auth?: {
-    google?: string;
-  };
-  entity: Entity;
-}
-
-export interface ClusterObjects {
-  cluster: { name: string };
-  resources: FetchResponse[];
-  errors: KubernetesFetchError[];
-}
-
-export interface ObjectsByEntityResponse {
-  items: ClusterObjects[];
-}
-
-export interface FetchResponseWrapper {
-  errors: KubernetesFetchError[];
-  responses: FetchResponse[];
-}
-
-export type FetchResponse =
-  | PodFetchResponse
-  | ServiceFetchResponse
-  | ConfigMapFetchResponse
-  | DeploymentFetchResponse
-  | ReplicaSetsFetchResponse
-  | HorizontalPodAutoscalersFetchResponse
-  | IngressesFetchResponse;
-
-// TODO fairly sure there's a easier way to do this
-
-export type KubernetesObjectTypes =
-  | 'pods'
-  | 'services'
-  | 'configmaps'
-  | 'deployments'
-  | 'replicasets'
-  | 'horizontalpodautoscalers'
-  | 'ingresses';
-
-export interface PodFetchResponse {
-  type: 'pods';
-  resources: Array<V1Pod>;
-}
-
-export interface ServiceFetchResponse {
-  type: 'services';
-  resources: Array<V1Service>;
-}
-
-export interface ConfigMapFetchResponse {
-  type: 'configmaps';
-  resources: Array<V1ConfigMap>;
-}
-
-export interface DeploymentFetchResponse {
-  type: 'deployments';
-  resources: Array<V1Deployment>;
-}
-
-export interface ReplicaSetsFetchResponse {
-  type: 'replicasets';
-  resources: Array<V1ReplicaSet>;
-}
-
-export interface HorizontalPodAutoscalersFetchResponse {
-  type: 'horizontalpodautoscalers';
-  resources: Array<V1HorizontalPodAutoscaler>;
-}
-
-export interface IngressesFetchResponse {
-  type: 'ingresses';
-  resources: Array<ExtensionsV1beta1Ingress>;
-}
-
-export interface ObjectFetchParams {
-  serviceId: string;
-  clusterDetails: ClusterDetails;
-  objectTypesToFetch: Set<KubernetesObjectTypes>;
-  labelSelector: string;
-}
-
-// Fetches information from a kubernetes cluster using the cluster details object
-// to target a specific cluster
-export interface KubernetesFetcher {
-  fetchObjectsForService(
-    params: ObjectFetchParams,
-  ): Promise<FetchResponseWrapper>;
-}
-
-// Used to locate which cluster(s) a service is running on
-export interface KubernetesServiceLocator {
-  getClustersByServiceId(serviceId: string): Promise<ClusterDetails[]>;
-}
-
-// Used to load cluster details from different sources
-export interface KubernetesClustersSupplier {
-  getClusters(): Promise<ClusterDetails[]>;
-}
-
-export type KubernetesErrorTypes =
-  | 'UNAUTHORIZED_ERROR'
-  | 'SYSTEM_ERROR'
-  | 'UNKNOWN_ERROR';
-
-export interface KubernetesFetchError {
-  errorType: KubernetesErrorTypes;
-  statusCode?: number;
-  resourcePath?: string;
-}
-
-export type ServiceLocatorMethod = 'multiTenant' | 'http'; // TODO implement http
-export type ClusterLocatorMethod = 'config';
-export type AuthProviderType = 'google' | 'serviceAccount';
+/**
+ *
+ * @public
+ */
+export type ObjectsByEntityRequest = KubernetesRequestBody;

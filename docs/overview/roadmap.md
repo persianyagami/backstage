@@ -1,133 +1,58 @@
 ---
 id: roadmap
-title: Project roadmap
-description: Roadmap of Backstage Project
+title: Roadmap
+description: Roadmap of Backstage
 ---
 
-## Current status
+## The Backstage Roadmap
 
-> Backstage is currently under rapid development. This means that you can expect
-> APIs and features to evolve. It is also recommended that teams who adopt
-> Backstage today upgrade their installation as new
-> [releases](https://github.com/backstage/backstage/releases) become available,
-> as Backwards compatibility is not yet guaranteed.
+Backstage is still under rapid development, and this page details the project's
+public roadmap. This not a complete list of all work happening in and around the
+project, it only highlights the highest priority initiatives worked on by the
+core maintainers.
 
-## Phases
+## 2025 Spring Roadmap
 
-We have divided the project into three high-level _phases_:
+The initiatives listed below are planned for release within the next half-year, starting in November 2024. The roadmap is updated every 6 months, and the next update is planned for April 2024.
 
-- 🐣 **Phase 1:** Extensible frontend platform (Done ✅) - You will be able to
-  easily create a single consistent UI layer for your internal infrastructure
-  and tools. A set of reusable
-  [UX patterns and components](https://backstage.io/storybook) help ensure a
-  consistent experience between tools.
+### New Frontend System - Ready for Adoption
 
-- 🐢 **Phase 2:** Service Catalog
-  ([alpha released](https://backstage.io/blog/2020/06/22/backstage-service-catalog-alpha)) -
-  With a single catalog, Backstage makes it easy for a team to manage ten
-  services — and makes it possible for your company to manage thousands of them.
+The [new frontend system](../frontend-system/index.md) still needs more work, and
+the next milestone is to improve it to the point where there is enough
+confidence in the design to start encouraging adoption in the community. You can
+follow along with this work in the [meta issue](https://github.com/backstage/backstage/issues/19545).
+This milestone also includes reaching and executing [rollout phase 2](https://github.com/backstage/backstage/issues/19545#issuecomment-1766069146).
 
-- 🐇 **Phase 3:** Ecosystem (ongoing, see
-  [Plugin Marketplace](https://backstage.io/plugins)) - Everyone's
-  infrastructure stack is different. By fostering a vibrant community of
-  contributors we hope to provide an ecosystem of Open Source
-  plugins/integrations that allows you to pick the tools that match your stack.
+Once the initial milestone is reached, the goal is to also build out broader
+support for the new frontend system in the core plugins.
 
-## Detailed roadmap
+### Rework Pull Request & Issue Process
 
-If you have questions about the roadmap or want to provide feedback, we would
-love to hear from you! Please create an
-[Issue](https://github.com/backstage/backstage/issues/new/choose), ping us on
-[Discord](https://discord.gg/EBHEGzX) or reach out directly at
-[backstage-interest@spotify.com](mailto:backstage-interest@spotify.com).
+Our current review and issue triage process is centered around either core- or
+project area maintainers. The goal of this initiative is to make it simpler for
+more members of the community to be involved and contribute to this process.
 
-Want to help out? Awesome ❤️ Head over to
+### Catalog Performance
+
+The goal of this initiative is to improve the performance of the Software
+Catalog, both in terms of speeding up the read API and improving the ingestion
+process.
+
+## How to influence the roadmap
+
+As we evolve Backstage, we want you to contribute actively in the journey to
+define the most effective developer experience in the world.
+
+A roadmap is only useful if it captures real needs. If you have success stories,
+feedback, or ideas, we want to hear from you! If you plan to work (or are
+already working) on a new or existing feature, please let us know, so that we
+can update the roadmap accordingly. We are also happy to share knowledge and
+context that will help your feature land successfully.
+
+You can also head over to the
 [CONTRIBUTING](https://github.com/backstage/backstage/blob/master/CONTRIBUTING.md)
 guidelines to get started.
 
-### Ongoing work 🚧
-
-- **[Plugins for managing micro services end-2-end](https://github.com/backstage/backstage/milestone/14)**
-  Out of the box Backstage will ship with a set of plugins (Overview, CI, API
-  and Docs) that will demonstrate how a user can manage a micro service and
-  follow a change all the way out in production. Completing this work will make
-  it much easier to see how a plugin can be built that integrates with the
-  Backstage Service Catalog.
-
-- **[Users and teams](https://github.com/backstage/backstage/issues/1807)**
-  Ownership is a central concept in Backstage. It should be easy to import your
-  existing organizational data, such as users and groups/teams, into Backstage.
-  A user the logs into Backstage should see software components owned by the
-  team(s) they are in.
-
-- **[Backstage platform is stable](https://github.com/backstage/backstage/milestone/19)** -
-  The platform APIs and features are stable and can be depended on for
-  production use. After this plugins will require little to no maintenance.
-
-* **[Improved Kubernetes plugin](https://github.com/backstage/backstage/issues/2857)** -
-  Native support for Kubernetes, making it easier for developers to see and
-  manage their services running in k8s.
-
-- Further improvements to platform documentation. Examples include a Golden Path
-  for plugin development.
-
-### Future work 🔮
-
-- **Deploy a product demo at `demo.backstage.io`** - Deploy a typical Backstage
-  deployment available publicly so that people can click around and get a feel
-  for the product without having to install anything.
-
-- **[Global search](https://github.com/backstage/backstage/issues/1499)** -
-  Extend the basic search available in the Backstage Service Catalog with a
-  global search experience. Long term this search solution should be extensible,
-  making it possible for you add custom search results.
-
-- **[[TechDocs V.2] Stabilization release](https://github.com/backstage/backstage/milestone/17)** -
-  Platform stability and compatibility improvements.
-
-- **Additional auth providers** - Backstage should work for most (all!) auth
-  solutions. Since Backstage can be used by companies regardless of what cloud
-  (or on prem) you are using we are especially keen to get auth support for
-  [AWS](https://github.com/backstage/backstage/issues/290),
-  [Azure](https://github.com/backstage/backstage/issues/348) and others.
-
-- **[Initial GraphQL API](https://github.com/backstage/backstage/milestone/13)** -
-  A GraphQL API will open up the rich metadata provided by Backstage in a single
-  query. Plugins can easily query this API as well as extend the model where
-  needed.
-
-### Plugins
-
-Building and maintaining [plugins](https://backstage.io/plugins) is the work of
-the entire Backstage community.
-
-A list of plugins that are in development is
-[available here](https://github.com/backstage/backstage/issues?q=is%3Aissue+is%3Aopen+label%3Aplugin+sort%3Areactions-%2B1-desc).
-We strongly recommend to upvote 👍 plugins you are interested in. This helps us
-and the community prioritize what plugins to build.
-
-Are you missing a plugin for your favorite tool? Please
-[suggest a new one](https://github.com/backstage/backstage/issues/new?labels=plugin&template=plugin_template.md&title=%5BPlugin%5D+THE+PLUGIN+NAME).
-Chances are that someone will jump in and help build it.
-
-### Completed milestones ✅
-
-- [Kubernetes plugin - v1](https://github.com/backstage/backstage/tree/master/plugins/kubernetes)
-- [Helm charts](https://github.com/backstage/backstage/tree/master/contrib/chart/backstage)
-- [Backstage Design System 💅](https://backstage.io/blog/2020/09/30/backstage-design-system)
-- [Cost Insights plugin 💸](https://engineering.atspotify.com/2020/09/29/managing-clouds-from-the-ground-up-cost-engineering-at-spotify/)
-- [Donate Backstage to the CNCF 🎉](https://backstage.io/blog/2020/09/23/backstage-cncf-sandbox)
-- [TechDocs v1](https://backstage.io/blog/2020/09/08/announcing-tech-docs)
-- [Plugin marketplace](https://backstage.io/plugins)
-- [Improved and move documentation to backstage.io](https://backstage.io/docs/overview/what-is-backstage)
-- [Backstage Service Catalog (alpha)](https://backstage.io/blog/2020/06/22/backstage-service-catalog-alpha)
-- [Backstage Software Templates (alpha)](https://backstage.io/blog/2020/08/05/announcing-backstage-software-templates)
-- [Make it possible to add custom auth providers](https://backstage.io/blog/2020/07/01/how-to-enable-authentication-in-backstage-using-passport)
-- [TechDocs v0](https://github.com/backstage/backstage/milestone/15)
-- CI plugins: CircleCI, Jenkins, GitHub Actions and TravisCI
-- [Service API documentation](https://github.com/backstage/backstage/pull/1737)
-- Backstage Service Catalog can read from: GitHub, GitLab,
-  [Bitbucket](https://github.com/backstage/backstage/pull/1938)
-- Support auth providers: Google, Okta, GitHub, GitLab,
-  [auth0](https://github.com/backstage/backstage/pull/1611),
-  [AWS](https://github.com/backstage/backstage/pull/1990)
+If you have specific questions about the roadmap, please create an
+[issue](https://github.com/backstage/backstage/issues/new/choose), ping us on
+[Discord](https://discord.gg/backstage-687207715902193673), or [book time](https://spoti.fi/backstageofficehours) with the Spotify team.

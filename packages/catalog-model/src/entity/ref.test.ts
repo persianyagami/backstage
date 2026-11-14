@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,172 +14,9 @@
  * limitations under the License.
  */
 
-import { ENTITY_DEFAULT_NAMESPACE } from './constants';
-import { Entity } from './Entity';
-import { parseEntityName, parseEntityRef, serializeEntityRef } from './ref';
+import { parseEntityRef } from './ref';
 
 describe('ref', () => {
-  describe('parseEntityName', () => {
-    it('handles some omissions', () => {
-      expect(parseEntityName('a:b/c')).toEqual({
-        kind: 'a',
-        namespace: 'b',
-        name: 'c',
-      });
-      expect(() => parseEntityName('b/c')).toThrow(/kind/);
-      expect(parseEntityName('a:c')).toEqual({
-        kind: 'a',
-        namespace: ENTITY_DEFAULT_NAMESPACE,
-        name: 'c',
-      });
-      expect(() => parseEntityName('c')).toThrow(/kind/);
-    });
-
-    it('rejects bad inputs', () => {
-      expect(() => parseEntityName(null as any)).toThrow();
-      expect(() => parseEntityName(7 as any)).toThrow();
-      expect(() => parseEntityName('a:b:c')).toThrow();
-      expect(() => parseEntityName('a/b/c')).toThrow();
-      expect(() => parseEntityName('a/b:c')).toThrow();
-      expect(() => parseEntityName('a:b/c/d')).toThrow();
-      expect(() => parseEntityName('a:b/c:d')).toThrow();
-    });
-
-    it('rejects empty parts in strings', () => {
-      // one is empty
-      expect(() => parseEntityName(':b/c')).toThrow();
-      expect(() => parseEntityName('a:/c')).toThrow();
-      expect(() => parseEntityName('a:b/')).toThrow();
-      // two are empty
-      expect(() => parseEntityName('a:/')).toThrow();
-      expect(() => parseEntityName(':b/')).toThrow();
-      expect(() => parseEntityName(':/c')).toThrow();
-      // three are empty
-      expect(() => parseEntityName(':/')).toThrow();
-      // one is left out, one empty
-      expect(() => parseEntityName('/c')).toThrow();
-      expect(() => parseEntityName('b/')).toThrow();
-      expect(() => parseEntityName(':c')).toThrow();
-      expect(() => parseEntityName('a:')).toThrow();
-      // nothing at all
-      expect(() => parseEntityName('')).toThrow();
-    });
-
-    it('rejects empty parts in compounds', () => {
-      // one is empty
-      expect(() =>
-        parseEntityName({ kind: '', namespace: 'b', name: 'c' }),
-      ).toThrow();
-      expect(() => parseEntityName({ namespace: 'b', name: 'c' })).toThrow();
-      expect(() =>
-        parseEntityName({ kind: 'a', namespace: '', name: 'c' }),
-      ).toThrow();
-      expect(() => parseEntityName({ kind: 'a', name: 'c' })).not.toThrow();
-      expect(() =>
-        parseEntityName({ kind: 'a', namespace: 'b', name: '' }),
-      ).toThrow();
-      expect(() =>
-        parseEntityName({ kind: 'a', namespace: 'b' } as any),
-      ).toThrow();
-      // two are empty
-      expect(() =>
-        parseEntityName({ kind: '', namespace: '', name: 'c' }),
-      ).toThrow();
-      expect(() => parseEntityName({ name: 'c' })).toThrow();
-      expect(() =>
-        parseEntityName({ kind: '', namespace: 'b', name: '' }),
-      ).toThrow();
-      expect(() => parseEntityName({ namespace: 'b' } as any)).toThrow();
-      expect(() =>
-        parseEntityName({ kind: 'a', namespace: '', name: '' }),
-      ).toThrow();
-      expect(() => parseEntityName({ kind: 'a' } as any)).toThrow();
-      // three are empty
-      expect(() =>
-        parseEntityName({ kind: '', namespace: '', name: '' }),
-      ).toThrow();
-      expect(() => parseEntityName({} as any)).toThrow();
-      // one is left out, one empty
-      expect(() => parseEntityName({ namespace: '', name: 'c' })).toThrow();
-      expect(() => parseEntityName({ namespace: 'b', name: '' })).toThrow();
-      expect(() => parseEntityName({ kind: '', name: 'c' })).toThrow();
-      expect(() => parseEntityName({ kind: 'a', name: '' })).toThrow();
-    });
-
-    it('adds defaults where necessary to strings', () => {
-      expect(
-        parseEntityName('a:b/c', { defaultKind: 'x', defaultNamespace: 'y' }),
-      ).toEqual({ kind: 'a', namespace: 'b', name: 'c' });
-      expect(
-        parseEntityName('b/c', { defaultKind: 'x', defaultNamespace: 'y' }),
-      ).toEqual({ kind: 'x', namespace: 'b', name: 'c' });
-      expect(
-        parseEntityName('a:c', { defaultKind: 'x', defaultNamespace: 'y' }),
-      ).toEqual({ kind: 'a', namespace: 'y', name: 'c' });
-      expect(parseEntityName('a:c', { defaultKind: 'x' })).toEqual({
-        kind: 'a',
-        namespace: ENTITY_DEFAULT_NAMESPACE,
-        name: 'c',
-      });
-      expect(
-        parseEntityName('c', { defaultKind: 'x', defaultNamespace: 'y' }),
-      ).toEqual({ kind: 'x', namespace: 'y', name: 'c' });
-      expect(parseEntityName('c', { defaultKind: 'x' })).toEqual({
-        kind: 'x',
-        namespace: ENTITY_DEFAULT_NAMESPACE,
-        name: 'c',
-      });
-    });
-
-    it('adds defaults where necessary to compounds', () => {
-      expect(
-        parseEntityName(
-          { kind: 'a', namespace: 'b', name: 'c' },
-          { defaultKind: 'x', defaultNamespace: 'y' },
-        ),
-      ).toEqual({ kind: 'a', namespace: 'b', name: 'c' });
-      expect(
-        parseEntityName(
-          { namespace: 'b', name: 'c' },
-          { defaultKind: 'x', defaultNamespace: 'y' },
-        ),
-      ).toEqual({ kind: 'x', namespace: 'b', name: 'c' });
-      expect(
-        parseEntityName(
-          { kind: 'a', name: 'c' },
-          { defaultKind: 'x', defaultNamespace: 'y' },
-        ),
-      ).toEqual({ kind: 'a', namespace: 'y', name: 'c' });
-      expect(
-        parseEntityName({ kind: 'a', name: 'c' }, { defaultKind: 'x' }),
-      ).toEqual({ kind: 'a', namespace: ENTITY_DEFAULT_NAMESPACE, name: 'c' });
-      expect(
-        parseEntityName(
-          { name: 'c' },
-          { defaultKind: 'x', defaultNamespace: 'y' },
-        ),
-      ).toEqual({ kind: 'x', namespace: 'y', name: 'c' });
-      expect(parseEntityName({ name: 'c' }, { defaultKind: 'x' })).toEqual({
-        kind: 'x',
-        namespace: ENTITY_DEFAULT_NAMESPACE,
-        name: 'c',
-      });
-      // empty strings are errors, not defaults
-      expect(() =>
-        parseEntityName(
-          { kind: '', namespace: 'b', name: 'c' },
-          { defaultKind: 'x', defaultNamespace: 'y' },
-        ),
-      ).toThrow(/kind/);
-      expect(() =>
-        parseEntityName(
-          { kind: 'a', namespace: '', name: 'c' },
-          { defaultKind: 'x', defaultNamespace: 'y' },
-        ),
-      ).toThrow(/namespace/);
-    });
-  });
-
   describe('parseEntityRef', () => {
     it('handles some omissions', () => {
       expect(parseEntityRef('a:b/c')).toEqual({
@@ -187,19 +24,9 @@ describe('ref', () => {
         namespace: 'b',
         name: 'c',
       });
-      expect(parseEntityRef('b/c')).toEqual({
-        kind: undefined,
-        namespace: 'b',
-        name: 'c',
-      });
       expect(parseEntityRef('a:c')).toEqual({
         kind: 'a',
-        namespace: undefined,
-        name: 'c',
-      });
-      expect(parseEntityRef('c')).toEqual({
-        kind: undefined,
-        namespace: undefined,
+        namespace: 'default',
         name: 'c',
       });
     });
@@ -207,11 +34,24 @@ describe('ref', () => {
     it('rejects bad inputs', () => {
       expect(() => parseEntityRef(null as any)).toThrow();
       expect(() => parseEntityRef(7 as any)).toThrow();
-      expect(() => parseEntityRef('a:b:c')).toThrow();
-      expect(() => parseEntityRef('a/b/c')).toThrow();
-      expect(() => parseEntityRef('a/b:c')).toThrow();
-      expect(() => parseEntityRef('a:b/c/d')).toThrow();
-      expect(() => parseEntityRef('a:b/c:d')).toThrow();
+    });
+
+    it('allows names with : and /', () => {
+      expect(
+        parseEntityRef('a:b:c', { defaultKind: 'k', defaultNamespace: 'ns' }),
+      ).toEqual({ kind: 'a', namespace: 'ns', name: 'b:c' });
+      expect(
+        parseEntityRef('a/b/c', { defaultKind: 'k', defaultNamespace: 'ns' }),
+      ).toEqual({ kind: 'k', namespace: 'a', name: 'b/c' });
+      expect(
+        parseEntityRef('a/b:c', { defaultKind: 'k', defaultNamespace: 'ns' }),
+      ).toEqual({ kind: 'k', namespace: 'a', name: 'b:c' });
+      expect(
+        parseEntityRef('a:b/c/d', { defaultKind: 'k', defaultNamespace: 'ns' }),
+      ).toEqual({ kind: 'a', namespace: 'b', name: 'c/d' });
+      expect(
+        parseEntityRef('a:b/c:d', { defaultKind: 'k', defaultNamespace: 'ns' }),
+      ).toEqual({ kind: 'a', namespace: 'b', name: 'c:d' });
     });
 
     it('rejects empty parts in strings', () => {
@@ -321,64 +161,6 @@ describe('ref', () => {
           { defaultKind: 'x', defaultNamespace: 'y' },
         ),
       ).toThrow(/namespace/);
-    });
-  });
-
-  describe('serializeEntityRef', () => {
-    it('handles partials', () => {
-      expect(
-        serializeEntityRef({ kind: 'a', namespace: 'b', name: 'c' }),
-      ).toEqual('a:b/c');
-      expect(serializeEntityRef({ namespace: 'b', name: 'c' })).toEqual('b/c');
-      expect(serializeEntityRef({ kind: 'a', name: 'c' })).toEqual('a:c');
-      expect(serializeEntityRef({ name: 'c' })).toEqual('c');
-    });
-
-    it('handles entities', () => {
-      const entityWithNamespace: Entity = {
-        apiVersion: 'a',
-        kind: 'b',
-        metadata: {
-          name: 'c',
-          namespace: 'd',
-        },
-      };
-      const entityWithoutNamespace: Entity = {
-        apiVersion: 'a',
-        kind: 'b',
-        metadata: {
-          name: 'c',
-        },
-      };
-      expect(serializeEntityRef(entityWithNamespace)).toEqual('b:d/c');
-      expect(serializeEntityRef(entityWithoutNamespace)).toEqual('b:c');
-    });
-
-    it('picks the least complex form', () => {
-      expect(
-        serializeEntityRef({ kind: 'a', namespace: 'b', name: 'c' }),
-      ).toEqual('a:b/c');
-      expect(serializeEntityRef({ namespace: 'b', name: 'c' })).toEqual('b/c');
-      expect(serializeEntityRef({ kind: 'a', name: 'c' })).toEqual('a:c');
-      expect(serializeEntityRef({ name: 'c' })).toEqual('c');
-      expect(
-        serializeEntityRef({ kind: 'a:x', namespace: 'b', name: 'c' }),
-      ).toEqual({ kind: 'a:x', namespace: 'b', name: 'c' });
-      expect(
-        serializeEntityRef({ kind: 'a/x', namespace: 'b', name: 'c' }),
-      ).toEqual({ kind: 'a/x', namespace: 'b', name: 'c' });
-      expect(
-        serializeEntityRef({ kind: 'a', namespace: 'b:x', name: 'c' }),
-      ).toEqual({ kind: 'a', namespace: 'b:x', name: 'c' });
-      expect(
-        serializeEntityRef({ kind: 'a', namespace: 'b/x', name: 'c' }),
-      ).toEqual({ kind: 'a', namespace: 'b/x', name: 'c' });
-      expect(
-        serializeEntityRef({ kind: 'a', namespace: 'b', name: 'c:x' }),
-      ).toEqual({ kind: 'a', namespace: 'b', name: 'c:x' });
-      expect(
-        serializeEntityRef({ kind: 'a', namespace: 'b', name: 'c/x' }),
-      ).toEqual({ kind: 'a', namespace: 'b', name: 'c/x' });
     });
   });
 });

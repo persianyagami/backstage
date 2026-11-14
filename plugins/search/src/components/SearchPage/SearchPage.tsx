@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,53 +13,87 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Content, Header, Page, useQueryParamState } from '@backstage/core';
-import { Grid } from '@material-ui/core';
-import React, { useEffect, useState } from 'react';
-import { useDebounce } from 'react-use';
-import { SearchBar } from '../SearchBar';
-import { SearchResult } from '../SearchResult';
 
+import { useEffect } from 'react';
+import usePrevious from 'react-use/esm/usePrevious';
+import qs from 'qs';
+import { useLocation, useOutlet } from 'react-router-dom';
+import {
+  SearchContextProvider,
+  useSearch,
+} from '@backstage/plugin-search-react';
+import { JsonObject } from '@backstage/types';
+
+export const UrlUpdater = () => {
+  const location = useLocation();
+  const {
+    term,
+    setTerm,
+    types,
+    setTypes,
+    pageCursor,
+    setPageCursor,
+    filters,
+    setFilters,
+  } = useSearch();
+
+  const prevQueryParams = usePrevious(location.search);
+  useEffect(() => {
+    // Only respond to changes to url query params
+    if (location.search === prevQueryParams) {
+      return;
+    }
+
+    const query =
+      qs.parse(location.search.substring(1), { arrayLimit: 10000 }) || {};
+
+    if (query.filters) {
+      setFilters(query.filters as JsonObject);
+    }
+
+    if (query.query) {
+      setTerm(query.query as string);
+    }
+
+    if (query.pageCursor) {
+      setPageCursor(query.pageCursor as string);
+    }
+
+    setTypes(query.types ? (query.types as string[]) : []);
+  }, [prevQueryParams, location, setTerm, setTypes, setPageCursor, setFilters]);
+
+  useEffect(() => {
+    const newParams = qs.stringify(
+      {
+        query: term,
+        types,
+        pageCursor,
+        filters,
+      },
+      { arrayFormat: 'brackets' },
+    );
+    const newUrl = `${window.location.pathname}?${newParams}`;
+
+    // We directly manipulate window history here in order to not re-render
+    // infinitely (state => location => state => etc). The intention of this
+    // code is just to ensure the right query/filters are loaded when a user
+    // clicks the "back" button after clicking a result.
+    window.history.replaceState(null, document.title, newUrl);
+  }, [term, types, pageCursor, filters]);
+
+  return null;
+};
+
+/**
+ * @public
+ */
 export const SearchPage = () => {
-  const [queryString, setQueryString] = useQueryParamState<string>('query');
-  const [searchQuery, setSearchQuery] = useState(queryString ?? '');
-
-  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    setSearchQuery(event.target.value);
-  };
-
-  useEffect(() => setSearchQuery(queryString ?? ''), [queryString]);
-
-  useDebounce(
-    () => {
-      setQueryString(searchQuery);
-    },
-    200,
-    [searchQuery],
-  );
-
-  const handleClearSearchBar = () => {
-    setSearchQuery('');
-  };
+  const outlet = useOutlet();
 
   return (
-    <Page themeId="home">
-      <Header title="Search" />
-      <Content>
-        <Grid container direction="row">
-          <Grid item xs={12}>
-            <SearchBar
-              handleSearch={handleSearch}
-              handleClearSearchBar={handleClearSearchBar}
-              searchQuery={searchQuery}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <SearchResult searchQuery={(queryString ?? '').toLowerCase()} />
-          </Grid>
-        </Grid>
-      </Content>
-    </Page>
+    <SearchContextProvider>
+      <UrlUpdater />
+      {outlet}
+    </SearchContextProvider>
   );
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-import { ConflictError, NotFoundError } from '@backstage/backend-common';
-import { CatalogApi } from '@backstage/catalog-client';
-import { UserEntity } from '@backstage/catalog-model';
-
-type UserQuery = {
-  annotations: Record<string, string>;
-};
+import { AuthService, LoggerService } from '@backstage/backend-plugin-api';
+import { ConflictError, NotFoundError } from '@backstage/errors';
+import { CatalogService } from '@backstage/plugin-catalog-node';
+import {
+  CompoundEntityRef,
+  parseEntityRef,
+  RELATION_MEMBER_OF,
+  stringifyEntityRef,
+  UserEntity,
+} from '@backstage/catalog-model';
 
 /**
  * A catalog client tailored for reading out identity data from the catalog.
  */
 export class CatalogIdentityClient {
-  private readonly catalogApi: CatalogApi;
+  private readonly catalog: CatalogService;
+  private readonly auth: AuthService;
 
-  constructor(options: { catalogApi: CatalogApi }) {
-    this.catalogApi = options.catalogApi;
+  constructor(options: { catalog: CatalogService; auth: AuthService }) {
+    this.catalog = options.catalog;
+    this.auth = options.auth;
   }
 
   /**
@@ -37,7 +42,9 @@ export class CatalogIdentityClient {
    *
    * Throws a NotFoundError or ConflictError if 0 or multiple users are found.
    */
-  async findUser(query: UserQuery): Promise<UserEntity> {
+  async findUser(query: {
+    annotations: Record<string, string>;
+  }): Promise<UserEntity> {
     const filter: Record<string, string> = {
       kind: 'user',
     };
@@ -45,7 +52,10 @@ export class CatalogIdentityClient {
       filter[`metadata.annotations.${key}`] = value;
     }
 
-    const { items } = await this.catalogApi.getEntities({ filter });
+    const { items } = await this.catalog.getEntities(
+      { filter },
+      { credentials: await this.auth.getOwnServiceCredentials() },
+    );
 
     if (items.length !== 1) {
       if (items.length > 1) {
@@ -56,5 +66,68 @@ export class CatalogIdentityClient {
     }
 
     return items[0] as UserEntity;
+  }
+
+  /**
+   * Resolve additional entity claims from the catalog, using the passed-in entity names. Designed
+   * to be used within a `signInResolver` where additional entity claims might be provided, but
+   * group membership and transient group membership lean on imported catalog relations.
+   *
+   * Returns a superset of the entity names that can be passed directly to `issueToken` as `ent`.
+   */
+  async resolveCatalogMembership(query: {
+    entityRefs: string[];
+    logger?: LoggerService;
+  }): Promise<string[]> {
+    const { entityRefs, logger } = query;
+    const resolvedEntityRefs = entityRefs
+      .map((ref: string) => {
+        try {
+          const parsedRef = parseEntityRef(ref.toLowerCase(), {
+            defaultKind: 'user',
+            defaultNamespace: 'default',
+          });
+          return parsedRef;
+        } catch {
+          logger?.warn(`Failed to parse entityRef from ${ref}, ignoring`);
+          return null;
+        }
+      })
+      .filter((ref): ref is CompoundEntityRef => ref !== null);
+
+    const filter = resolvedEntityRefs.map(ref => ({
+      kind: ref.kind,
+      'metadata.namespace': ref.namespace,
+      'metadata.name': ref.name,
+    }));
+
+    const entities = await this.catalog
+      .getEntities(
+        { filter },
+        { credentials: await this.auth.getOwnServiceCredentials() },
+      )
+      .then(r => r.items);
+
+    if (entityRefs.length !== entities.length) {
+      const foundEntityNames = entities.map(stringifyEntityRef);
+      const missingEntityNames = resolvedEntityRefs
+        .map(stringifyEntityRef)
+        .filter(s => !foundEntityNames.includes(s));
+      logger?.debug(`Entities not found for refs ${missingEntityNames.join()}`);
+    }
+
+    const memberOf = entities.flatMap(
+      e =>
+        e!.relations
+          ?.filter(r => r.type === RELATION_MEMBER_OF)
+          .map(r => r.targetRef) ?? [],
+    );
+
+    const newEntityRefs = [
+      ...new Set(resolvedEntityRefs.map(stringifyEntityRef).concat(memberOf)),
+    ];
+
+    logger?.debug(`Found catalog membership: ${newEntityRefs.join()}`);
+    return newEntityRefs;
   }
 }

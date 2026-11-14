@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,30 @@
  * limitations under the License.
  */
 
-import { ClusterDetails, KubernetesServiceLocator } from '..';
+import { Entity } from '@backstage/catalog-model';
+import {
+  ClusterDetails,
+  KubernetesClustersSupplier,
+  KubernetesServiceLocator,
+  ServiceLocatorRequestContext,
+} from '@backstage/plugin-kubernetes-node';
 
 // This locator assumes that every service is located on every cluster
 // Therefore it will always return all clusters provided
 export class MultiTenantServiceLocator implements KubernetesServiceLocator {
-  private readonly clusterDetails: ClusterDetails[];
+  private readonly clusterSupplier: KubernetesClustersSupplier;
 
-  constructor(clusterDetails: ClusterDetails[]) {
-    this.clusterDetails = clusterDetails;
+  constructor(clusterSupplier: KubernetesClustersSupplier) {
+    this.clusterSupplier = clusterSupplier;
   }
 
   // As this implementation always returns all clusters serviceId is ignored here
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async getClustersByServiceId(_serviceId: string): Promise<ClusterDetails[]> {
-    return this.clusterDetails;
+  getClustersByEntity(
+    _entity: Entity,
+    requestContext: ServiceLocatorRequestContext,
+  ): Promise<{ clusters: ClusterDetails[] }> {
+    return this.clusterSupplier
+      .getClusters({ credentials: requestContext.credentials })
+      .then(clusters => ({ clusters }));
   }
 }

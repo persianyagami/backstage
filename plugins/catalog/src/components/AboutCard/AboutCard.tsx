@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,234 +14,217 @@
  * limitations under the License.
  */
 
-import {
-  Entity,
-  ENTITY_DEFAULT_NAMESPACE,
-  RELATION_OWNED_BY,
-  RELATION_PROVIDES_API,
-  serializeEntityRef,
-} from '@backstage/catalog-model';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  Chip,
-  Divider,
-  Grid,
-  IconButton,
-  makeStyles,
-  Typography,
-} from '@material-ui/core';
-import ExtensionIcon from '@material-ui/icons/Extension';
-import DocsIcon from '@material-ui/icons/Description';
+import { useCallback } from 'react';
+
+import IconButton from '@material-ui/core/IconButton';
+import CachedIcon from '@material-ui/icons/Cached';
 import EditIcon from '@material-ui/icons/Edit';
-import GitHubIcon from '@material-ui/icons/GitHub';
-import React from 'react';
-import { IconLinkVertical } from './IconLinkVertical';
-import { findLocationForEntityMeta } from '../../data/utils';
-import { createEditLink, determineUrlType } from '../createEditLink';
+import DocsIcon from '@material-ui/icons/Description';
+import CreateComponentIcon from '@material-ui/icons/AddCircleOutline';
 
-const useStyles = makeStyles(theme => ({
-  links: {
-    margin: theme.spacing(2, 0),
-    display: 'grid',
-    gridAutoFlow: 'column',
-    gridAutoColumns: 'min-content',
-    gridGap: theme.spacing(3),
-  },
-  label: {
-    color: theme.palette.text.secondary,
-    textTransform: 'uppercase',
-    fontSize: '10px',
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-    overflow: 'hidden',
-    whiteSpace: 'nowrap',
-  },
-  value: {
-    fontWeight: 'bold',
-    overflow: 'hidden',
-    lineHeight: '24px',
-    wordBreak: 'break-word',
-  },
-  description: {
-    wordBreak: 'break-word',
-  },
-  gridItemCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: 'calc(100% - 10px)', // for pages without content header
-    marginBottom: '10px',
-  },
-  gridItemCardContent: {
-    flex: 1,
-  },
-}));
+import {
+  AppIcon,
+  HeaderIconLinkRow,
+  IconLinkVerticalProps,
+  Link,
+} from '@backstage/core-components';
+import { EntityInfoCard } from '@backstage/plugin-catalog-react';
+import {
+  alertApiRef,
+  errorApiRef,
+  useApp,
+  useApi,
+  useRouteRef,
+} from '@backstage/core-plugin-api';
+import { useTranslationRef } from '@backstage/core-plugin-api/alpha';
 
-const iconMap: Record<string, React.ReactNode> = {
-  github: <GitHubIcon />,
-};
+import {
+  DEFAULT_NAMESPACE,
+  ANNOTATION_EDIT_URL,
+  ANNOTATION_LOCATION,
+  stringifyEntityRef,
+} from '@backstage/catalog-model';
+import { catalogApiRef, useEntity } from '@backstage/plugin-catalog-react';
+import { useEntityPermission } from '@backstage/plugin-catalog-react/alpha';
+import { catalogEntityRefreshPermission } from '@backstage/plugin-catalog-common/alpha';
 
-type CodeLinkInfo = {
-  icon?: React.ReactNode;
-  edithref?: string;
-  href?: string;
-};
+import {
+  TECHDOCS_ANNOTATION,
+  TECHDOCS_EXTERNAL_ANNOTATION,
+} from '@backstage/plugin-techdocs-common';
+import { buildTechDocsURL } from '@backstage/plugin-techdocs-react';
 
-function getCodeLinkInfo(entity: Entity): CodeLinkInfo {
-  const location = findLocationForEntityMeta(entity?.metadata);
-  if (location) {
-    const type =
-      location.type === 'url'
-        ? determineUrlType(location.target)
-        : location.type;
-    return {
-      icon: iconMap[type],
-      edithref: createEditLink(location),
-      href: location.target,
-    };
-  }
-  return {};
+import { isTemplateEntityV1beta3 } from '@backstage/plugin-scaffolder-common';
+import { taskCreatePermission } from '@backstage/plugin-scaffolder-common/alpha';
+
+import { usePermission } from '@backstage/plugin-permission-react';
+
+import { createFromTemplateRouteRef, viewTechDocRouteRef } from '../../routes';
+import { catalogTranslationRef } from '../../alpha/translation';
+import { useSourceTemplateCompoundEntityRef } from './hooks';
+import { AboutContent } from './AboutContent';
+import { makeStyles } from '@material-ui/core/styles';
+import { useCatalogSourceIconLinkProps } from './useCatalogSourceIconLinkProps';
+
+const useStyles = makeStyles({
+  linkContainer: {
+    border: '1px solid var(--bui-border-1)',
+    borderLeft: 'none',
+    borderRight: 'none',
+    marginBottom: 'var(--bui-space-6)',
+  },
+});
+
+// TODO: This hook is duplicated from the TechDocs plugin for backwards compatibility
+// Remove it when the legacy frontend system support is dropped.
+function useTechdocsReaderIconLinkProps(): IconLinkVerticalProps {
+  const { entity } = useEntity();
+  const viewTechdocLink = useRouteRef(viewTechDocRouteRef);
+  const { t } = useTranslationRef(catalogTranslationRef);
+
+  return {
+    label: t('aboutCard.viewTechdocs'),
+    disabled:
+      !(
+        entity.metadata.annotations?.[TECHDOCS_ANNOTATION] ||
+        entity.metadata.annotations?.[TECHDOCS_EXTERNAL_ANNOTATION]
+      ) || !viewTechdocLink,
+    icon: <DocsIcon />,
+    href: buildTechDocsURL(entity, viewTechdocLink),
+  };
 }
 
-type AboutCardProps = {
-  entity: Entity;
-  variant?: string;
-};
+// TODO: This hook is duplicated from the Scaffolder plugin for backwards compatibility
+// Remove it when the legacy frontend system support is dropped.
+function useScaffolderTemplateIconLinkProps(): IconLinkVerticalProps {
+  const app = useApp();
+  const { entity } = useEntity();
+  const templateRoute = useRouteRef(createFromTemplateRouteRef);
+  const { t } = useTranslationRef(catalogTranslationRef);
+  const Icon = app.getSystemIcon('scaffolder') ?? CreateComponentIcon;
+  const { allowed: canCreateTemplateTask } = usePermission({
+    permission: taskCreatePermission,
+  });
 
-export function AboutCard({ entity, variant }: AboutCardProps) {
+  return {
+    label: t('aboutCard.launchTemplate'),
+    icon: <Icon />,
+    disabled: !templateRoute || !canCreateTemplateTask,
+    href:
+      templateRoute &&
+      templateRoute({
+        templateName: entity.metadata.name,
+        namespace: entity.metadata.namespace || DEFAULT_NAMESPACE,
+      }),
+  };
+}
+
+function DefaultAboutCardSubheader() {
+  const { entity } = useEntity();
+  const catalogSourceIconLink = useCatalogSourceIconLinkProps();
+  const techdocsreaderIconLink = useTechdocsReaderIconLinkProps();
+  const scaffolderTemplateIconLink = useScaffolderTemplateIconLinkProps();
+
+  const links = [catalogSourceIconLink, techdocsreaderIconLink];
+  if (isTemplateEntityV1beta3(entity)) {
+    links.push(scaffolderTemplateIconLink);
+  }
+
+  return <HeaderIconLinkRow links={links} />;
+}
+
+export interface InternalAboutCardProps {
+  /** Icon link row rendered at the top of the card body. */
+  iconLinks?: JSX.Element;
+}
+
+export function InternalAboutCard(props: InternalAboutCardProps) {
+  const { iconLinks } = props;
   const classes = useStyles();
-  const codeLink = getCodeLinkInfo(entity);
-  // TODO: Also support RELATION_CONSUMES_API here
-  const hasApis = entity.relations?.some(r => r.type === RELATION_PROVIDES_API);
+  const { entity } = useEntity();
+  const catalogApi = useApi(catalogApiRef);
+  const alertApi = useApi(alertApiRef);
+  const errorApi = useApi(errorApiRef);
+  const templateRoute = useRouteRef(createFromTemplateRouteRef);
+  const sourceTemplateRef = useSourceTemplateCompoundEntityRef(entity);
+  const { allowed: canRefresh } = useEntityPermission(
+    catalogEntityRefreshPermission,
+  );
+  const { t } = useTranslationRef(catalogTranslationRef);
+
+  const entityMetadataEditUrl =
+    entity.metadata.annotations?.[ANNOTATION_EDIT_URL];
+
+  const entityLocation = entity.metadata.annotations?.[ANNOTATION_LOCATION];
+  // Limiting the ability to manually refresh to the less expensive locations
+  const allowRefresh =
+    entityLocation?.startsWith('url:') || entityLocation?.startsWith('file:');
+  const refreshEntity = useCallback(async () => {
+    try {
+      await catalogApi.refreshEntity(stringifyEntityRef(entity));
+      alertApi.post({
+        message: t('aboutCard.refreshScheduledMessage'),
+        severity: 'info',
+        display: 'transient',
+      });
+    } catch (e) {
+      errorApi.post(e);
+    }
+  }, [catalogApi, entity, alertApi, t, errorApi]);
 
   return (
-    <Card className={variant === 'gridItem' ? classes.gridItemCard : ''}>
-      <CardHeader
-        title="About"
-        action={
+    <EntityInfoCard
+      title={t('aboutCard.title')}
+      headerActions={
+        <>
+          {allowRefresh && canRefresh && (
+            <IconButton
+              aria-label={t('aboutCard.refreshButtonAriaLabel')}
+              title={t('aboutCard.refreshButtonTitle')}
+              onClick={refreshEntity}
+            >
+              <CachedIcon />
+            </IconButton>
+          )}
           <IconButton
-            aria-label="Edit"
-            title="Edit Metadata"
-            onClick={() => {
-              window.open(codeLink.edithref || '#', '_blank');
-            }}
+            component={Link}
+            aria-label={t('aboutCard.editButtonAriaLabel')}
+            disabled={!entityMetadataEditUrl}
+            title={t('aboutCard.editButtonTitle')}
+            to={entityMetadataEditUrl ?? '#'}
           >
             <EditIcon />
           </IconButton>
-        }
-        subheader={
-          <nav className={classes.links}>
-            <IconLinkVertical label="View Source" {...codeLink} />
-            <IconLinkVertical
-              disabled={
-                !entity.metadata.annotations?.['backstage.io/techdocs-ref']
-              }
-              label="View TechDocs"
-              title={
-                !entity.metadata.annotations?.['backstage.io/techdocs-ref']
-                  ? 'No TechDocs available'
-                  : ''
-              }
-              icon={<DocsIcon />}
-              href={`/docs/${
-                entity.metadata.namespace || ENTITY_DEFAULT_NAMESPACE
-              }/${entity.kind}/${entity.metadata.name}`}
-            />
-            <IconLinkVertical
-              disabled={!hasApis}
-              label="View API"
-              title={hasApis ? '' : 'No APIs available'}
-              icon={<ExtensionIcon />}
-              href="api"
-            />
-          </nav>
-        }
-      />
-      <Divider />
-      <CardContent
-        className={variant === 'gridItem' ? classes.gridItemCardContent : ''}
-      >
-        <Grid container>
-          <AboutField label="Description" gridSizes={{ xs: 12 }}>
-            <Typography
-              variant="body2"
-              paragraph
-              className={classes.description}
+          {sourceTemplateRef && templateRoute && (
+            <IconButton
+              component={Link}
+              title={t('aboutCard.createSimilarButtonTitle')}
+              to={templateRoute({
+                namespace: sourceTemplateRef.namespace,
+                templateName: sourceTemplateRef.name,
+              })}
             >
-              {entity?.metadata?.description || 'No description'}
-            </Typography>
-          </AboutField>
-          <AboutField
-            label="Owner"
-            value={entity?.relations
-              ?.filter(r => r.type === RELATION_OWNED_BY)
-              .map(({ target: { kind, name, namespace } }) =>
-                // TODO(Rugvip): we want to provide some utils for this
-                serializeEntityRef({
-                  kind,
-                  name,
-                  namespace:
-                    namespace === ENTITY_DEFAULT_NAMESPACE
-                      ? undefined
-                      : namespace,
-                }),
-              )
-              .join(', ')}
-            gridSizes={{ xs: 12, sm: 6, lg: 4 }}
-          />
-          <AboutField
-            label="Type"
-            value={entity?.spec?.type as string}
-            gridSizes={{ xs: 12, sm: 6, lg: 4 }}
-          />
-          <AboutField
-            label="Lifecycle"
-            value={entity?.spec?.lifecycle as string}
-            gridSizes={{ xs: 12, sm: 6, lg: 4 }}
-          />
-          <AboutField
-            label="Tags"
-            value="No Tags"
-            gridSizes={{ xs: 12, sm: 6, lg: 4 }}
-          >
-            {(entity?.metadata?.tags || []).map(t => (
-              <Chip key={t} size="small" label={t} />
-            ))}
-          </AboutField>
-        </Grid>
-      </CardContent>
-    </Card>
+              <AppIcon id="scaffolder" />
+            </IconButton>
+          )}
+        </>
+      }
+    >
+      <div className={classes.linkContainer}>
+        {iconLinks ?? <DefaultAboutCardSubheader />}
+      </div>
+      <AboutContent entity={entity} />
+    </EntityInfoCard>
   );
 }
 
-function AboutField({
-  label,
-  value,
-  gridSizes,
-  children,
-}: {
-  label: string;
-  value?: string;
-  gridSizes?: Record<string, number>;
-  children?: React.ReactNode;
-}) {
-  const classes = useStyles();
-
-  // Content is either children or a string prop `value`
-  const content = React.Children.count(children) ? (
-    children
-  ) : (
-    <Typography variant="body2" className={classes.value}>
-      {value || `unknown`}
-    </Typography>
-  );
-  return (
-    <Grid item {...gridSizes}>
-      <Typography variant="subtitle2" className={classes.label}>
-        {label}
-      </Typography>
-      {content}
-    </Grid>
-  );
+/**
+ * Exported publicly via the EntityAboutCard
+ *
+ * NOTE: We generally do not accept pull requests to extend this class with props
+ * and customizability. If you need to tweak it, consider making a bespoke card
+ * in your own repository instead, that is perfect for your own needs.
+ */
+export function AboutCard() {
+  return <InternalAboutCard />;
 }

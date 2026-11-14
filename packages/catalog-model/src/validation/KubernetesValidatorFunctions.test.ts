@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ describe('KubernetesValidatorFunctions', () => {
     ['a/a', true],
     ['a/aAb5C', true],
     ['a-b.c/v1', true],
-    ['a--b.c/v1', false],
+    ['a--b.c/v1', true],
     [
       `${'a'.repeat(63)}.${'a'.repeat(63)}.${'a'.repeat(63)}.${'a'.repeat(
         61,
@@ -76,9 +76,10 @@ describe('KubernetesValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
     ['a_b', true],
     ['a.b', true],
+    ['a..b', true],
   ])(`isValidObjectName %p ? %p`, (value, matches) => {
     expect(KubernetesValidatorFunctions.isValidObjectName(value)).toBe(matches);
   });
@@ -95,7 +96,7 @@ describe('KubernetesValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
     ['a_b', false],
     ['a.b', false],
   ])(`isValidNamespace %p ? %p`, (value, matches) => {
@@ -114,12 +115,13 @@ describe('KubernetesValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
     ['a_b', true],
     ['a.b', true],
+    ['a..b', true],
     ['a/a', true],
     ['a-b.c/a', true],
-    ['a--b.c/a', false],
+    ['a--b.c/a', true],
     [
       `${'a'.repeat(63)}.${'a'.repeat(63)}.${'a'.repeat(63)}.${'a'.repeat(
         61,
@@ -150,9 +152,10 @@ describe('KubernetesValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
     ['a_b', true],
     ['a.b', true],
+    ['a..b', true],
   ])(`isValidLabelValue %p ? %p`, (value, matches) => {
     expect(KubernetesValidatorFunctions.isValidLabelValue(value)).toBe(matches);
   });
@@ -169,12 +172,13 @@ describe('KubernetesValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
     ['a_b', true],
     ['a.b', true],
+    ['a..b', true],
     ['a/a', true],
     ['a-b.c/a', true],
-    ['a--b.c/a', false],
+    ['a--b.c/a', true],
     [
       `${'a'.repeat(63)}.${'a'.repeat(63)}.${'a'.repeat(63)}.${'a'.repeat(
         61,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-export * from './catalog';
-export * from './database';
-export * from './ingestion';
-export * from './service';
-export * from './util';
+/**
+ * The Backstage backend plugin that provides the Backstage catalog
+ *
+ * @packageDocumentation
+ */
+
+export { catalogPlugin as default } from './service/CatalogPlugin';
+export * from './processors';
+export * from './constants';

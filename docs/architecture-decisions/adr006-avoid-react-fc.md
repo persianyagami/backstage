@@ -1,6 +1,6 @@
 ---
 id: adrs-adr006
-title: ADR006: Avoid React.FC and React.SFC
+title: 'ADR006: Avoid React.FC and React.SFC'
 description: Architecture Decision Record (ADR) log on Avoid React.FC and React.SFC
 ---
 
@@ -37,6 +37,15 @@ const BadComponent: FC<BadProps> = ({ text, children }) => (
 
 /* Do this instead: */
 type GoodProps = { text: string; children?: React.ReactNode };
+const GoodComponent = ({ text, children }: GoodProps) => (
+  <div>
+    <div>{text}</div>
+    {children}
+  </div>
+);
+
+/* Or as a shorthand, if no specific child type is required */
+type GoodProps = PropsWithChildren<{ text: string }>;
 const GoodComponent = ({ text, children }: GoodProps) => (
   <div>
     <div>{text}</div>

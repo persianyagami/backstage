@@ -23,7 +23,7 @@ We model software in the Backstage catalogue using these three core entities
 - **Resources** are physical or virtual infrastructure needed to operate a
   component
 
-![](../../assets/software-catalog/software-model-core-entities.png)
+![Diagram of the core entities, showing a Component that provides and consumes APIs and depends on Resources](../../assets/software-catalog/software-model-core-entities.drawio.svg)
 
 ### Component
 
@@ -33,8 +33,8 @@ tracked in source control, or use some existing open source or commercial
 software.
 
 A component can implement APIs for other components to consume. In turn it might
-depend on APIs implemented by other components, or resources that are attached
-to it at runtime.
+consume APIs implemented by other components, or directly depend on components or
+resources that are attached to it at runtime.
 
 ### API
 
@@ -44,13 +44,13 @@ Backstage model and the primary way to discover existing functionality in the
 ecosystem.
 
 APIs are implemented by components and form boundaries between components. They
-might be defined using an RPC IDL (eg Protobuf, GraphQL, ...), a data schema (eg
-Avro, TFRecord, ...), or as code interfaces. In any case, APIs exposed by
+might be defined using an RPC IDL (e.g., Protobuf, GraphQL, ...), a data schema
+(e.g., Avro, TFRecord, ...), or as code interfaces. In any case, APIs exposed by
 components need to be in a known machine-readable format so we can build further
 tooling and analysis on top.
 
 APIs have a visibility: they are either public (making them available for any
-other component to consume), restricted (only available to a whitelisted set of
+other component to consume), restricted (only available to an allowed set of
 consumers), or private (only available within their system). As public APIs are
 going to be the primary way interaction between components, Backstage supports
 documenting, indexing and searching all APIs so we can browse them as
@@ -63,6 +63,17 @@ BigTable databases, Pub/Sub topics, S3 buckets or CDNs. Modelling them together
 with components and systems will better allow us to visualize resource
 footprint, and create tooling around them.
 
+## Organizational Entities
+
+### User
+
+A user describes a person, such as an employee, a contractor, or similar.
+
+### Group
+
+A group describes an organizational entity, such as for example a team, a
+business unit, or a loose collection of people in an interest group.
+
 ## Ecosystem Modeling
 
 A large catalogue of components, APIs and resources can be highly granular and
@@ -72,6 +83,8 @@ these entities using the following (optional) concepts:
 - **Systems** are a collection of entities that cooperate to perform some
   function
 - **Domains** relate entities and systems to part of the business
+
+![Diagram showing how Components, APIs and Resources are grouped into Systems, and Systems into Domains](../../assets/software-catalog/software-model-entities.drawio.svg)
 
 ### System
 
@@ -107,11 +120,22 @@ product or use-case, share the same entity types in their APIs, and integrate
 well with each other. Other domains could be “Content Ingestion”, “Ads” or
 “Search”.
 
-## Current status
+In case of a large organization, it might make sense to further group domains
+in a hierarchy, where a domain can be a subdomain of another domain.
 
-Backstage currently supports Components and APIs.
+## Other
 
-## Links
+### Location
 
-- [Original RFC](https://github.com/backstage/backstage/issues/390)
-- [YAML file format](../../architecture-decisions/adr002-default-catalog-file-format.md)
+A location is a marker that references other places to look for catalog data.
+
+### Type
+
+The type field in the system has no set meaning. It is up to the user to assign their own types and use them as desired, such as for link validation or creating custom UI components. Some common pre-defined types are depicted in the
+[ecosystem modeling diagram](#ecosystem-modeling).
+
+### Template
+
+A template definition describes both the parameters that are rendered in the
+frontend part of the scaffolding wizard, and the steps that are executed when
+scaffolding that component.

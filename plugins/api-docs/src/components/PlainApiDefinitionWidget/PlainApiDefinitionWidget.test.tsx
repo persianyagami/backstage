@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,17 @@
  */
 
 import { renderInTestApp } from '@backstage/test-utils';
-import React from 'react';
 import { PlainApiDefinitionWidget } from './PlainApiDefinitionWidget';
 
 describe('<PlainApiDefinitionWidget />', () => {
   it('renders plain text', async () => {
-    const { getByText } = await renderInTestApp(
+    const { getAllByText } = await renderInTestApp(
       <PlainApiDefinitionWidget definition="Hello World" language="yaml" />,
     );
-    expect(getByText(/Hello World/i)).toBeInTheDocument();
+
+    expect(
+      getAllByText((_text, element) => element?.textContent === 'Hello World')
+        .length,
+    ).toBeGreaterThan(0);
   });
 });

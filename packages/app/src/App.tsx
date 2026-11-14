@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2023 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,94 +14,93 @@
  * limitations under the License.
  */
 
-import {
-  createApp,
-  AlertDisplay,
-  OAuthRequestDialog,
-  SignInPage,
-  createRouteRef,
-} from '@backstage/core';
-import React from 'react';
-import Root from './components/Root';
-import * as plugins from './plugins';
-import { apis } from './apis';
-import { hot } from 'react-hot-loader/root';
-import { providers } from './identityProviders';
-import { Router as CatalogRouter } from '@backstage/plugin-catalog';
-import { Router as DocsRouter } from '@backstage/plugin-techdocs';
-import { Router as GraphiQLRouter } from '@backstage/plugin-graphiql';
-import { Router as TechRadarRouter } from '@backstage/plugin-tech-radar';
-import { Router as LighthouseRouter } from '@backstage/plugin-lighthouse';
-import { Router as RegisterComponentRouter } from '@backstage/plugin-register-component';
-import { Router as SettingsRouter } from '@backstage/plugin-user-settings';
-import { Router as ImportComponentRouter } from '@backstage/plugin-catalog-import';
-import { Route, Routes, Navigate } from 'react-router';
+import { createApp } from '@backstage/frontend-defaults';
+import { pagesPlugin } from './examples/pagesPlugin';
+import notFoundErrorPage from './examples/notFoundErrorPageExtension';
+import userSettingsPlugin from '@backstage/plugin-user-settings/alpha';
+import homePlugin from '@backstage/plugin-home/alpha';
 
-import { EntityPage } from './components/catalog/EntityPage';
+import { createFrontendModule } from '@backstage/frontend-plugin-api';
+import {
+  techdocsPlugin,
+  TechDocsIndexPage,
+  TechDocsReaderPage,
+  EntityTechdocsContent,
+} from '@backstage/plugin-techdocs';
+import appVisualizerPlugin from '@backstage/plugin-app-visualizer';
+import { convertLegacyAppRoot } from '@backstage/core-compat-api';
+import { FlatRoutes } from '@backstage/core-app-api';
+import { Route } from 'react-router';
+import { CatalogImportPage } from '@backstage/plugin-catalog-import';
+import kubernetesPlugin from '@backstage/plugin-kubernetes/alpha';
+import { convertLegacyPlugin } from '@backstage/core-compat-api';
+import { convertLegacyPageExtension } from '@backstage/core-compat-api';
+import { convertLegacyEntityContentExtension } from '@backstage/plugin-catalog-react/alpha';
+import { pluginInfoResolver } from './pluginInfoResolver';
+import { appModuleNav } from './modules/appModuleNav';
+import { appModuleHome } from './modules/appModuleHome';
+import { appModuleScaffolder } from './modules/appModuleScaffolder';
+import catalogPlugin from '@backstage/plugin-catalog/alpha';
+import InfoIcon from '@material-ui/icons/Info';
+
+/**
+ * TechDocs does support the new frontend system so this conversion is not
+ * strictly necessary, but it's left here to provide a demo of the utilities for
+ * converting legacy plugins.
+ */
+const convertedTechdocsPlugin = convertLegacyPlugin(techdocsPlugin, {
+  extensions: [
+    convertLegacyPageExtension(TechDocsIndexPage, {
+      name: 'index',
+      path: '/docs',
+    }),
+    convertLegacyPageExtension(TechDocsReaderPage, {
+      path: '/docs/:namespace/:kind/:name/*',
+    }),
+    convertLegacyEntityContentExtension(EntityTechdocsContent),
+  ],
+});
+
+// customize catalog example
+const customizedCatalog = catalogPlugin.withOverrides({
+  extensions: [
+    catalogPlugin.getExtension('entity-content:catalog/overview').override({
+      params: {
+        icon: <InfoIcon />,
+      },
+    }),
+  ],
+});
+
+const notFoundErrorPageModule = createFrontendModule({
+  pluginId: 'app',
+  extensions: [notFoundErrorPage],
+});
+
+const collectedLegacyPlugins = convertLegacyAppRoot(
+  <FlatRoutes>
+    <Route path="/catalog-import" element={<CatalogImportPage />} />
+  </FlatRoutes>,
+);
 
 const app = createApp({
-  apis,
-  plugins: Object.values(plugins),
-  components: {
-    SignInPage: props => {
-      return (
-        <SignInPage
-          {...props}
-          providers={['guest', 'custom', ...providers]}
-          title="Select a sign-in method"
-          align="center"
-        />
-      );
-    },
+  features: [
+    customizedCatalog,
+    pagesPlugin,
+    convertedTechdocsPlugin,
+    userSettingsPlugin,
+    homePlugin,
+    appVisualizerPlugin,
+    kubernetesPlugin,
+    notFoundErrorPageModule,
+    appModuleNav,
+    appModuleHome,
+    appModuleScaffolder,
+    ...collectedLegacyPlugins,
+  ],
+  advanced: {
+    pluginInfoResolver,
   },
 });
 
-const AppProvider = app.getProvider();
-const AppRouter = app.getRouter();
-const deprecatedAppRoutes = app.getRoutes();
-
-const catalogRouteRef = createRouteRef({
-  path: '/catalog',
-  title: 'Service Catalog',
-});
-
-const AppRoutes = () => (
-  <Routes>
-    <Navigate key="/" to="/catalog" />
-    <Route
-      path="/catalog-import/*"
-      element={<ImportComponentRouter catalogRouteRef={catalogRouteRef} />}
-    />
-    <Route
-      path={`${catalogRouteRef.path}/*`}
-      element={<CatalogRouter EntityPage={EntityPage} />}
-    />
-    <Route path="/docs/*" element={<DocsRouter />} />
-    <Route
-      path="/tech-radar"
-      element={<TechRadarRouter width={1500} height={800} />}
-    />
-    <Route path="/graphiql" element={<GraphiQLRouter />} />
-    <Route path="/lighthouse/*" element={<LighthouseRouter />} />
-    <Route
-      path="/register-component"
-      element={<RegisterComponentRouter catalogRouteRef={catalogRouteRef} />}
-    />
-    <Route path="/settings" element={<SettingsRouter />} />
-    {...deprecatedAppRoutes}
-  </Routes>
-);
-
-const App = () => (
-  <AppProvider>
-    <AlertDisplay />
-    <OAuthRequestDialog />
-    <AppRouter>
-      <Root>
-        <AppRoutes />
-      </Root>
-    </AppRouter>
-  </AppProvider>
-);
-
-export default hot(App);
+export default app.createRoot();

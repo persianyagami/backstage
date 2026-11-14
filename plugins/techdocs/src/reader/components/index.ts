@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,4 +14,17 @@
  * limitations under the License.
  */
 
-export * from './Reader';
+export { TechDocsReaderProvider } from './TechDocsReaderProvider';
+export type {
+  TechDocsReaderProviderRenderFunction,
+  TechDocsReaderProviderProps,
+} from './TechDocsReaderProvider';
+export type {
+  TechDocsReaderPageProps,
+  TechDocsReaderLayoutProps,
+} from './TechDocsReaderPage';
+export { TechDocsReaderLayout } from './TechDocsReaderPage';
+export * from './TechDocsReaderPageHeader';
+export * from './TechDocsReaderPageContent';
+export * from './TechDocsReaderPageSubheader';
+export type { ReaderState, ContentStateTypes } from './useReaderState';

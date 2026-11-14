@@ -1,50 +1,66 @@
-# kubernetes
+# Kubernetes
 
-Welcome to the kubernetes plugin!
+Welcome to the Backstage Kubernetes frontend plugin!
 
-_This plugin was created through the Backstage CLI_
+This plugin exposes information about your entity-specific Kubernetes objects with a desire to provide value to the service owner, rather than just a Kubernetes cluster administrator.
+
+It will elevate the visibility of errors where identified, and provide drill down about the deployments, pods, and other objects for a service.
+
+It directly interfaces with the [Kubernetes Backend Plugin (`@backstage-plugin-kubernetes-backend`)](https://github.com/backstage/backstage/tree/master/plugins/kubernetes-backend).
+
+## Introduction
+
+See our announcement blog post [New Backstage feature: Kubernetes for Service Owners](https://backstage.io/blog/2021/01/12/new-backstage-feature-kubernetes-for-service-owners) to learn more about the motivation behind developing the plugin.
+
+## Setup & Configuration
+
+This plugin must be installed in a Backstage app, along with its peer backend plugin.
+
+```bash
+# From your Backstage root directory
+yarn --cwd packages/app add @backstage/plugin-kubernetes
+```
+
+Once installed, the plugin is automatically available in your app through the default feature discovery. For more details and alternative installation methods, see [installing plugins](https://backstage.io/docs/frontend-system/building-apps/installing-plugins).
+
+It requires configuration in the Backstage `app-config.yaml` to connect to a Kubernetes API control plane.
+
+In addition, configuration of an entity's `catalog-info.yaml` helps identify which specific Kubernetes object(s) should be presented on a specific entity catalog page.
+
+For more information, see the [formal documentation about the Kubernetes feature in Backstage](https://backstage.io/docs/features/kubernetes/overview).
+
+### Enabling the entity content tab
+
+Enable the Kubernetes entity content extension in your `app-config.yaml`:
+
+```yaml
+app:
+  extensions:
+    - entity-content:kubernetes/kubernetes
+```
+
+Now, the extension appears on your entity page as one of the tabs, which is called `KUBERNETES`.
+By default, the tab will only appear on entities that are Components or Resources. You can override
+that behavior by providing a config block to the extension, like so:
+
+```yaml
+app:
+  extensions:
+    - entity-content:kubernetes/kubernetes:
+        config:
+          filter:
+            kind:
+              $in:
+                - component
+                - api
+                - resource
+                - system
+```
 
 ## Getting started
 
-Your plugin has been added to the example app in this repository, meaning you'll be able to access it by running `yarn start` in the root directory, and then navigating to [/kubernetes](http://localhost:3000/kubernetes).
+Your plugin has been added to the example app in this repository, meaning you'll be able to access it by running `yarn start` in the root directory, and then navigating to [/kubernetes](http://localhost:3000/catalog/default/component/:component-name/kubernetes).
 
 You can also serve the plugin in isolation by running `yarn start` in the plugin directory.
 This method of serving the plugin provides quicker iteration speed and a faster startup and hot reloads.
 It is only meant for local development, and the setup for it can be found inside the [/dev](./dev) directory.
-
-## Surfacing your Kubernetes components as part of an entity
-
-There are two ways to surface your kubernetes components as part of an entity.
-The label selector takes precedence over the annotation/service id.
-
-### Common `backstage.io/kubernetes-id` label
-
-#### Adding the entity annotation
-
-In order for Backstage to detect that an entity has Kubernetes components,
-the following annotation should be added to the entity.
-
-```yaml
-annotations:
-  'backstage.io/kubernetes-id': dice-roller
-```
-
-#### Labeling Kubernetes components
-
-In order for Kubernetes components to show up in the service catalog
-as a part of an entity, Kubernetes components must be labeled with the following label:
-
-```yaml
-'backstage.io/kubernetes-id': <ENTITY_NAME>
-```
-
-### label selector query annotation
-
-#### Adding a label selector query annotation
-
-You can write your own custom label selector query that backstage will use to lookup the objects (similar to `kubectl --selector="your query here"`)
-review the documentation [here](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/) for more info
-
-```yaml
-'backstage.io/kubernetes-label-selector': 'app=my-app,component=front-end'
-```

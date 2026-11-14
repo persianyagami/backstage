@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,11 @@ describe('ComponentV1alpha1Validator', () => {
         type: 'service',
         lifecycle: 'production',
         owner: 'me',
-        implementsApis: ['api-0'],
+        subcomponentOf: 'monolith',
         providesApis: ['api-0'],
         consumesApis: ['api-0'],
+        dependsOn: ['resource:resource-0', 'component:component-0'],
+        system: 'system',
       },
     };
   });
@@ -104,24 +106,19 @@ describe('ComponentV1alpha1Validator', () => {
     await expect(validator.check(entity)).rejects.toThrow(/owner/);
   });
 
-  it('accepts missing implementsApis', async () => {
-    delete (entity as any).spec.implementsApis;
+  it('accepts missing subcomponentOf', async () => {
+    delete (entity as any).spec.subcomponentOf;
     await expect(validator.check(entity)).resolves.toBe(true);
   });
 
-  it('rejects empty implementsApis', async () => {
-    (entity as any).spec.implementsApis = [''];
-    await expect(validator.check(entity)).rejects.toThrow(/implementsApis/);
+  it('rejects wrong subcomponentOf', async () => {
+    (entity as any).spec.subcomponentOf = 7;
+    await expect(validator.check(entity)).rejects.toThrow(/subcomponentOf/);
   });
 
-  it('rejects undefined implementsApis', async () => {
-    (entity as any).spec.implementsApis = [undefined];
-    await expect(validator.check(entity)).rejects.toThrow(/implementsApis/);
-  });
-
-  it('accepts no implementsApis', async () => {
-    (entity as any).spec.implementsApis = [];
-    await expect(validator.check(entity)).resolves.toBe(true);
+  it('rejects empty subcomponentOf', async () => {
+    (entity as any).spec.subcomponentOf = '';
+    await expect(validator.check(entity)).rejects.toThrow(/subcomponentOf/);
   });
 
   it('accepts missing providesApis', async () => {
@@ -162,5 +159,40 @@ describe('ComponentV1alpha1Validator', () => {
   it('accepts no consumesApis', async () => {
     (entity as any).spec.consumesApis = [];
     await expect(validator.check(entity)).resolves.toBe(true);
+  });
+
+  it('accepts missing dependsOn', async () => {
+    delete (entity as any).spec.dependsOn;
+    await expect(validator.check(entity)).resolves.toBe(true);
+  });
+
+  it('rejects empty dependsOn', async () => {
+    (entity as any).spec.dependsOn = [''];
+    await expect(validator.check(entity)).rejects.toThrow(/dependsOn/);
+  });
+
+  it('rejects undefined dependsOn', async () => {
+    (entity as any).spec.dependsOn = [undefined];
+    await expect(validator.check(entity)).rejects.toThrow(/dependsOn/);
+  });
+
+  it('accepts no dependsOn', async () => {
+    (entity as any).spec.dependsOn = [];
+    await expect(validator.check(entity)).resolves.toBe(true);
+  });
+
+  it('accepts missing system', async () => {
+    delete (entity as any).spec.system;
+    await expect(validator.check(entity)).resolves.toBe(true);
+  });
+
+  it('rejects wrong system', async () => {
+    (entity as any).spec.system = 7;
+    await expect(validator.check(entity)).rejects.toThrow(/system/);
+  });
+
+  it('rejects empty system', async () => {
+    (entity as any).spec.system = '';
+    await expect(validator.check(entity)).rejects.toThrow(/system/);
   });
 });

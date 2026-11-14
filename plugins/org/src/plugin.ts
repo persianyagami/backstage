@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createPlugin } from '@backstage/core';
+import {
+  createComponentExtension,
+  createPlugin,
+} from '@backstage/core-plugin-api';
+import { catalogIndexRouteRef } from './routes';
 
-export const plugin = createPlugin({
+/** @public */
+export const orgPlugin = createPlugin({
   id: 'org',
+  externalRoutes: {
+    catalogIndex: catalogIndexRouteRef,
+  },
 });
+
+/** @public */
+export const EntityGroupProfileCard = orgPlugin.provide(
+  createComponentExtension({
+    name: 'EntityGroupProfileCard',
+    component: {
+      lazy: () => import('./components').then(m => m.GroupProfileCard),
+    },
+  }),
+);
+
+/** @public */
+export const EntityMembersListCard = orgPlugin.provide(
+  createComponentExtension({
+    name: 'EntityMembersListCard',
+    component: {
+      lazy: () => import('./components').then(m => m.MembersListCard),
+    },
+  }),
+);
+
+/** @public */
+export const EntityOwnershipCard = orgPlugin.provide(
+  createComponentExtension({
+    name: 'EntityOwnershipCard',
+    component: {
+      lazy: () => import('./components').then(m => m.OwnershipCard),
+    },
+  }),
+);
+
+/** @public */
+export const EntityUserProfileCard = orgPlugin.provide(
+  createComponentExtension({
+    name: 'EntityUserProfileCard',
+    component: {
+      lazy: () => import('./components').then(m => m.UserProfileCard),
+    },
+  }),
+);

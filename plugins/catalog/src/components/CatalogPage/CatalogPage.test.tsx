@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2021 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,118 +14,31 @@
  * limitations under the License.
  */
 
-import { CatalogApi } from '@backstage/catalog-client';
-import {
-  Entity,
-  RELATION_MEMBER_OF,
-  RELATION_OWNED_BY,
-} from '@backstage/catalog-model';
-import {
-  ApiProvider,
-  ApiRegistry,
-  IdentityApi,
-  identityApiRef,
-  ProfileInfo,
-  storageApiRef,
-} from '@backstage/core';
-import { MockStorageApi, wrapInTestApp } from '@backstage/test-utils';
-import { fireEvent, render } from '@testing-library/react';
-import React from 'react';
-import { EntityFilterGroupsProvider } from '../../filter';
-import { catalogApiRef } from '../../plugin';
+import { renderInTestApp } from '@backstage/test-utils';
+import { screen } from '@testing-library/react';
+import { useOutlet } from 'react-router-dom';
 import { CatalogPage } from './CatalogPage';
 
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useOutlet: jest.fn().mockReturnValue('Route Children'),
+}));
+
+jest.mock('./DefaultCatalogPage', () => ({
+  DefaultCatalogPage: jest.fn().mockReturnValue('DefaultCatalogPage'),
+}));
+
 describe('CatalogPage', () => {
-  const catalogApi: Partial<CatalogApi> = {
-    getEntities: () =>
-      Promise.resolve({
-        items: [
-          {
-            apiVersion: 'backstage.io/v1alpha1',
-            kind: 'Component',
-            metadata: {
-              name: 'Entity1',
-            },
-            spec: {
-              owner: 'tools@example.com',
-              type: 'service',
-            },
-            relations: [
-              {
-                type: RELATION_OWNED_BY,
-                target: { kind: 'Group', name: 'tools', namespace: 'default' },
-              },
-            ],
-          },
-          {
-            apiVersion: 'backstage.io/v1alpha1',
-            kind: 'Component',
-            metadata: {
-              name: 'Entity2',
-            },
-            spec: {
-              owner: 'not-tools@example.com',
-              type: 'service',
-            },
-            relations: [
-              {
-                type: RELATION_OWNED_BY,
-                target: {
-                  kind: 'Group',
-                  name: 'not-tools',
-                  namespace: 'default',
-                },
-              },
-            ],
-          },
-        ] as Entity[],
-      }),
-    getLocationByEntity: () =>
-      Promise.resolve({ id: 'id', type: 'github', target: 'url' }),
-    getEntityByName: async entityName => {
-      return {
-        apiVersion: 'backstage.io/v1alpha1',
-        kind: 'User',
-        metadata: { name: entityName.name },
-        relations: [
-          {
-            type: RELATION_MEMBER_OF,
-            target: { namespace: 'default', kind: 'Group', name: 'tools' },
-          },
-        ],
-      };
-    },
-  };
-  const testProfile: Partial<ProfileInfo> = {
-    displayName: 'Display Name',
-  };
-  const identityApi: Partial<IdentityApi> = {
-    getUserId: () => 'tools@example.com',
-    getProfile: () => testProfile,
-  };
+  it('renders provided router element', async () => {
+    await renderInTestApp(<CatalogPage />);
 
-  const renderWrapped = (children: React.ReactNode) =>
-    render(
-      wrapInTestApp(
-        <ApiProvider
-          apis={ApiRegistry.from([
-            [catalogApiRef, catalogApi],
-            [identityApiRef, identityApi],
-            [storageApiRef, MockStorageApi.create()],
-          ])}
-        >
-          <EntityFilterGroupsProvider>{children}</EntityFilterGroupsProvider>,
-        </ApiProvider>,
-      ),
-    );
+    expect(screen.getByText('Route Children')).toBeInTheDocument();
+  });
 
-  // this test right now causes some red lines in the log output when running tests
-  // related to some theme issues in mui-table
-  // https://github.com/mbrn/material-table/issues/1293
-  it('should render', async () => {
-    const { findByText, getByText } = renderWrapped(<CatalogPage />);
-    expect(await findByText(/Owned \(1\)/)).toBeInTheDocument();
-    fireEvent.click(getByText(/All/));
-    expect(await findByText(/All \(2\)/)).toBeInTheDocument();
+  it('renders DefaultCatalogPage home when no router children are provided', async () => {
+    (useOutlet as jest.Mock).mockReturnValueOnce(null);
+    await renderInTestApp(<CatalogPage />);
+
+    expect(screen.getByText('DefaultCatalogPage')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,19 @@
  */
 
 export {
-  readGitHubIntegrationConfig,
-  readGitHubIntegrationConfigs,
+  readGithubIntegrationConfig,
+  readGithubIntegrationConfigs,
 } from './config';
-export type { GitHubIntegrationConfig } from './config';
-export { getGitHubFileFetchUrl, getGitHubRequestOptions } from './core';
+export type { GithubAppConfig, GithubIntegrationConfig } from './config';
+export { getGithubFileFetchUrl } from './core';
+export { DefaultGithubCredentialsProvider } from './DefaultGithubCredentialsProvider';
+export {
+  GithubAppCredentialsMux,
+  SingleInstanceGithubCredentialsProvider,
+} from './SingleInstanceGithubCredentialsProvider';
+export type {
+  GithubCredentials,
+  GithubCredentialsProvider,
+  GithubCredentialType,
+} from './types';
+export { GithubIntegration, replaceGithubUrlType } from './GithubIntegration';

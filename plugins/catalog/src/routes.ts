@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2021 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,36 @@
  * limitations under the License.
  */
 
-import { Entity, ENTITY_DEFAULT_NAMESPACE } from '@backstage/catalog-model';
-import { createRouteRef } from '@backstage/core';
+import {
+  createExternalRouteRef,
+  createRouteRef,
+} from '@backstage/core-plugin-api';
 
-const NoIcon = () => null;
-
-export const rootRoute = createRouteRef({
-  icon: NoIcon,
-  path: '',
-  title: 'Catalog',
-});
-export const entityRoute = createRouteRef({
-  icon: NoIcon,
-  path: ':namespace/:kind/:name/*',
-  title: 'Entity',
+export const createComponentRouteRef = createExternalRouteRef({
+  id: 'create-component',
+  optional: true,
+  defaultTarget: 'scaffolder.root',
 });
 
-// Utility function to get suitable route params for entityRoute, given an
-// entity instance
-export function entityRouteParams(entity: Entity) {
-  return {
-    kind: entity.kind.toLowerCase(),
-    namespace:
-      entity.metadata.namespace?.toLowerCase() ?? ENTITY_DEFAULT_NAMESPACE,
-    name: entity.metadata.name,
-  } as const;
-}
+export const viewTechDocRouteRef = createExternalRouteRef({
+  id: 'view-techdoc',
+  optional: true,
+  params: ['namespace', 'kind', 'name'],
+  defaultTarget: 'techdocs.docRoot',
+});
+
+export const createFromTemplateRouteRef = createExternalRouteRef({
+  id: 'create-from-template',
+  optional: true,
+  params: ['namespace', 'templateName'],
+  defaultTarget: 'scaffolder.selectedTemplate',
+});
+
+export const unregisterRedirectRouteRef = createExternalRouteRef({
+  id: 'catalog:unregister-redirect',
+  optional: true,
+});
+
+export const rootRouteRef = createRouteRef({
+  id: 'catalog',
+});

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,96 +14,139 @@
  * limitations under the License.
  */
 
-import fs from 'fs-extra';
-import { resolve as resolvePath, dirname, isAbsolute } from 'path';
-import { AppConfig, JsonObject } from '@backstage/config';
-import { readConfigFile, readEnvConfig, readSecret } from './lib';
+import { AppConfig } from '@backstage/config';
+import { ConfigSources } from './sources';
 
+/**
+ * @public
+ * @deprecated Use {@link ConfigSources.default} instead.
+ */
+export type ConfigTarget = { path: string } | { url: string };
+
+/**
+ * @public
+ * @deprecated Use {@link ConfigSources.default} instead.
+ */
+export type LoadConfigOptionsWatch = {
+  /**
+   * A listener that is called when a config file is changed.
+   */
+  onChange: (configs: AppConfig[]) => void;
+
+  /**
+   * An optional signal that stops the watcher once the promise resolves.
+   */
+  stopSignal?: Promise<void>;
+};
+
+/**
+ * @public
+ * @deprecated Use {@link ConfigSources.default} instead.
+ */
+export type LoadConfigOptionsRemote = {
+  /**
+   * A remote config reloading period, in seconds
+   */
+  reloadIntervalSeconds: number;
+};
+
+/**
+ * Options that control the loading of configuration files in the backend.
+ *
+ * @public
+ * @deprecated Use {@link ConfigSources.default} instead.
+ */
 export type LoadConfigOptions = {
   // The root directory of the config loading context. Used to find default configs.
   configRoot: string;
 
-  // Absolute paths to load config files from. Configs from earlier paths have lower priority.
-  configPaths: string[];
+  // Paths to load config files from. Configs from earlier paths have lower priority.
+  configTargets: ConfigTarget[];
 
-  // TODO(Rugvip): This will be removed in the future, but for now we use it to warn about possible mistakes.
-  env: string;
+  /**
+   * Custom environment variable loading function
+   *
+   * @experimental This API is not stable and may change at any point
+   */
+  experimentalEnvFunc?: (name: string) => Promise<string | undefined>;
+
+  /**
+   * An optional remote config
+   */
+  remote?: LoadConfigOptionsRemote;
+
+  /**
+   * An optional configuration that enables watching of config files.
+   */
+  watch?: LoadConfigOptionsWatch;
 };
 
-class Context {
-  constructor(
-    private readonly options: {
-      env: { [name in string]?: string };
-      rootPath: string;
-    },
-  ) {}
+/**
+ * Results of loading configuration files.
+ * @public
+ * @deprecated Use {@link ConfigSources.default} instead.
+ */
+export type LoadConfigResult = {
+  /**
+   * Array of all loaded configs.
+   */
+  appConfigs: AppConfig[];
+};
 
-  get env() {
-    return this.options.env;
-  }
-
-  async readFile(path: string): Promise<string> {
-    return fs.readFile(resolvePath(this.options.rootPath, path), 'utf8');
-  }
-
-  async readSecret(
-    _path: string,
-    desc: JsonObject,
-  ): Promise<string | undefined> {
-    return readSecret(desc, this);
-  }
-}
-
+/**
+ * Load configuration data.
+ *
+ * @public
+ * @deprecated Use {@link ConfigSources.default} instead.
+ */
 export async function loadConfig(
   options: LoadConfigOptions,
-): Promise<AppConfig[]> {
-  const configs = [];
-  const { configRoot } = options;
-  const configPaths = options.configPaths.slice();
+): Promise<LoadConfigResult> {
+  const source = ConfigSources.default({
+    substitutionFunc: options.experimentalEnvFunc,
+    remote: options.remote && {
+      reloadInterval: { seconds: options.remote.reloadIntervalSeconds },
+    },
+    watch: Boolean(options.watch),
+    rootDir: options.configRoot,
+    argv: options.configTargets.flatMap(t => [
+      '--config',
+      'url' in t ? t.url : t.path,
+    ]),
+  });
 
-  // If no paths are provided, we default to reading
-  // `app-config.yaml` and, if it exists, `app-config.local.yaml`
-  if (configPaths.length === 0) {
-    configPaths.push(resolvePath(configRoot, 'app-config.yaml'));
+  return new Promise<LoadConfigResult>((resolve, reject) => {
+    async function loadConfigReaderLoop() {
+      let loaded = false;
 
-    const localConfig = resolvePath(configRoot, 'app-config.local.yaml');
-    if (await fs.pathExists(localConfig)) {
-      configPaths.push(localConfig);
-    }
+      try {
+        const abortController = new AbortController();
+        options.watch?.stopSignal?.then(() => abortController.abort());
 
-    const envFile = `app-config.${options.env}.yaml`;
-    if (await fs.pathExists(resolvePath(configRoot, envFile))) {
-      console.error(
-        `Env config file '${envFile}' is not loaded as APP_ENV and NODE_ENV-based config loading has been removed`,
-      );
-      console.error(
-        `To load the config file, use --config <path>, listing every config file that you want to load`,
-      );
-    }
-  }
+        for await (const { configs } of source.readConfigData({
+          signal: abortController.signal,
+        })) {
+          if (loaded) {
+            options.watch?.onChange(configs);
+          } else {
+            resolve({ appConfigs: configs });
+            loaded = true;
 
-  try {
-    for (const configPath of configPaths) {
-      if (!isAbsolute(configPath)) {
-        throw new Error(`Config load path is not absolute: '${configPath}'`);
+            if (options.watch) {
+              options.watch.stopSignal?.then(() => abortController.abort());
+            } else {
+              abortController.abort();
+            }
+          }
+        }
+      } catch (error) {
+        if (loaded) {
+          console.error(`Failed to reload configuration, ${error}`);
+        } else {
+          reject(error);
+        }
       }
-      const config = await readConfigFile(
-        configPath,
-        new Context({
-          env: process.env,
-          rootPath: dirname(configPath),
-        }),
-      );
-
-      configs.push(config);
     }
-  } catch (error) {
-    throw new Error(
-      `Failed to read static configuration file: ${error.message}`,
-    );
-  }
-
-  configs.push(...readEnvConfig(process.env));
-
-  return configs;
+    loadConfigReaderLoop();
+  });
 }

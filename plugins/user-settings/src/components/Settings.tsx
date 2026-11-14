@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { SidebarItem } from '@backstage/core';
 import SettingsIcon from '@material-ui/icons/Settings';
 import { settingsRouteRef } from '../plugin';
+import { SidebarItem } from '@backstage/core-components';
+import { useRouteRef, IconComponent } from '@backstage/core-plugin-api';
+import { useTranslationRef } from '@backstage/frontend-plugin-api';
+import { userSettingsTranslationRef } from '../translation';
 
-export const Settings = () => {
-  return (
-    <SidebarItem
-      text="Settings"
-      to={settingsRouteRef.path}
-      icon={SettingsIcon}
-    />
-  );
+/** @public */
+export const Settings = (props: { icon?: IconComponent }) => {
+  const routePath = useRouteRef(settingsRouteRef);
+  const Icon = props.icon ? props.icon : SettingsIcon;
+  const { t } = useTranslationRef(userSettingsTranslationRef);
+  return <SidebarItem text={t('sidebarTitle')} to={routePath()} icon={Icon} />;
 };

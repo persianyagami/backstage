@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,333 @@
  */
 
 import { Config, ConfigReader } from '@backstage/config';
+import { loadConfigSchema } from '@backstage/config-loader';
 import {
+  AzureDevOpsCredentialLike,
   AzureIntegrationConfig,
   readAzureIntegrationConfig,
   readAzureIntegrationConfigs,
 } from './config';
 
+type AzureIntegrationConfigLike = Partial<
+  Omit<AzureIntegrationConfig, 'credential' | 'credentials'>
+> & {
+  credential?: Partial<AzureDevOpsCredentialLike>;
+  credentials?: Partial<AzureDevOpsCredentialLike>[];
+};
+
 describe('readAzureIntegrationConfig', () => {
-  function buildConfig(data: Partial<AzureIntegrationConfig>): Config {
-    return ConfigReader.fromConfigs([{ context: '', data }]);
+  const valid: any = {
+    host: 'dev.azure.com',
+  };
+
+  function buildConfig(data: AzureIntegrationConfigLike): Config {
+    return new ConfigReader(data);
   }
 
-  it('reads all values', () => {
+  async function buildFrontendConfig(
+    data: AzureIntegrationConfigLike,
+  ): Promise<Config> {
+    const fullSchema = await loadConfigSchema({
+      dependencies: ['@backstage/integration'],
+    });
+    const serializedSchema = fullSchema.serialize() as {
+      schemas: { value: { properties?: { integrations?: object } } }[];
+    };
+    const schema = await loadConfigSchema({
+      serialized: {
+        ...serializedSchema, // only include schemas that apply to integrations
+        schemas: serializedSchema.schemas.filter(
+          s => s.value?.properties?.integrations,
+        ),
+      },
+    });
+    const processed = schema.process(
+      [{ data: { integrations: { azure: [data] } }, context: 'app' }],
+      { visibility: ['frontend'] },
+    );
+    return new ConfigReader((processed[0].data as any).integrations.azure[0]);
+  }
+
+  it('reads all values when using a personal access token credential', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            organizations: ['org1'],
+            personalAccessToken: 't      ',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'PersonalAccessToken',
+          organizations: ['org1'],
+          personalAccessToken: 't',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a personal access token credential (without organizations)', () => {
     const output = readAzureIntegrationConfig(
       buildConfig({
         host: 'a.com',
-        token: 't',
+        credentials: [
+          {
+            personalAccessToken: 't',
+          },
+        ],
       }),
     );
+
     expect(output).toEqual({
       host: 'a.com',
-      token: 't',
+      credentials: [
+        {
+          kind: 'PersonalAccessToken',
+          personalAccessToken: 't',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a client secret credential', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            organizations: ['org1', 'org2'],
+            clientId: 'id',
+            clientSecret: 'secret\n\n\n',
+            tenantId: 'tenant',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ClientSecret',
+          organizations: ['org1', 'org2'],
+          clientId: 'id',
+          clientSecret: 'secret',
+          tenantId: 'tenant',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a client secret credential (without organizations)', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            clientId: 'id',
+            clientSecret: 'secret',
+            tenantId: 'tenant',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ClientSecret',
+          clientId: 'id',
+          clientSecret: 'secret',
+          tenantId: 'tenant',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a client certificate credential', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            organizations: ['org1'],
+            clientId: 'id',
+            clientCertificate: 'pem\n',
+            tenantId: 'tenant',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ClientCertificate',
+          organizations: ['org1'],
+          clientId: 'id',
+          clientCertificate: 'pem',
+          tenantId: 'tenant',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a client certificate path credential', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            clientId: 'id',
+            clientCertificatePath: '/path/to/cert.pem',
+            tenantId: 'tenant',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ClientCertificate',
+          clientId: 'id',
+          clientCertificatePath: '/path/to/cert.pem',
+          tenantId: 'tenant',
+        },
+      ],
+    });
+  });
+
+  it('rejects config when both client certificate and path are set', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              clientId: 'id',
+              clientCertificate: 'pem',
+              clientCertificatePath: '/path/to/cert.pem',
+              tenantId: 'tenant',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/is not a valid credential/);
+  });
+
+  it('reads all values when using a managed identity client assertion credential', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            organizations: ['org1', 'org2'],
+            clientId: 'id',
+            managedIdentityClientId: 'system-assigned',
+            tenantId: 'tenant',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ManagedIdentityClientAssertion',
+          organizations: ['org1', 'org2'],
+          clientId: 'id',
+          managedIdentityClientId: 'system-assigned',
+          tenantId: 'tenant',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a managed identity client assertion credential (without organizations)', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            clientId: 'id',
+            managedIdentityClientId: 'system-assigned',
+            tenantId: 'tenant',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ManagedIdentityClientAssertion',
+          clientId: 'id',
+          managedIdentityClientId: 'system-assigned',
+          tenantId: 'tenant',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a managed identity credential', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            organizations: ['org1', 'org2'],
+            clientId: 'system-assigned',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ManagedIdentity',
+          organizations: ['org1', 'org2'],
+          clientId: 'system-assigned',
+        },
+      ],
+    });
+  });
+
+  it('reads all values when using a managed identity credential (without organizations)', () => {
+    const output = readAzureIntegrationConfig(
+      buildConfig({
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            clientId: 'id',
+          },
+        ],
+      }),
+    );
+
+    expect(output).toEqual({
+      host: 'dev.azure.com',
+      credentials: [
+        {
+          kind: 'ManagedIdentity',
+          clientId: 'id',
+        },
+      ],
     });
   });
 
@@ -44,40 +350,439 @@ describe('readAzureIntegrationConfig', () => {
     expect(output).toEqual({ host: 'dev.azure.com' });
   });
 
-  it('rejects funky configs', () => {
-    const valid: any = {
-      host: 'a.com',
-      token: 't',
-    };
+  it('rejects config when host is not valid', () => {
     expect(() =>
       readAzureIntegrationConfig(buildConfig({ ...valid, host: 7 })),
     ).toThrow(/host/);
+  });
+
+  it('rejects config when organizations is not valid', () => {
     expect(() =>
-      readAzureIntegrationConfig(buildConfig({ ...valid, token: 7 })),
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              organizations: [1, 2, 'org'],
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/credentials/);
+  });
+
+  it('rejects config when token is not valid', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              personalAccessToken: 7,
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/credentials/);
+  });
+
+  it('rejects config when clientId is not valid', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              clientId: 7,
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/credentials/);
+  });
+
+  it('rejects config when clientSecret is not valid', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              clientId: 'id',
+              clientSecret: 7,
+              tenantId: 'tenant',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/credentials/);
+  });
+
+  it('rejects config when tenantId is not valid', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              clientId: 'id',
+              clientSecret: 'secret',
+              tenantId: 7,
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/credentials/);
+  });
+
+  it('rejects config when at least one credential not valid', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              personalAccessToken: 'token',
+            },
+            {
+              clientId: 'id',
+            },
+            {
+              clientId: 'id',
+              clientSecret: 'secret',
+              tenantId: 'tenant',
+            },
+            {
+              clientId: 'id',
+              personalAccessToken: 'token',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/not a valid credential/);
+  });
+
+  it('rejects config when using a client secret credential for Azure DevOps server', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          host: 'a.com',
+          credentials: [
+            {
+              clientId: 'id',
+              clientSecret: 'secret',
+              tenantId: 'tenant',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/hosts/);
+  });
+
+  it('rejects config when using a managed identity for Azure DevOps server', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          host: 'a.com',
+          credentials: [
+            {
+              organizations: ['org1', 'org2'],
+              clientId: 'id',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/personal access tokens/);
+  });
+
+  it('rejects config when using organizations for Azure DevOps server', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          host: 'a.com',
+          credentials: [
+            {
+              clientId: 'id',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/hosts/);
+  });
+
+  it('rejects config when both the credential and credentials field are specified', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credential: {
+            clientId: 'id',
+          },
+          credentials: [
+            {
+              clientId: 'id',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/credential/);
+  });
+
+  it('rejects config when both the token and credentials field are specified', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          token: 'token',
+          credentials: [
+            {
+              clientId: 'id',
+            },
+          ],
+        }),
+      ),
     ).toThrow(/token/);
+  });
+
+  it('rejects config when more than one credential does not specify an organization', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              clientId: 'id',
+            },
+            {
+              organizations: [],
+              personalAccessToken: 'pat',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/organizations/);
+  });
+
+  it('rejects config when multiple credentials specify the same organization', () => {
+    expect(() =>
+      readAzureIntegrationConfig(
+        buildConfig({
+          ...valid,
+          credentials: [
+            {
+              organizations: ['org1', 'org2'],
+              clientId: 'id',
+            },
+            {
+              organizations: ['org2', 'org3'],
+              personalAccessToken: 'pat',
+            },
+          ],
+        }),
+      ),
+    ).toThrow(/organization org2/);
+  });
+
+  it('works on the frontend', async () => {
+    expect(
+      readAzureIntegrationConfig(
+        await buildFrontendConfig({
+          host: 'a.com',
+          credentials: [
+            {
+              personalAccessToken: 't',
+            },
+          ],
+        }),
+      ),
+    ).toEqual({
+      host: 'a.com',
+    });
   });
 });
 
 describe('readAzureIntegrationConfigs', () => {
-  function buildConfig(data: Partial<AzureIntegrationConfig>[]): Config[] {
-    return data.map(item =>
-      ConfigReader.fromConfigs([{ context: '', data: item }]),
-    );
+  function buildConfig(data: AzureIntegrationConfigLike[]): Config[] {
+    return data.map(item => new ConfigReader(item));
   }
 
-  it('reads all values', () => {
+  it('reads all values when using a personal access token credential', () => {
     const output = readAzureIntegrationConfigs(
       buildConfig([
         {
-          host: 'a.com',
-          token: 't',
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              organizations: ['org1'],
+              personalAccessToken: 't',
+            },
+          ],
         },
       ]),
     );
-    expect(output).toContainEqual({
-      host: 'a.com',
-      token: 't',
-    });
+
+    expect(output).toEqual([
+      {
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            kind: 'PersonalAccessToken',
+            organizations: ['org1'],
+            personalAccessToken: 't',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('reads all values when using a personal access token credential (without organizations)', () => {
+    const output = readAzureIntegrationConfigs(
+      buildConfig([
+        {
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              personalAccessToken: 't',
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(output).toEqual([
+      {
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            kind: 'PersonalAccessToken',
+            personalAccessToken: 't',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('reads all values when using a client secret credential', () => {
+    const output = readAzureIntegrationConfigs(
+      buildConfig([
+        {
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              organizations: ['org1', 'org2'],
+              clientId: 'id',
+              clientSecret: 'secret',
+              tenantId: 'tenant',
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(output).toEqual([
+      {
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            kind: 'ClientSecret',
+            organizations: ['org1', 'org2'],
+            clientId: 'id',
+            clientSecret: 'secret',
+            tenantId: 'tenant',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('reads all values when using a client secret credential (without organizations)', () => {
+    const output = readAzureIntegrationConfigs(
+      buildConfig([
+        {
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              clientId: 'id',
+              clientSecret: 'secret',
+              tenantId: 'tenant',
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(output).toEqual([
+      {
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            kind: 'ClientSecret',
+            clientId: 'id',
+            clientSecret: 'secret',
+            tenantId: 'tenant',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('reads all values when using a managed identity credential', () => {
+    const output = readAzureIntegrationConfigs(
+      buildConfig([
+        {
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              organizations: ['org1', 'org2'],
+              clientId: 'id',
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(output).toEqual([
+      {
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            kind: 'ManagedIdentity',
+            organizations: ['org1', 'org2'],
+            clientId: 'id',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('reads all values when using a managed identity credential (without organizations)', () => {
+    const output = readAzureIntegrationConfigs(
+      buildConfig([
+        {
+          host: 'dev.azure.com',
+          credentials: [
+            {
+              clientId: 'id',
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(output).toEqual([
+      {
+        host: 'dev.azure.com',
+        credentials: [
+          {
+            kind: 'ManagedIdentity',
+            clientId: 'id',
+          },
+        ],
+      },
+    ]);
   });
 
   it('adds a default entry when missing', () => {

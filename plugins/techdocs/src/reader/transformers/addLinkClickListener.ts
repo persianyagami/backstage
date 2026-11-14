@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { Transformer } from './index';
+import type { Transformer } from './transformer';
 
 type AddLinkClickListenerOptions = {
   baseUrl: string;
@@ -32,7 +32,7 @@ export const addLinkClickListener = ({
         const href = target.getAttribute('href');
 
         if (!href) return;
-        if (href.startsWith(baseUrl)) {
+        if (href.startsWith(baseUrl) && !elem.hasAttribute('download')) {
           e.preventDefault();
           onClick(e, href);
         }

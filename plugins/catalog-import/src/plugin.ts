@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,28 +15,76 @@
  */
 
 import {
+  configApiRef,
   createApiFactory,
   createPlugin,
+  createRoutableExtension,
   createRouteRef,
   discoveryApiRef,
-  githubAuthApiRef,
-} from '@backstage/core';
-import { catalogImportApiRef } from './api/CatalogImportApi';
-import { CatalogImportClient } from './api/CatalogImportClient';
+  fetchApiRef,
+} from '@backstage/core-plugin-api';
+import {
+  scmAuthApiRef,
+  scmIntegrationsApiRef,
+} from '@backstage/integration-react';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
+import { catalogImportApiRef, CatalogImportClient } from './api';
 
 export const rootRouteRef = createRouteRef({
-  path: '',
-  title: 'catalog-import',
+  id: 'catalog-import',
 });
 
-export const plugin = createPlugin({
+/**
+ * A plugin that helps the user in importing projects and YAML files into the
+ * catalog.
+ *
+ * @public
+ */
+export const catalogImportPlugin = createPlugin({
   id: 'catalog-import',
   apis: [
     createApiFactory({
       api: catalogImportApiRef,
-      deps: { discoveryApi: discoveryApiRef, githubAuthApi: githubAuthApiRef },
-      factory: ({ discoveryApi, githubAuthApi }) =>
-        new CatalogImportClient({ discoveryApi, githubAuthApi }),
+      deps: {
+        discoveryApi: discoveryApiRef,
+        scmAuthApi: scmAuthApiRef,
+        fetchApi: fetchApiRef,
+        scmIntegrationsApi: scmIntegrationsApiRef,
+        catalogApi: catalogApiRef,
+        configApi: configApiRef,
+      },
+      factory: ({
+        discoveryApi,
+        scmAuthApi,
+        fetchApi,
+        scmIntegrationsApi,
+        catalogApi,
+        configApi,
+      }) =>
+        new CatalogImportClient({
+          discoveryApi,
+          scmAuthApi,
+          scmIntegrationsApi,
+          fetchApi,
+          catalogApi,
+          configApi,
+        }),
     }),
   ],
+  routes: {
+    importPage: rootRouteRef,
+  },
 });
+
+/**
+ * The page for importing projects and YAML files into the catalog.
+ *
+ * @public
+ */
+export const CatalogImportPage = catalogImportPlugin.provide(
+  createRoutableExtension({
+    name: 'CatalogImportPage',
+    component: () => import('./components/ImportPage').then(m => m.ImportPage),
+    mountPoint: rootRouteRef,
+  }),
+);

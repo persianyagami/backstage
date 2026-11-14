@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { createRouteRef } from '@backstage/core';
-
-const NoIcon = () => null;
+import {
+  createExternalRouteRef,
+  createRouteRef,
+} from '@backstage/core-plugin-api';
 
 export const rootRoute = createRouteRef({
-  icon: NoIcon,
-  path: '/api-docs',
-  title: 'APIs',
+  id: 'api-docs',
+});
+
+export const registerComponentRouteRef = createExternalRouteRef({
+  id: 'register-component',
+  optional: true,
+  defaultTarget: 'catalog-import.importPage',
 });

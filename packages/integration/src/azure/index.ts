@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,28 @@
  * limitations under the License.
  */
 
+export { AzureIntegration } from './AzureIntegration';
 export {
   readAzureIntegrationConfig,
   readAzureIntegrationConfigs,
 } from './config';
-export type { AzureIntegrationConfig } from './config';
+export type {
+  AzureIntegrationConfig,
+  AzureDevOpsCredentialKind,
+  AzureCredentialBase,
+  AzureClientSecretCredential,
+  AzureClientCertificateCredential,
+  AzureManagedIdentityCredential,
+  AzureManagedIdentityClientAssertionCredential,
+  PersonalAccessTokenCredential,
+  AzureDevOpsCredentialLike,
+  AzureDevOpsCredential,
+} from './config';
 export {
+  getAzureCommitsUrl,
   getAzureDownloadUrl,
   getAzureFileFetchUrl,
-  getAzureRequestOptions,
 } from './core';
+
+export * from './types';
+export { DefaultAzureDevOpsCredentialsProvider } from './DefaultAzureDevOpsCredentialsProvider';

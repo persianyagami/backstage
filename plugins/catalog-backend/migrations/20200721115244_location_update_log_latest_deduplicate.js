@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-exports.up = function up(knex) {
-  return knex.schema.raw(`DROP VIEW location_update_log_latest;`).raw(`
+
+// @ts-check
+
+/**
+ * @param {import('knex').Knex} knex
+ */
+exports.up = async function up(knex) {
+  await knex.schema.raw(`DROP VIEW location_update_log_latest;`);
+  await knex.schema.raw(`
   CREATE VIEW location_update_log_latest AS
   SELECT t1.* FROM location_update_log t1
-  JOIN 
+  JOIN
   (
      SELECT location_id, MAX(created_at) AS MAXDATE
      FROM location_update_log
@@ -30,6 +37,9 @@ exports.up = function up(knex) {
 `);
 };
 
-exports.down = function down(knex) {
-  knex.schema.raw(`DROP VIEW location_update_log_latest;`);
+/**
+ * @param {import('knex').Knex} knex
+ */
+exports.down = async function down(knex) {
+  await knex.schema.raw(`DROP VIEW IF EXISTS location_update_log_latest;`);
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,36 +15,42 @@
  */
 
 import { ApiEntity } from '@backstage/catalog-model';
-import { CardTab, TabbedCard, useApi } from '@backstage/core';
-import { Alert } from '@material-ui/lab';
-import React from 'react';
+import {
+  useEntity,
+  useEntityPresentation,
+} from '@backstage/plugin-catalog-react';
+import { CardTab, TabbedCard } from '@backstage/core-components';
+import { useApi } from '@backstage/core-plugin-api';
+import { useTranslationRef } from '@backstage/frontend-plugin-api';
+import Alert from '@material-ui/lab/Alert';
 import { apiDocsConfigRef } from '../../config';
+import { apiDocsTranslationRef } from '../../translation';
 import { PlainApiDefinitionWidget } from '../PlainApiDefinitionWidget';
 
-type Props = {
-  apiEntity?: ApiEntity;
-};
-
-export const ApiDefinitionCard = ({ apiEntity }: Props) => {
+/** @public */
+export const ApiDefinitionCard = () => {
+  const { entity } = useEntity<ApiEntity>();
   const config = useApi(apiDocsConfigRef);
   const { getApiDefinitionWidget } = config;
+  const { t } = useTranslationRef(apiDocsTranslationRef);
+  const { primaryTitle } = useEntityPresentation(entity);
 
-  if (!apiEntity) {
-    return <Alert severity="error">Could not fetch the API</Alert>;
+  if (!entity) {
+    return <Alert severity="error">{t('apiDefinitionCard.error.title')}</Alert>;
   }
 
-  const definitionWidget = getApiDefinitionWidget(apiEntity);
+  const definitionWidget = getApiDefinitionWidget(entity);
 
   if (definitionWidget) {
     return (
-      <TabbedCard title={apiEntity.metadata.name}>
+      <TabbedCard title={primaryTitle}>
         <CardTab label={definitionWidget.title} key="widget">
-          {definitionWidget.component(apiEntity.spec.definition)}
+          {definitionWidget.component(entity.spec.definition)}
         </CardTab>
-        <CardTab label="Raw" key="raw">
+        <CardTab label={t('apiDefinitionCard.rawButtonTitle')} key="raw">
           <PlainApiDefinitionWidget
-            definition={apiEntity.spec.definition}
-            language={definitionWidget.rawLanguage || apiEntity.spec.type}
+            definition={entity.spec.definition}
+            language={definitionWidget.rawLanguage || entity.spec.type}
           />
         </CardTab>
       </TabbedCard>
@@ -53,13 +59,13 @@ export const ApiDefinitionCard = ({ apiEntity }: Props) => {
 
   return (
     <TabbedCard
-      title={apiEntity.metadata.name}
+      title={primaryTitle}
       children={[
         // Has to be an array, otherwise typescript doesn't like that this has only a single child
-        <CardTab label={apiEntity.spec.type} key="raw">
+        <CardTab label={entity.spec.type} key="raw">
           <PlainApiDefinitionWidget
-            definition={apiEntity.spec.definition}
-            language={apiEntity.spec.type}
+            definition={entity.spec.definition}
+            language={entity.spec.type}
           />
         </CardTab>,
       ]}

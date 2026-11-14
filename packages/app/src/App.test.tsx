@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,38 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import { renderWithEffects } from '@backstage/test-utils';
-import App from './App';
+
+// Rarely, and only in windows CI, do these tests take slightly more than the
+// default five seconds
+jest.setTimeout(15_000);
 
 describe('App', () => {
   it('should render', async () => {
-    Object.defineProperty(process.env, 'APP_CONFIG', {
-      configurable: true,
-      value: [
+    process.env = {
+      NODE_ENV: 'test',
+      APP_CONFIG: [
         {
           data: {
-            app: { title: 'Test' },
-            backend: { baseUrl: 'http://localhost:7000' },
+            app: {
+              title: 'Test',
+              support: { url: 'http://localhost:7007/support' },
+            },
+            backend: { baseUrl: 'http://localhost:7007' },
             lighthouse: {
               baseUrl: 'http://localhost:3003',
             },
             techdocs: {
-              storageUrl: 'http://localhost:7000/api/techdocs/static/docs',
+              storageUrl: 'http://localhost:7007/api/techdocs/static/docs',
             },
           },
           context: 'test',
         },
-      ],
-    });
+      ] as any,
+    };
 
-    const rendered = await renderWithEffects(<App />);
+    const { default: app } = await import('./App');
+    const rendered = await renderWithEffects(app);
     expect(rendered.baseElement).toBeInTheDocument();
   });
 });

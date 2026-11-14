@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
  */
 
 import FIXTURE_STANDARD_PAGE from './fixtures/mkdocs-index';
+import FIXTURE_STANDARD_PAGE_EXPANDED_NAVIGATION from './fixtures/mkdocs-expanded-index';
 
 export const FIXTURES = {
   FIXTURE_STANDARD_PAGE,
+  FIXTURE_STANDARD_PAGE_EXPANDED_NAVIGATION,
 };
 
-export * from './stylesheets';
 export * from './shadowDom';

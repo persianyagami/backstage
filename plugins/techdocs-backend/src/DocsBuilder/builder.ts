@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,25 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Docker from 'dockerode';
-import { Logger } from 'winston';
-import { Entity } from '@backstage/catalog-model';
 import {
+  DEFAULT_NAMESPACE,
+  Entity,
+  stringifyEntityRef,
+} from '@backstage/catalog-model';
+import { Config } from '@backstage/config';
+import { isError, toError } from '@backstage/errors';
+import { ScmIntegrationRegistry } from '@backstage/integration';
+import {
+  GeneratorBase,
+  GeneratorBuilder,
+  getLocationForEntity,
+  PreparerBase,
   PreparerBuilder,
   PublisherBase,
-  GeneratorBuilder,
-  PreparerBase,
-  GeneratorBase,
-  getLocationForEntity,
-  getLastCommitTimestamp,
-} from '@backstage/techdocs-common';
-import { BuildMetadataStorage } from '.';
-
-const getEntityId = (entity: Entity) => {
-  return `${entity.kind}:${entity.metadata.namespace ?? ''}:${
-    entity.metadata.name
-  }`;
-};
+} from '@backstage/plugin-techdocs-node';
+import fs from 'fs-extra';
+import os from 'node:os';
+import path from 'node:path';
+import { Writable } from 'node:stream';
+import { Logger } from 'winston';
+import { BuildMetadataStorage } from './BuildMetadataStorage';
+import { TechDocsCache } from '../cache';
 
 type DocsBuilderArguments = {
   preparers: PreparerBuilder;
@@ -39,7 +43,10 @@ type DocsBuilderArguments = {
   publisher: PublisherBase;
   entity: Entity;
   logger: Logger;
-  dockerClient: Docker;
+  config: Config;
+  scmIntegrations: ScmIntegrationRegistry;
+  logStream?: Writable;
+  cache?: TechDocsCache;
 };
 
 export class DocsBuilder {
@@ -48,7 +55,10 @@ export class DocsBuilder {
   private publisher: PublisherBase;
   private entity: Entity;
   private logger: Logger;
-  private dockerClient: Docker;
+  private config: Config;
+  private scmIntegrations: ScmIntegrationRegistry;
+  private logStream: Writable | undefined;
+  private cache?: TechDocsCache;
 
   constructor({
     preparers,
@@ -56,74 +66,187 @@ export class DocsBuilder {
     publisher,
     entity,
     logger,
-    dockerClient,
+    config,
+    scmIntegrations,
+    logStream,
+    cache,
   }: DocsBuilderArguments) {
     this.preparer = preparers.get(entity);
     this.generator = generators.get(entity);
     this.publisher = publisher;
     this.entity = entity;
     this.logger = logger;
-    this.dockerClient = dockerClient;
+    this.config = config;
+    this.scmIntegrations = scmIntegrations;
+    this.logStream = logStream;
+    this.cache = cache;
   }
 
-  public async build() {
-    this.logger.info(`Running preparer on entity ${getEntityId(this.entity)}`);
-    const preparedDir = await this.preparer.prepare(this.entity);
-
-    const parsedLocationAnnotation = getLocationForEntity(this.entity);
-
-    this.logger.info(`Running generator on entity ${getEntityId(this.entity)}`);
-    const { resultDir } = await this.generator.run({
-      directory: preparedDir,
-      dockerClient: this.dockerClient,
-      parsedLocationAnnotation,
-    });
-
-    this.logger.info(`Running publisher on entity ${getEntityId(this.entity)}`);
-    await this.publisher.publish({
-      entity: this.entity,
-      directory: resultDir,
-    });
-
+  /**
+   * Build the docs and return whether they have been newly generated or have been cached
+   * @returns true, if the docs have been built. false, if the cached docs are still up-to-date.
+   */
+  public async build(): Promise<boolean> {
     if (!this.entity.metadata.uid) {
       throw new Error(
-        'Trying to build documentation for entity not in service catalog',
+        'Trying to build documentation for entity not in software catalog',
       );
     }
 
-    new BuildMetadataStorage(this.entity.metadata.uid).storeBuildTimestamp();
-  }
+    /**
+     * Prepare (and cache check)
+     */
 
-  public async docsUpToDate() {
-    if (!this.entity.metadata.uid) {
-      throw new Error(
-        'Trying to build documentation for entity not in service catalog',
-      );
-    }
-
-    const buildMetadataStorage = new BuildMetadataStorage(
-      this.entity.metadata.uid,
+    this.logger.info(
+      `Step 1 of 3: Preparing docs for entity ${stringifyEntityRef(
+        this.entity,
+      )}`,
     );
-    const { type, target } = getLocationForEntity(this.entity);
 
-    // Unless docs are stored locally
-    const nonAgeCheckTypes = ['dir', 'file', 'url'];
-    if (!nonAgeCheckTypes.includes(type)) {
-      const lastCommit = await getLastCommitTimestamp(target, this.logger);
-      const storageTimeStamp = buildMetadataStorage.getTimestamp();
-
-      // Check if documentation source is newer than what we have
-      if (storageTimeStamp && storageTimeStamp >= lastCommit) {
-        this.logger.debug(
-          `Docs for entity ${getEntityId(this.entity)} is up to date.`,
+    // If available, use the etag stored in techdocs_metadata.json to
+    // check if docs are outdated and need to be regenerated.
+    let storedEtag: string | undefined;
+    if (await this.publisher.hasDocsBeenGenerated(this.entity)) {
+      try {
+        storedEtag = (
+          await this.publisher.fetchTechDocsMetadata({
+            namespace: this.entity.metadata.namespace ?? DEFAULT_NAMESPACE,
+            kind: this.entity.kind,
+            name: this.entity.metadata.name,
+          })
+        ).etag;
+      } catch (err) {
+        // Proceed with a fresh build
+        this.logger.warn(
+          `Unable to read techdocs_metadata.json, proceeding with fresh build, error ${err}.`,
         );
-        return true;
       }
     }
 
-    this.logger.debug(
-      `Docs for entity ${getEntityId(this.entity)} was outdated.`,
-    );
-    return false;
+    let preparedDir: string | undefined;
+    let outputDir: string | undefined;
+
+    try {
+      let newEtag: string;
+      try {
+        const preparerResponse = await this.preparer.prepare(this.entity, {
+          etag: storedEtag,
+          logger: this.logger,
+        });
+
+        preparedDir = preparerResponse.preparedDir;
+        newEtag = preparerResponse.etag;
+      } catch (err) {
+        if (isError(err) && err.name === 'NotModifiedError') {
+          // No need to prepare anymore since cache is valid.
+          // Set last check happened to now
+          new BuildMetadataStorage(this.entity.metadata.uid).setLastUpdated();
+          this.logger.debug(
+            `Docs for ${stringifyEntityRef(
+              this.entity,
+            )} are unmodified. Using cache, skipping generate and prepare`,
+          );
+          return false;
+        }
+        throw err;
+      }
+
+      this.logger.info(
+        `Prepare step completed for entity ${stringifyEntityRef(
+          this.entity,
+        )}, stored at ${preparedDir}`,
+      );
+
+      /**
+       * Generate
+       */
+
+      this.logger.info(
+        `Step 2 of 3: Generating docs for entity ${stringifyEntityRef(
+          this.entity,
+        )}`,
+      );
+
+      const workingDir = this.config.getOptionalString(
+        'backend.workingDirectory',
+      );
+      const tmpdirPath = workingDir || os.tmpdir();
+      // Fixes a problem with macOS returning a path that is a symlink
+      const tmpdirResolvedPath = fs.realpathSync(tmpdirPath);
+      outputDir = await fs.mkdtemp(
+        path.join(tmpdirResolvedPath, 'techdocs-tmp-'),
+      );
+
+      const parsedLocationAnnotation = getLocationForEntity(
+        this.entity,
+        this.scmIntegrations,
+      );
+      await this.generator.run({
+        inputDir: preparedDir,
+        outputDir,
+        parsedLocationAnnotation,
+        etag: newEtag,
+        logger: this.logger,
+        logStream: this.logStream,
+        siteOptions: {
+          name: this.entity.metadata.title ?? this.entity.metadata.name,
+        },
+      });
+
+      /**
+       * Publish
+       */
+
+      this.logger.info(
+        `Step 3 of 3: Publishing docs for entity ${stringifyEntityRef(
+          this.entity,
+        )}`,
+      );
+
+      const published = await this.publisher.publish({
+        entity: this.entity,
+        directory: outputDir,
+      });
+
+      // Invalidate the cache for any published objects.
+      if (this.cache && published && published?.objects?.length) {
+        this.logger.debug(
+          `Invalidating ${published.objects.length} cache objects`,
+        );
+        await this.cache.invalidateMultiple(published.objects);
+      }
+    } finally {
+      // Remove Prepared directory since it is no longer needed.
+      // Caveat: Can not remove prepared directory in case of git preparer since the
+      // local git repository is used to get etag on subsequent requests.
+      if (preparedDir && this.preparer.shouldCleanPreparedDirectory()) {
+        this.logger.debug(`Removing prepared directory ${preparedDir}`);
+        try {
+          // Not a blocker hence no need to await this.
+          fs.remove(preparedDir);
+        } catch (error) {
+          this.logger.debug(
+            `Error removing prepared directory ${toError(error).message}`,
+          );
+        }
+      }
+
+      if (outputDir) {
+        this.logger.debug(`Removing generated directory ${outputDir}`);
+        try {
+          // Not a blocker hence no need to await this.
+          fs.remove(outputDir);
+        } catch (error) {
+          this.logger.debug(
+            `Error removing generated directory ${toError(error).message}`,
+          );
+        }
+      }
+    }
+
+    // Update the last check time for the entity
+    new BuildMetadataStorage(this.entity.metadata.uid).setLastUpdated();
+
+    return true;
   }
 }

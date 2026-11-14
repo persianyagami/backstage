@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,18 @@
  */
 
 import {
-  storageApiRef,
-  errorApiRef,
   createApiFactory,
-} from '@backstage/core-api';
-import { MockErrorApi, MockStorageApi } from './apis';
+  errorApiRef,
+  fetchApiRef,
+  storageApiRef,
+} from '@backstage/core-plugin-api';
+import { translationApiRef } from '@backstage/core-plugin-api/alpha';
+import { MockErrorApi, MockFetchApi, MockStorageApi } from './apis';
+import { MockTranslationApi } from './apis/TranslationApi';
 
 export const mockApis = [
   createApiFactory(errorApiRef, new MockErrorApi()),
+  createApiFactory(fetchApiRef, new MockFetchApi()),
   createApiFactory(storageApiRef, MockStorageApi.create()),
+  createApiFactory(translationApiRef, MockTranslationApi.create()),
 ];

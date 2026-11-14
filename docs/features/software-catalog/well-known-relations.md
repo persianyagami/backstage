@@ -2,7 +2,6 @@
 id: well-known-relations
 title: Well-known Relations between Catalog Entities
 sidebar_label: Well-known Relations
-# prettier-ignore
 description: Documentation that lists a number of well known Relations, that have defined semantics. They can be attached to catalog entities and consumed by plugins as needed.
 ---
 
@@ -48,11 +47,10 @@ where present.
 ### `providesApi` and `apiProvidedBy`
 
 A relation with an [API](descriptor-format.md#kind-api) entity, typically from a
-[Component](descriptor-format.md#kind-component) or
-[System](descriptor-format.md#kind-system).
+[Component](descriptor-format.md#kind-component).
 
-These relations express that a component or system exposes an API - meaning that
-it hosts callable endpoints from which you can consume that API.
+These relations express that a component exposes an API - meaning that it hosts
+callable endpoints from which you can consume that API.
 
 This relation is commonly generated based on `spec.providesApis` of the
 component or system in question.
@@ -60,11 +58,10 @@ component or system in question.
 ### `consumesApi` and `apiConsumedBy`
 
 A relation with an [API](descriptor-format.md#kind-api) entity, typically from a
-[Component](descriptor-format.md#kind-component) or
-[System](descriptor-format.md#kind-system).
+[Component](descriptor-format.md#kind-component).
 
-These relations express that a component or system consumes an API - meaning
-that it depends on endpoints of the API.
+These relations express that a component consumes an API - meaning that it
+depends on endpoints of the API.
 
 This relation is commonly generated based on `spec.consumesApis` of the
 component or system in question.
@@ -77,6 +74,9 @@ This relation is a general expression of being in need of that other entity for
 an entity to function. It can for example be used to express that a website
 component needs a library component as part of its build, or that a service
 component uses a persistent storage resource.
+
+This relation is commonly generated based on `spec.dependsOn` of the component
+or resource in question.
 
 ### `parentOf` and `childOf`
 
@@ -91,3 +91,19 @@ A membership relation, typically for [Users](descriptor-format.md#kind-user) in
 [Groups](descriptor-format.md#kind-group).
 
 This relation is commonly based on `spec.memberOf`.
+
+### `partOf` and `hasPart`
+
+A relation with a [Domain](descriptor-format.md#kind-domain),
+[System](descriptor-format.md#kind-system) or
+[Component](descriptor-format.md#kind-component) entity, typically from a
+[Component](descriptor-format.md#kind-component),
+[API](descriptor-format.md#kind-api),
+[System](descriptor-format.md#kind-system), or
+[Domain](descriptor-format.md#kind-domain),
+
+These relations express that a component belongs to a larger component; a
+component, API or resource belongs to a system; that a system is grouped
+under a domain; or that a domain belongs to a larger domain.
+
+This relation is commonly based on `spec.system` or `spec.domain`.

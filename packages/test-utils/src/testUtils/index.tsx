@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,5 +16,15 @@
 
 export * from './apis';
 export { default as mockBreakpoint } from './mockBreakpoint';
-export { wrapInTestApp, renderInTestApp } from './appWrappers';
+export {
+  wrapInTestApp,
+  renderInTestApp,
+  textContentMatcher,
+  createTestAppWrapper,
+} from './appWrappers';
+export type { TestAppOptions } from './appWrappers';
 export * from './msw';
+export * from './logCollector';
+export * from './testingLibrary';
+export { TestApiProvider, TestApiRegistry } from './TestApiProvider';
+export type { TestApiProviderProps } from './TestApiProvider';

@@ -7,6 +7,11 @@
 
 /* your custom css */
 
+/* makes scroll bars, inputs etc match the dark theme better */
+html {
+  color-scheme: dark;
+}
+
 /* override font color for new dark tech docs styling */
 table {
   color: white;
@@ -48,6 +53,19 @@ h6 {
   color: $textColor;
 }
 
+summary {
+  color: $textColor;
+  cursor: pointer;
+}
+
+h2:hover .hash-link {
+  opacity: 1;
+}
+
+.hash-link {
+  fill: white;
+}
+
 /* body elements  */
 p,
 ul,
@@ -67,6 +85,10 @@ td {
 .MainContent {
   padding: 0;
   background-color: #121212;
+}
+
+.MainContent--gradient {
+  background: linear-gradient(90.49deg, #121212 15.36%, #282828 70.44%);
 }
 
 /* marketing page */
@@ -119,6 +141,20 @@ td {
   color: $navigatorItemTextColor;
 }
 
+/* search */
+[aria-expanded='true'] ~ .aa-without-1 {
+  display: block !important;
+}
+
+[aria-expanded='true'] ~ .aa-without-1 .aa-dataset-1:after {
+  content: 'No results';
+}
+
+.navSearchWrapper {
+  /* Prevents the search box from detaching from its icon when pushed down */
+  justify-content: flex-start;
+}
+
 /* header */
 .fixedHeaderContainer {
   position: fixed;
@@ -128,6 +164,12 @@ td {
   box-shadow: 3px 3px 8px rgba(38, 38, 38, 0.25);
   color: #fff;
 }
+
+.wrapper.headerWrapper {
+  /* Keep the header stretched across the screen on the mid breakpoint, since we need a bit more space */
+  max-width: 1400px;
+}
+
 @media only screen and (min-width: 1024px) {
   .fixedHeaderContainer {
     height: 66px;
@@ -249,6 +291,16 @@ td {
   /* Useless button causing trouble */
   .tocToggler {
     display: none;
+  }
+
+  .docsSliderActive .toc section .navGroups {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .docsSliderActive.docsNavContainer {
+    background-color: #121212;
+    padding-bottom: 0;
   }
 }
 
@@ -1022,6 +1074,78 @@ code {
   }
 }
 
+.Banner {
+  position: relative;
+  padding: 14px;
+  padding-right: 50px; /* space for the dismiss button */
+  margin: 36px 20px;
+  border-radius: 4px;
+  background-color: $primaryColor;
+  font-family: Helvetica Neue, sans-serif;
+  color: #000;
+  display: flex;
+}
+
+.Banner--hiding {
+  opacity: 0;
+  transition: opacity 200ms ease-in-out;
+}
+
+.Banner--hidden {
+  display: none;
+}
+
+.Banner a {
+  color: #000;
+  text-decoration: underline;
+}
+
+.Banner__Container {
+  position: relative;
+  overflow: visible;
+  z-index: 100;
+  margin: 25px auto 0 auto;
+  max-width: 1430px;
+  height: 0;
+}
+
+@media only screen and (max-width: 1024px) {
+  .Banner__Container {
+    margin-top: 20px;
+  }
+}
+
+@media only screen and (max-width: 645px) {
+  .Banner__Container {
+    margin-top: 60px;
+  }
+}
+
+@media only screen and (max-width: 335px) {
+  .Banner__Container {
+    margin-top: 90px;
+  }
+}
+
+.Banner__DismissButton {
+  position: absolute;
+  display: flex;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+
+  border-radius: 50%;
+  padding: 6px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+}
+
+.Banner__DismissButton:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
 .logos-mobile-background {
   position: absolute;
   width: 200vw;
@@ -1053,6 +1177,10 @@ code {
   font-size: 115%;
 }
 
+.post pre {
+  color: #e4e4e4;
+}
+
 .Block__GIF {
   width: 190px;
   height: auto;
@@ -1082,7 +1210,8 @@ code {
 }
 
 .nav-footer .copyright {
-  width: 600px;
+  width: 100%;
+  padding: 0 8px;
   color: #fff;
   margin: 0 auto;
   font-size: 10pt;
@@ -1099,3 +1228,125 @@ code {
 .medium-zoom-image {
   z-index: 10000;
 }
+
+h3.collapsible span.arrow {
+  margin-right: 4px;
+}
+
+.Sidebar__Container {
+  top: 50%;
+  right: 0;
+  position: fixed;
+  color: rgb(0, 0, 0);
+  transition: transform 250ms ease-in-out, height 250ms ease-in-out;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%) translateX(500px);
+}
+
+@media only screen and (max-height: 675px) {
+  .Sidebar__Container {
+    top: 65%;
+  }
+}
+
+@media only screen and (max-width: 650px) {
+  .Sidebar__Container {
+    transform: translateY(-50%) translateX(300px);
+  }
+}
+
+.Sidebar__Container--open {
+  transform: translateY(-50%);
+}
+
+.Sidebar__Button {
+  transform: rotate(-90deg) translateY(49px);
+  padding: 12px 16px;
+  border-radius: 8px 8px 0 0;
+  background-color: rgb(92, 214, 200);
+  color: rgb(0, 0, 0);
+  outline: 0;
+  border: 0;
+  font-family: Helvetica Neue, sans-serif;
+  max-height: 48px;
+  max-width: 150px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+@media only screen and (max-width: 650px) {
+  .Sidebar__Button {
+    width: 175px;
+    font-size: 15px;
+  }
+}
+
+.Sidebar__Button:hover {
+  transform: rotate(-90deg) translateY(49px) scale(1.01);
+}
+
+#Sidebar__HubSpotContainer {
+  width: 500px;
+  background-color: white;
+  border-radius: 8px 0 0 8px;
+  height: 500px;
+}
+
+@media only screen and (max-width: 650px) {
+  #Sidebar__HubSpotContainer {
+    width: 300px;
+  }
+}
+
+#Sidebar__HubSpotContainer form {
+  overflow-y: auto;
+  height: 100%;
+  padding: 25px 25px 0px 25px;
+}
+
+#Sidebar__HubSpotContainer .hs-button {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background-color: rgb(92, 214, 200);
+  color: rgb(0, 0, 0);
+  border: 0;
+}
+
+#Sidebar__HubSpotContainer.submitted-message {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 16px;
+}
+
+#Sidebar__HubSpotContainer.submitted-message p {
+  color: rgb(0, 0, 0);
+}
+
+/* logo.md */
+.logoWhite {
+  background-color: white;
+}
+
+/* Utility API Styling */
+.textGreen {
+  color: #82b366;
+}
+.textBlue {
+  color: #6c8ebf;
+}
+.textPurple {
+  color: #9673a6;
+}
+.textYellow {
+  color: #d6b656;
+}
+.textRed {
+  color: #b85450;
+}
+.textAlignCenter {
+  text-align: center;
+}
+/* End of Utility API Styling */

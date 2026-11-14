@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createDevApp } from '@backstage/dev-utils';
-import { plugin } from '../src/plugin';
 
-createDevApp().registerPlugin(plugin).render();
+import { CatalogEntityPage } from '@backstage/plugin-catalog';
+import { createDevApp } from '@backstage/dev-utils';
+import { UserSettingsPage, userSettingsPlugin } from '../src';
+import { CatalogApi, catalogApiRef } from '@backstage/plugin-catalog-react';
+import {
+  CompoundEntityRef,
+  Entity,
+  UserEntity,
+} from '@backstage/catalog-model';
+
+const userEntity: UserEntity = {
+  apiVersion: 'backstage.io/v1beta1',
+  kind: 'User',
+  metadata: {
+    name: 'Guest',
+  },
+  spec: {},
+};
+createDevApp()
+  .registerPlugin(userSettingsPlugin)
+  .registerApi({
+    api: catalogApiRef,
+    deps: {},
+    factory() {
+      return {
+        async getEntityByRef(
+          _: string | CompoundEntityRef,
+        ): Promise<Entity | undefined> {
+          return userEntity;
+        },
+      } as Partial<CatalogApi> as unknown as CatalogApi;
+    },
+  })
+  .addPage({
+    title: 'Settings',
+    path: '/settings',
+    element: <UserSettingsPage />,
+  })
+  .addPage({ element: <CatalogEntityPage /> })
+  .render();

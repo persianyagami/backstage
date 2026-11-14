@@ -3,6 +3,10 @@ kind: API
 metadata:
   name: starwars-graphql
   description: SWAPI GraphQL Schema
+  links:
+    - url: https://github.com/graphql/swapi-graphql
+      title: GitHub Repo
+      icon: github
 spec:
   type: graphql
   lifecycle: production
@@ -525,7 +529,7 @@ spec:
       terrains: [String]
 
       """
-      The percentage of the planet surface that is naturally occuring water or bodies
+      The percentage of the planet surface that is naturally occurring water or bodies
       of water.
       """
       surfaceWater: Float

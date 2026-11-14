@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,18 @@
  * limitations under the License.
  */
 
+/**
+ * Config API used by Backstage core, backend, and CLI
+ *
+ * @packageDocumentation
+ */
+
 export type {
-  AppConfig,
-  Config,
   JsonArray,
   JsonObject,
+  JsonPrimitive,
   JsonValue,
-} from './types';
+} from './deprecatedTypes';
+export { readDurationFromConfig } from './readDurationFromConfig';
 export { ConfigReader } from './reader';
+export type { AppConfig, Config } from './types';

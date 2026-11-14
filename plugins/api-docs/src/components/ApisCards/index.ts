@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,4 +15,14 @@
  */
 
 export { ConsumedApisCard } from './ConsumedApisCard';
+export type {
+  ConsumedApisCardLegacyProps,
+  ConsumedApisCardProps,
+} from './ConsumedApisCard';
+export { HasApisCard } from './HasApisCard';
+export type { HasApisCardLegacyProps, HasApisCardProps } from './HasApisCard';
 export { ProvidedApisCard } from './ProvidedApisCard';
+export type {
+  ProvidedApisCardLegacyProps,
+  ProvidedApisCardProps,
+} from './ProvidedApisCard';

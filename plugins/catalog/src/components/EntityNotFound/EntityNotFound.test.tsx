@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import { renderInTestApp } from '@backstage/test-utils';
-
+import { screen } from '@testing-library/react';
 import { EntityNotFound } from './EntityNotFound';
 
 describe('<EntityNotFound />', () => {
   it('renders without exploding', async () => {
-    const { getByText } = await renderInTestApp(<EntityNotFound />);
-    expect(getByText(/entity was not found/i)).toBeInTheDocument();
-    expect(getByText(/getting started documentation/i)).toBeInTheDocument();
-    expect(getByText(/docs/i)).toBeInTheDocument();
+    await renderInTestApp(<EntityNotFound />);
+    expect(screen.getByText(/entity was not found/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/getting started documentation/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/docs/i)).toBeInTheDocument();
   });
 });

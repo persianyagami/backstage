@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +125,7 @@ describe('CommonValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
     ['a_b', false],
     ['adam.bertil.caesar', true],
     ['adam.ber-til.caesar', true],
@@ -154,11 +154,93 @@ describe('CommonValidatorFunctions', () => {
     ['a-b', true],
     ['-a-b', false],
     ['a-b-', false],
-    ['a--b', false],
+    ['a--b', true],
+    ['xn--c6h', true],
     ['a_b', false],
     [`${'a'.repeat(63)}`, true],
     [`${'a'.repeat(64)}`, false],
   ])(`isValidDnsLabel %p ? %p`, (value, result) => {
     expect(CommonValidatorFunctions.isValidDnsLabel(value)).toBe(result);
+  });
+
+  it.each([
+    // These are identical to isValidDnsLabel
+    [null, false],
+    [7, false],
+    ['', false],
+    ['a', true],
+    ['a-b', true],
+    ['-a-b', false],
+    ['a-b-', false],
+    ['a--b', false],
+    ['a_b', false],
+    [`${'a'.repeat(63)}`, true],
+    [`${'a'.repeat(64)}`, false],
+    // Tags can have other characters though
+    ['a+b', true],
+    ['+a+b', true],
+    ['a+b+', true],
+    ['a++b', true],
+    ['c++', true],
+    ['c#', true],
+    ['#c++', true],
+  ])(`isValidTag %p ? %p`, (value, result) => {
+    expect(CommonValidatorFunctions.isValidTag(value)).toBe(result);
+  });
+
+  it.each([
+    [null, false],
+    [7, false],
+    ['', false],
+    ['abc', false],
+    ['   abc', false],
+    ['', false],
+    [{}, false],
+    ['http://foo', true],
+    ['https://www.foo.com/', true],
+    ['https://foo.com:8080', true],
+    ['https://foo:8080/page', true],
+    ['https://foo:8080/sub/page', true],
+    ['https://foo:8080/sub/page?query', true],
+    ['https://foo:8080/sub/page/?query=value', true],
+    ['https://foo:8080/sub/page/?query=value&', true],
+    ['https://foo:8080/sub/page/?query=value&another=val', true],
+    ['https://foo.com/page#fragment', true],
+    ['ftp://ftp.some.domain.com/path', true],
+    ['xyz://custom-protocol:4444/path', true],
+  ])(`isValidUrl %p ? %p`, (value, result) => {
+    expect(CommonValidatorFunctions.isValidUrl(value)).toBe(result);
+  });
+
+  it.each([
+    [null, false],
+    [true, false],
+    [7, false],
+    [{}, false],
+    ['', false],
+    [' ', false],
+    ['    ', false],
+    ['abc', true],
+    [' abc ', true],
+    ['abc xyz', true],
+    ['abc xyz abc.', true],
+  ])(`isValidString %p ? %p`, (value, result) => {
+    expect(CommonValidatorFunctions.isNonEmptyString(value)).toBe(result);
+  });
+
+  it.each([
+    [null, false],
+    [true, false],
+    [7, false],
+    [{}, false],
+    ['', false],
+    [' ', false],
+    ['    ', false],
+    ['abc', true],
+    [' abc ', true],
+    ['abc xyz', true],
+    ['abc xyz abc.', true],
+  ])(`isNonEmptyString %p ? %p`, (value, result) => {
+    expect(CommonValidatorFunctions.isNonEmptyString(value)).toBe(result);
   });
 });

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 // @ts-check
 
 /**
- * @param {import('knex')} knex
+ * @param {import('knex').Knex} knex
  */
 exports.up = async function up(knex) {
   await knex.schema.alterTable('entities', table => {
@@ -31,7 +31,8 @@ exports.up = async function up(knex) {
     // apiVersion and kind should not contain any JSON unsafe chars, and both
     // metadata and spec are already valid serialized JSON
     data: knex.raw(
-      `'{"apiVersion":"' || api_version || '","kind":"' || kind || '","metadata":' || metadata || COALESCE(',"spec":' || spec, '') || '}'`,
+      `'{"apiVersion":"' || ?? || '","kind":"' || ?? || '","metadata":' || ?? || COALESCE(',"spec":' || ??, '') || '}'`,
+      ['api_version', 'kind', 'metadata', 'spec'],
     ),
   });
 
@@ -40,29 +41,16 @@ exports.up = async function up(knex) {
     table.dropColumn('spec');
   });
 
-  // SQLite does not support ALTER COLUMN. Note that we do not use the try/
-  // catch method as in other migrations, because if the transaction is
-  // partially failed, it will further mess up the already messed-up
-  // statement below this.
-  if (knex.client.config.client !== 'sqlite3') {
+  // SQLite does not support ALTER COLUMN.
+  if (!knex.client.config.client.includes('sqlite3')) {
     await knex.schema.alterTable('entities', table => {
-      table.text('data').notNullable().alter();
-    });
-  }
-
-  // NOTE(freben): For some reason, specifically sqlite3 in-mem just drops some
-  // subset of constraints sometimes, when a table column is dropped - even if
-  // the column had no relation at all to the constraint. We therefore recreate
-  // the constraint here as a stupid fix.
-  if (knex.client.config.client === 'sqlite3') {
-    await knex.schema.alterTable('entities', table => {
-      table.unique(['full_name'], 'entities_unique_full_name');
+      table.text('data').notNullable().alter({ alterNullable: true });
     });
   }
 };
 
 /**
- * @param {import('knex')} knex
+ * @param {import('knex').Knex} knex
  */
 exports.down = async function down(knex) {
   await knex.schema.alterTable('entities', table => {

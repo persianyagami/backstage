@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import { render } from '@testing-library/react';
-import { useApi, configApiRef } from '@backstage/core';
 import { createDevApp } from './render';
+import { configApiRef, useApi } from '@backstage/core-plugin-api';
 
 const anyEnv = (process.env = { ...process.env }) as any;
 
 describe('DevAppBuilder', () => {
   it('should be able to render a component in a dev app', async () => {
     anyEnv.APP_CONFIG = [
-      { context: 'test', data: { app: { title: 'Test App' } } },
+      {
+        context: 'test',
+        data: {
+          app: { title: 'Test App' },
+          backend: { baseUrl: 'http://localhost' },
+        },
+      },
     ];
 
     const MyComponent = () => {
@@ -33,7 +38,7 @@ describe('DevAppBuilder', () => {
     };
 
     const DevApp = createDevApp()
-      .addRootChild(<MyComponent />)
+      .addRootChild(<MyComponent key="test-key" />)
       .build();
 
     const rendered = render(<DevApp />);

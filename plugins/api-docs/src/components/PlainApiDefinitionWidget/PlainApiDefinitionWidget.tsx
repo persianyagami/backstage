@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,23 @@
  * limitations under the License.
  */
 
-import { CodeSnippet } from '@backstage/core';
-import React from 'react';
+import { CodeSnippet } from '@backstage/core-components';
 
-type Props = {
+/** @public */
+export type PlainApiDefinitionWidgetProps = {
   definition: any;
   language: string;
 };
 
-export const PlainApiDefinitionWidget = ({ definition, language }: Props) => {
+/** @public */
+export const PlainApiDefinitionWidget = (
+  props: PlainApiDefinitionWidgetProps,
+) => {
   return (
-    <CodeSnippet text={definition} language={language} showCopyCodeButton />
+    <CodeSnippet
+      text={props.definition}
+      language={props.language}
+      showCopyCodeButton
+    />
   );
 };

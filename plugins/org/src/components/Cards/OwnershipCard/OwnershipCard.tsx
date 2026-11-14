@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,180 +14,82 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { InfoCard, useApi, Progress } from '@backstage/core';
-import { Entity } from '@backstage/catalog-model';
-import { catalogApiRef } from '@backstage/plugin-catalog';
-import { useAsync } from 'react-use';
-import Alert from '@material-ui/lab/Alert';
-import {
-  Box,
-  createStyles,
-  Grid,
-  makeStyles,
-  Theme,
-  Typography,
-} from '@material-ui/core';
-import { pageTheme } from '@backstage/theme';
-import { isOwnerOf } from '../../isOwnerOf';
+import { EntityInfoCard, useEntity } from '@backstage/plugin-catalog-react';
+import { Switch } from '@backstage/ui';
+import { createStyles, makeStyles } from '@material-ui/core/styles';
+import { useEffect, useState } from 'react';
+import { ComponentsGrid } from './ComponentsGrid';
+import { EntityRelationAggregation } from '../types';
+import { useTranslationRef } from '@backstage/frontend-plugin-api';
+import { orgTranslationRef } from '../../../translation';
 
-type EntitiesKinds = 'Component' | 'API';
-type EntitiesTypes =
-  | 'service'
-  | 'website'
-  | 'library'
-  | 'documentation'
-  | 'api'
-  | 'tool';
+/** @public */
+export type OwnershipCardClassKey = 'grid';
 
-const useStyles = makeStyles((theme: Theme) =>
-  createStyles({
-    card: {
-      border: `1px solid ${theme.palette.divider}`,
-      boxShadow: theme.shadows[2],
-      borderRadius: '4px',
-      padding: theme.spacing(2),
-      color: '#fff',
-      transition: `${theme.transitions.duration.standard}ms`,
-      '&:hover': {
-        boxShadow: theme.shadows[4],
+const useStyles = makeStyles(
+  () =>
+    createStyles({
+      grid: {
+        overflowY: 'auto',
+        marginTop: 0,
       },
-    },
-    bold: {
-      fontWeight: theme.typography.fontWeightBold,
-    },
-    service: {
-      background: `${pageTheme.home.shape}, linear-gradient(90deg, ${pageTheme.service.colors})`,
-    },
-    website: {
-      background: `${pageTheme.home.shape}, linear-gradient(90deg, ${pageTheme.website.colors})`,
-    },
-    library: {
-      background: `${pageTheme.home.shape}, linear-gradient(90deg, ${pageTheme.library.colors})`,
-    },
-    documentation: {
-      background: `${pageTheme.home.shape}, linear-gradient(90deg, ${pageTheme.documentation.colors})`,
-    },
-    api: {
-      background: `${pageTheme.home.shape}, linear-gradient(90deg, #005B4B, #005B4B)`,
-    },
-    tool: {
-      background: `${pageTheme.home.shape}, linear-gradient(90deg, ${pageTheme.tool.colors})`,
-    },
-  }),
+    }),
+  {
+    name: 'PluginOrgOwnershipCard',
+  },
 );
 
-const countEntitiesBy = (
-  entities: Array<Entity>,
-  kind: EntitiesKinds,
-  type?: EntitiesTypes,
-) =>
-  entities.filter(
-    e => e.kind === kind && (type ? e?.spec?.type === type : true),
-  ).length;
-
-const EntityCountTile = ({
-  counter,
-  className,
-  name,
-}: {
-  counter: number;
-  className: EntitiesTypes;
-  name: string;
+/** @public */
+export const OwnershipCard = (props: {
+  entityFilterKind?: string[];
+  hideRelationsToggle?: boolean;
+  /** @deprecated Please use relationAggregation instead */
+  relationsType?: EntityRelationAggregation;
+  relationAggregation?: EntityRelationAggregation;
+  entityLimit?: number;
 }) => {
+  const { entityFilterKind, hideRelationsToggle, entityLimit = 6 } = props;
+  const relationAggregation = props.relationAggregation ?? props.relationsType;
+  const relationsToggle =
+    hideRelationsToggle === undefined ? false : hideRelationsToggle;
   const classes = useStyles();
-  return (
-    <Box
-      className={`${classes.card} ${classes[className]}`}
-      display="flex"
-      flexDirection="column"
-      alignItems="center"
-    >
-      <Typography className={classes.bold} variant="h6">
-        {counter}
-      </Typography>
-      <Typography className={classes.bold} variant="h6">
-        {name}
-      </Typography>
-    </Box>
+  const { entity } = useEntity();
+  const { t } = useTranslationRef(orgTranslationRef);
+
+  const defaultRelationAggregation =
+    entity.kind === 'User' ? 'aggregated' : 'direct';
+  const [getRelationAggregation, setRelationAggregation] = useState(
+    relationAggregation ?? defaultRelationAggregation,
   );
-};
 
-export const OwnershipCard = ({
-  entity,
-  variant,
-}: {
-  entity: Entity;
-  variant: string;
-}) => {
-  const catalogApi = useApi(catalogApiRef);
-  const {
-    loading,
-    error,
-    value: componentsWithCounters,
-  } = useAsync(async () => {
-    const entitiesList = await catalogApi.getEntities();
-    const ownedEntitiesList = entitiesList.items.filter(component =>
-      isOwnerOf(entity, component),
-    );
-
-    return [
-      {
-        counter: countEntitiesBy(ownedEntitiesList, 'Component', 'service'),
-        className: 'service',
-        name: 'Services',
-      },
-      {
-        counter: countEntitiesBy(
-          ownedEntitiesList,
-          'Component',
-          'documentation',
-        ),
-        className: 'documentation',
-        name: 'Documentation',
-      },
-      {
-        counter: countEntitiesBy(ownedEntitiesList, 'API'),
-        className: 'api',
-        name: 'APIs',
-      },
-      {
-        counter: countEntitiesBy(ownedEntitiesList, 'Component', 'library'),
-        className: 'library',
-        name: 'Libraries',
-      },
-      {
-        counter: countEntitiesBy(ownedEntitiesList, 'Component', 'website'),
-        className: 'website',
-        name: 'Websites',
-      },
-      {
-        counter: countEntitiesBy(ownedEntitiesList, 'Component', 'tool'),
-        className: 'tool',
-        name: 'Tools',
-      },
-    ] as Array<{ counter: number; className: EntitiesTypes; name: string }>;
-  }, [catalogApi]);
-
-  if (loading) {
-    return <Progress />;
-  } else if (error) {
-    return <Alert severity="error">{error.message}</Alert>;
-  }
+  useEffect(() => {
+    if (!relationAggregation) {
+      setRelationAggregation(defaultRelationAggregation);
+    }
+  }, [setRelationAggregation, defaultRelationAggregation, relationAggregation]);
 
   return (
-    <InfoCard title="Ownership" variant={variant}>
-      <Grid container>
-        {componentsWithCounters?.map(c => (
-          <Grid item xs={12} md={6} lg={4} key={c.name}>
-            <EntityCountTile
-              counter={c.counter}
-              className={c.className}
-              name={c.name}
-            />
-          </Grid>
-        ))}
-      </Grid>
-    </InfoCard>
+    <EntityInfoCard
+      title={t('ownershipCard.title')}
+      headerActions={
+        !relationsToggle && (
+          <Switch
+            isSelected={getRelationAggregation !== 'direct'}
+            onChange={isSelected =>
+              setRelationAggregation(isSelected ? 'aggregated' : 'direct')
+            }
+            label={t('ownershipCard.aggregateRelationsToggle.label')}
+          />
+        )
+      }
+    >
+      <ComponentsGrid
+        className={classes.grid}
+        entity={entity}
+        entityLimit={entityLimit}
+        relationAggregation={getRelationAggregation}
+        entityFilterKind={entityFilterKind}
+      />
+    </EntityInfoCard>
   );
 };

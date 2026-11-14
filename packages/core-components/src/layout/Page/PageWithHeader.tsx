@@ -1,0 +1,44 @@
+/*
+ * Copyright 2020 The Backstage Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { PropsWithChildren, ComponentProps } from 'react';
+
+import { Header } from '../Header';
+import { Page } from './Page';
+
+type PageWithHeaderProps = ComponentProps<typeof Header> & {
+  themeId: string;
+};
+
+/**
+ * A legacy page layout with a header.
+ * @public
+ * @deprecated Legacy page shell, superseded for new frontend development. Use
+ * `PageBlueprint` and `PageLayout` from `@backstage/frontend-plugin-api` for
+ * framework-managed pages. For standalone layouts, compose `PluginHeader` or
+ * `Header` from `@backstage/ui` with your content. Migrate legacy page themes,
+ * arbitrary header content, document titles, and focus handling explicitly;
+ * these APIs are not prop-for-prop replacements.
+ */
+export function PageWithHeader(props: PropsWithChildren<PageWithHeaderProps>) {
+  const { themeId, children, ...restProps } = props;
+  return (
+    <Page themeId={themeId}>
+      <Header {...restProps} />
+      {children}
+    </Page>
+  );
+}

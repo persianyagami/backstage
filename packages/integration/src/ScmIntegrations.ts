@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,33 +15,158 @@
  */
 
 import { Config } from '@backstage/config';
+import { AwsS3Integration } from './awsS3/AwsS3Integration';
+import { AwsCodeCommitIntegration } from './awsCodeCommit/AwsCodeCommitIntegration';
 import { AzureIntegration } from './azure/AzureIntegration';
-import { BitbucketIntegration } from './bitbucket/BitbucketIntegration';
-import { GitHubIntegration } from './github/GitHubIntegration';
+import { BitbucketCloudIntegration } from './bitbucketCloud/BitbucketCloudIntegration';
+import { BitbucketServerIntegration } from './bitbucketServer/BitbucketServerIntegration';
+import { GerritIntegration } from './gerrit/GerritIntegration';
+import { GithubIntegration } from './github/GithubIntegration';
 import { GitLabIntegration } from './gitlab/GitLabIntegration';
-import {
-  ScmIntegration,
-  ScmIntegrationPredicateTuple,
-  ScmIntegrationRegistry,
-} from './types';
+import { defaultScmResolveUrl } from './helpers';
+import { ScmIntegration, ScmIntegrationsGroup } from './types';
+import { ScmIntegrationRegistry } from './registry';
+import { GiteaIntegration } from './gitea';
+import { HarnessIntegration } from './harness/HarnessIntegration';
+import { AzureBlobStorageIntegration } from './azureBlobStorage';
+import { GoogleGcsIntegration } from './googleGcs/GoogleGcsIntegration';
 
+/**
+ * The set of supported integrations.
+ *
+ * @public
+ */
+export interface IntegrationsByType {
+  awsS3: ScmIntegrationsGroup<AwsS3Integration>;
+  awsCodeCommit: ScmIntegrationsGroup<AwsCodeCommitIntegration>;
+  azureBlobStorage: ScmIntegrationsGroup<AzureBlobStorageIntegration>;
+  azure: ScmIntegrationsGroup<AzureIntegration>;
+  bitbucketCloud: ScmIntegrationsGroup<BitbucketCloudIntegration>;
+  bitbucketServer: ScmIntegrationsGroup<BitbucketServerIntegration>;
+  gerrit: ScmIntegrationsGroup<GerritIntegration>;
+  github: ScmIntegrationsGroup<GithubIntegration>;
+  gitlab: ScmIntegrationsGroup<GitLabIntegration>;
+  gitea: ScmIntegrationsGroup<GiteaIntegration>;
+  googleGcs: ScmIntegrationsGroup<GoogleGcsIntegration>;
+  harness: ScmIntegrationsGroup<HarnessIntegration>;
+}
+
+/**
+ * Exposes the set of supported integrations.
+ *
+ * @public
+ */
 export class ScmIntegrations implements ScmIntegrationRegistry {
+  private readonly byType: IntegrationsByType;
+
   static fromConfig(config: Config): ScmIntegrations {
-    return new ScmIntegrations([
-      ...AzureIntegration.factory({ config }),
-      ...BitbucketIntegration.factory({ config }),
-      ...GitHubIntegration.factory({ config }),
-      ...GitLabIntegration.factory({ config }),
-    ]);
+    return new ScmIntegrations({
+      awsS3: AwsS3Integration.factory({ config }),
+      awsCodeCommit: AwsCodeCommitIntegration.factory({ config }),
+      azureBlobStorage: AzureBlobStorageIntegration.factory({ config }),
+      azure: AzureIntegration.factory({ config }),
+      bitbucketCloud: BitbucketCloudIntegration.factory({ config }),
+      bitbucketServer: BitbucketServerIntegration.factory({ config }),
+      gerrit: GerritIntegration.factory({ config }),
+      github: GithubIntegration.factory({ config }),
+      gitlab: GitLabIntegration.factory({ config }),
+      gitea: GiteaIntegration.factory({ config }),
+      googleGcs: GoogleGcsIntegration.factory({ config }),
+      harness: HarnessIntegration.factory({ config }),
+    });
   }
 
-  constructor(private readonly integrations: ScmIntegrationPredicateTuple[]) {}
+  constructor(integrationsByType: IntegrationsByType) {
+    this.byType = integrationsByType;
+  }
+
+  get awsS3(): ScmIntegrationsGroup<AwsS3Integration> {
+    return this.byType.awsS3;
+  }
+
+  get awsCodeCommit(): ScmIntegrationsGroup<AwsCodeCommitIntegration> {
+    return this.byType.awsCodeCommit;
+  }
+
+  get azureBlobStorage(): ScmIntegrationsGroup<AzureBlobStorageIntegration> {
+    return this.byType.azureBlobStorage;
+  }
+
+  get azure(): ScmIntegrationsGroup<AzureIntegration> {
+    return this.byType.azure;
+  }
+
+  get bitbucketCloud(): ScmIntegrationsGroup<BitbucketCloudIntegration> {
+    return this.byType.bitbucketCloud;
+  }
+
+  get bitbucketServer(): ScmIntegrationsGroup<BitbucketServerIntegration> {
+    return this.byType.bitbucketServer;
+  }
+
+  get gerrit(): ScmIntegrationsGroup<GerritIntegration> {
+    return this.byType.gerrit;
+  }
+
+  get github(): ScmIntegrationsGroup<GithubIntegration> {
+    return this.byType.github;
+  }
+
+  get gitlab(): ScmIntegrationsGroup<GitLabIntegration> {
+    return this.byType.gitlab;
+  }
+
+  get gitea(): ScmIntegrationsGroup<GiteaIntegration> {
+    return this.byType.gitea;
+  }
+
+  get googleGcs(): ScmIntegrationsGroup<GoogleGcsIntegration> {
+    return this.byType.googleGcs;
+  }
+
+  get harness(): ScmIntegrationsGroup<HarnessIntegration> {
+    return this.byType.harness;
+  }
 
   list(): ScmIntegration[] {
-    return this.integrations.map(i => i.integration);
+    return Object.values(this.byType).flatMap(
+      i => i.list() as ScmIntegration[],
+    );
   }
 
-  byUrl(url: string): ScmIntegration | undefined {
-    return this.integrations.find(i => i.predicate(new URL(url)))?.integration;
+  byUrl(url: string | URL): ScmIntegration | undefined {
+    const candidates = Object.values(this.byType)
+      .map(i => i.byUrl(url))
+      .filter(Boolean);
+
+    return candidates[0];
+  }
+
+  byHost(host: string): ScmIntegration | undefined {
+    return Object.values(this.byType)
+      .map(i => i.byHost(host))
+      .find(Boolean);
+  }
+
+  resolveUrl(options: {
+    url: string;
+    base: string;
+    lineNumber?: number;
+  }): string {
+    const integration = this.byUrl(options.base);
+    if (!integration) {
+      return defaultScmResolveUrl(options);
+    }
+
+    return integration.resolveUrl(options);
+  }
+
+  resolveEditUrl(url: string): string {
+    const integration = this.byUrl(url);
+    if (!integration) {
+      return url;
+    }
+
+    return integration.resolveEditUrl(url);
   }
 }

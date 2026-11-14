@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,3 +15,14 @@
  */
 
 import '@testing-library/jest-dom';
+
+Object.defineProperty(global, 'TextEncoder', {
+  value: require('node:util').TextEncoder,
+});
+
+Object.defineProperty(global, 'TextDecoder', {
+  value: require('node:util').TextDecoder,
+});
+
+// Use a 15s timeout to accommodate the slowest API docs rendering tests under concurrency.
+jest.setTimeout(15_000);

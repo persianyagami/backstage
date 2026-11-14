@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EntityPolicy } from '../../types';
+import { EntityPolicy } from './types';
 import {
   CommonValidatorFunctions,
   KubernetesValidatorFunctions,
@@ -27,8 +27,11 @@ import { Entity } from '../Entity';
  * Ensures that the format of individual fields of the entity envelope
  * is valid.
  *
- * This does not take into account machine generated fields such as uid, etag
- * and generation.
+ * @remarks
+ *
+ * This does not take into account machine generated fields such as uid and etag.
+ *
+ * @public
  */
 export class FieldFormatEntityPolicy implements EntityPolicy {
   private readonly validators: Validators;
@@ -76,12 +79,23 @@ export class FieldFormatEntityPolicy implements EntityPolicy {
             expectation =
               'a string that is sequences of [a-z0-9] separated by [-], at most 63 characters in total';
             break;
+          case 'isValidTag':
+            expectation =
+              'a string that is sequences of [a-z0-9+#] separated by [-], at most 63 characters in total';
+            break;
           case 'isValidAnnotationValue':
             expectation = 'a string';
             break;
           case 'isValidKind':
             expectation =
               'a string that is a sequence of [a-zA-Z][a-z0-9A-Z], at most 63 characters in total';
+            break;
+          case 'isValidUrl':
+            expectation = 'a string that is a valid url';
+            break;
+          case 'isValidString':
+          case 'isNonEmptyString':
+            expectation = 'a non empty string';
             break;
           default:
             expectation = undefined;
@@ -132,6 +146,23 @@ export class FieldFormatEntityPolicy implements EntityPolicy {
 
     for (let i = 0; i < tags.length; ++i) {
       require(`tags.${i}`, tags[i], this.validators.isValidTag);
+    }
+
+    const links = entity.metadata.links ?? [];
+
+    for (let i = 0; i < links.length; ++i) {
+      require(`links.${i}.url`, links[i]
+        ?.url, CommonValidatorFunctions.isValidUrl);
+      optional(
+        `links.${i}.title`,
+        links[i]?.title,
+        CommonValidatorFunctions.isNonEmptyString,
+      );
+      optional(
+        `links.${i}.icon`,
+        links[i]?.icon,
+        CommonValidatorFunctions.isNonEmptyString,
+      );
     }
 
     return entity;

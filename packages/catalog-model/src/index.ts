@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
+/**
+ * Types and validators that help describe the model of a Backstage Catalog
+ *
+ * @packageDocumentation
+ */
+
 export * from './entity';
 export { EntityPolicies } from './EntityPolicies';
 export * from './kinds';
 export * from './location';
-export type { EntityName, EntityPolicy, EntityRef, JSONSchema } from './types';
+export type { CompoundEntityRef } from './types';
 export * from './validation';

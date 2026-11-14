@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { JsonObject } from '@backstage/config';
-import { EntityName } from '../types';
+import { JsonObject } from '@backstage/types';
 
 /**
- * The format envelope that's common to all versions/kinds of entity.
+ * The parts of the format that's common to all versions/kinds of entity.
  *
- * @see https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/
+ * @remarks
+ *
+ * See also:
+ * {@link https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/}
+ * @public
  */
 export type Entity = {
   /**
@@ -53,8 +56,13 @@ export type Entity = {
 /**
  * Metadata fields common to all versions/kinds of entity.
  *
- * @see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta
- * @see https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/
+ * @remarks
+ *
+ * See also:
+ * {@link https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta}
+ * {@link https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/}
+ *
+ * @public
  */
 export type EntityMeta = JsonObject & {
   /**
@@ -81,20 +89,16 @@ export type EntityMeta = JsonObject & {
   etag?: string;
 
   /**
-   * A positive nonzero number that indicates the current generation of data
-   * for this entity; the value is incremented each time the spec changes.
-   *
-   * This field can not be set by the user at creation time, and the server
-   * will reject an attempt to do so. The field will be populated in read
-   * operations.
-   */
-  generation?: number;
-
-  /**
    * The name of the entity.
    *
    * Must be unique within the catalog at any given point in time, for any
-   * given namespace + kind pair.
+   * given namespace + kind pair. This value is part of the technical
+   * identifier of the entity, and as such it will appear in URLs, database
+   * tables, entity references, and similar. It is subject to restrictions
+   * regarding what characters are allowed.
+   *
+   * If you want to use a different, more human readable string with fewer
+   * restrictions on it in user interfaces, see the `title` field below.
    */
   name: string;
 
@@ -102,6 +106,23 @@ export type EntityMeta = JsonObject & {
    * The namespace that the entity belongs to.
    */
   namespace?: string;
+
+  /**
+   * A display name of the entity, to be presented in user interfaces instead
+   * of the `name` property above, when available.
+   *
+   * This field is sometimes useful when the `name` is cumbersome or ends up
+   * being perceived as overly technical. The title generally does not have
+   * as stringent format requirements on it, so it may contain special
+   * characters and be more explanatory. Do keep it very short though, and
+   * avoid situations where a title can be confused with the name of another
+   * entity, or where two entities share a title.
+   *
+   * Note that this is only for display purposes, and may be ignored by some
+   * parts of the code. Entity references still always make use of the `name`
+   * property, not the title.
+   */
+  title?: string;
 
   /**
    * A short (typically relatively few words, on one line) description of the
@@ -125,10 +146,17 @@ export type EntityMeta = JsonObject & {
    * various ways.
    */
   tags?: string[];
+
+  /**
+   * A list of external hyperlinks related to the entity.
+   */
+  links?: EntityLink[];
 };
 
 /**
  * A relation of a specific type to another entity in the catalog.
+ *
+ * @public
  */
 export type EntityRelation = {
   /**
@@ -137,27 +165,34 @@ export type EntityRelation = {
   type: string;
 
   /**
-   * The target entity of this relation.
+   * The entity ref of the target of this relation.
    */
-  target: EntityName;
+  targetRef: string;
 };
 
 /**
- * Holds the relation data for entities.
+ * A link to external information that is related to the entity.
+ *
+ * @public
  */
-export type EntityRelationSpec = {
+export type EntityLink = {
   /**
-   * The source entity of this relation.
+   * The url to the external site, document, etc.
    */
-  source: EntityName;
+  url: string;
 
   /**
-   * The type of the relation.
+   * An optional descriptive title for the link.
    */
-  type: string;
+  title?: string;
 
   /**
-   * The target entity of this relation.
+   * An optional semantic key that represents a visual icon.
    */
-  target: EntityName;
+  icon?: string;
+
+  /**
+   * An optional value to categorize links into specific groups
+   */
+  type?: string;
 };

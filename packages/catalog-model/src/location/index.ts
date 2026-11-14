@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-export type { Location, LocationSpec } from './types';
 export {
-  locationSchema,
-  locationSpecSchema,
-  analyzeLocationSchema,
-} from './validation';
-export { LOCATION_ANNOTATION } from './annotation';
+  ANNOTATION_LOCATION,
+  ANNOTATION_ORIGIN_LOCATION,
+  ANNOTATION_SOURCE_LOCATION,
+} from './annotation';
+export {
+  getEntitySourceLocation,
+  parseLocationRef,
+  stringifyLocationRef,
+} from './helpers';

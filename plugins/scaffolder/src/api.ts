@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,50 +14,12 @@
  * limitations under the License.
  */
 
-import { createApiRef, DiscoveryApi } from '@backstage/core';
+import { ScaffolderClient as _ScaffolderClient } from '@backstage/plugin-scaffolder-common';
 
-export const scaffolderApiRef = createApiRef<ScaffolderApi>({
-  id: 'plugin.scaffolder.service',
-  description: 'Used to make requests towards the scaffolder backend',
-});
-
-export class ScaffolderApi {
-  private readonly discoveryApi: DiscoveryApi;
-
-  constructor(options: { discoveryApi: DiscoveryApi }) {
-    this.discoveryApi = options.discoveryApi;
-  }
-
-  /**
-   * Executes the scaffolding of a component, given a template and its
-   * parameter values.
-   *
-   * @param templateName Template name for the scaffolder to use. New project is going to be created out of this template.
-   * @param values Parameters for the template, e.g. name, description
-   */
-  async scaffold(templateName: string, values: Record<string, any>) {
-    const url = `${await this.discoveryApi.getBaseUrl('scaffolder')}/v1/jobs`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ templateName, values: { ...values } }),
-    });
-
-    if (response.status !== 201) {
-      const status = `${response.status} ${response.statusText}`;
-      const body = await response.text();
-      throw new Error(`Backend request failed, ${status} ${body.trim()}`);
-    }
-
-    const { id } = await response.json();
-    return id;
-  }
-
-  async getJob(jobId: string) {
-    const baseUrl = await this.discoveryApi.getBaseUrl('scaffolder');
-    const url = `${baseUrl}/v1/job/${encodeURIComponent(jobId)}`;
-    return fetch(url).then(x => x.json());
-  }
-}
+/**
+ * An API to interact with the scaffolder backend.
+ *
+ * @public
+ * @deprecated use import from {@link @backstage/plugin-scaffolder-common#ScaffolderClient} instead as this has now been moved.
+ */
+export class ScaffolderClient extends _ScaffolderClient {}

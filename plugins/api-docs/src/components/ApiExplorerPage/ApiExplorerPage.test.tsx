@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2021 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,66 +14,30 @@
  * limitations under the License.
  */
 
-import { Entity } from '@backstage/catalog-model';
-import { ApiProvider, ApiRegistry, storageApiRef } from '@backstage/core';
-import { CatalogApi, catalogApiRef } from '@backstage/plugin-catalog';
-import { MockStorageApi, wrapInTestApp } from '@backstage/test-utils';
-import { render } from '@testing-library/react';
-import React from 'react';
-import { apiDocsConfigRef } from '../../config';
+import { renderInTestApp } from '@backstage/test-utils';
+import { useOutlet } from 'react-router-dom';
 import { ApiExplorerPage } from './ApiExplorerPage';
 
-describe('ApiCatalogPage', () => {
-  const catalogApi: Partial<CatalogApi> = {
-    getEntities: () =>
-      Promise.resolve({
-        items: [
-          {
-            apiVersion: 'backstage.io/v1alpha1',
-            kind: 'API',
-            metadata: {
-              name: 'Entity1',
-            },
-            spec: { type: 'openapi' },
-          },
-          {
-            apiVersion: 'backstage.io/v1alpha1',
-            kind: 'API',
-            metadata: {
-              name: 'Entity2',
-            },
-            spec: { type: 'openapi' },
-          },
-        ] as Entity[],
-      }),
-    getLocationByEntity: () =>
-      Promise.resolve({ id: 'id', type: 'github', target: 'url' }),
-  };
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useOutlet: jest.fn().mockReturnValue('Route Children'),
+}));
 
-  const apiDocsConfig = {
-    getApiDefinitionWidget: () => undefined,
-  };
+jest.mock('./DefaultApiExplorerPage', () => ({
+  DefaultApiExplorerPage: jest.fn().mockReturnValue('DefaultApiExplorerPage'),
+}));
 
-  const renderWrapped = (children: React.ReactNode) =>
-    render(
-      wrapInTestApp(
-        <ApiProvider
-          apis={ApiRegistry.from([
-            [catalogApiRef, catalogApi],
-            [storageApiRef, MockStorageApi.create()],
-            [apiDocsConfigRef, apiDocsConfig],
-          ])}
-        >
-          {children}
-        </ApiProvider>,
-      ),
-    );
+describe('ApiExplorerPage', () => {
+  it('renders provided router element', async () => {
+    const { getByText } = await renderInTestApp(<ApiExplorerPage />);
 
-  // this test right now causes some red lines in the log output when running tests
-  // related to some theme issues in mui-table
-  // https://github.com/mbrn/material-table/issues/1293
-  it('should render', async () => {
-    const { findByText } = renderWrapped(<ApiExplorerPage />);
-    expect(await findByText(/Backstage API Explorer/)).toBeInTheDocument();
+    expect(getByText('Route Children')).toBeInTheDocument();
+  });
+
+  it('renders DefaultApiExplorerPage home when no router children are provided', async () => {
+    (useOutlet as jest.Mock).mockReturnValueOnce(null);
+    const { getByText } = await renderInTestApp(<ApiExplorerPage />);
+
+    expect(getByText('DefaultApiExplorerPage')).toBeInTheDocument();
   });
 });

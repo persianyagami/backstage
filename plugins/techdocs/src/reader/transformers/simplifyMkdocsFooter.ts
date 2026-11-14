@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import type { Transformer } from './index';
+import type { Transformer } from './transformer';
 
 export const simplifyMkdocsFooter = (): Transformer => {
   return dom => {
-    // Remove mkdocs copyright
+    // Remove new mkdocs copyright
+    dom.querySelector('.md-footer .md-copyright')?.remove();
+    // Remove old mkdocs copyright
     dom.querySelector('.md-footer-copyright')?.remove();
-
     return dom;
   };
 };

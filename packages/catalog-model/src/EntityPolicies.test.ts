@@ -1,6 +1,5 @@
-import { Entity } from './entity';
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +14,8 @@ import { Entity } from './entity';
  * limitations under the License.
  */
 
+import { Entity, EntityPolicy } from './entity';
 import { EntityPolicies } from './EntityPolicies';
-import { EntityPolicy } from './types';
 
 describe('EntityPolicies', () => {
   const p1: jest.Mocked<EntityPolicy> = { enforce: jest.fn() };
@@ -68,8 +67,8 @@ describe('EntityPolicies', () => {
       p2.enforce.mockResolvedValue(entity2);
       const policy = EntityPolicies.allOf([p1, p2]);
       await expect(policy.enforce(entity1)).resolves.toBe(entity2);
-      expect(p1.enforce).toBeCalledWith(entity1);
-      expect(p2.enforce).toBeCalledWith(entity2);
+      expect(p1.enforce).toHaveBeenCalledWith(entity1);
+      expect(p2.enforce).toHaveBeenCalledWith(entity2);
     });
   });
 

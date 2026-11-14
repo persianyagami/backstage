@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,19 @@
  */
 
 /* eslint-disable no-restricted-syntax */
-import { resolve as resolvePath } from 'path';
-import { findPaths, findRootPath, findOwnDir, findOwnRootDir } from './paths';
+import { resolve as resolvePath } from 'node:path';
+import { findPaths, findRootPath, findOwnRootDir, findOwnPaths } from './paths';
 
 describe('paths', () => {
-  it('findOwnDir and findOwnRootDir should find owns paths', () => {
-    const dir = findOwnDir(__dirname);
-    const root = findOwnRootDir(dir);
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-    expect(dir).toBe(resolvePath(__dirname, '..'));
+  it('findOwnPaths and findOwnRootDir should find own paths', () => {
+    const own = findOwnPaths(__dirname);
+    const root = findOwnRootDir(own.dir);
+
+    expect(own.dir).toBe(resolvePath(__dirname, '..'));
     expect(root).toBe(resolvePath(__dirname, '../../..'));
   });
 
@@ -46,6 +50,8 @@ describe('paths', () => {
     const dir = resolvePath(__dirname, '..');
     const root = resolvePath(__dirname, '../../..');
 
+    jest.spyOn(process, 'cwd').mockReturnValue(dir);
+
     const paths = findPaths(__dirname);
 
     expect(paths.ownDir).toBe(dir);
@@ -65,7 +71,7 @@ describe('paths', () => {
   });
 
   it('findPaths should find mocked package paths', () => {
-    const mockCwd = resolvePath(__dirname, '../../core');
+    const mockCwd = resolvePath(__dirname, '../../config');
     const mockDir = resolvePath(__dirname, '../../cli');
     const root = resolvePath(__dirname, '../../..');
 
@@ -89,5 +95,31 @@ describe('paths', () => {
     expect(paths.resolveTargetRoot('./derp.txt')).toBe(
       resolvePath(root, 'derp.txt'),
     );
+  });
+
+  it('findPaths should find workspace root with object', () => {
+    jest
+      .spyOn(JSON, 'parse')
+      .mockReturnValue({ workspaces: { packages: ['packages/*'] } });
+    jest.spyOn(process, 'cwd').mockReturnValue(__dirname);
+
+    const paths = findPaths(__dirname);
+
+    expect(paths.targetDir).toBe(
+      resolvePath(__dirname, '../../cli-common/src'),
+    );
+    expect(paths.targetRoot).toBe(resolvePath(__dirname, '../../cli-common'));
+  });
+
+  it('findPaths should find workspace root with array', () => {
+    jest.spyOn(JSON, 'parse').mockReturnValue({ workspaces: ['packages/*'] });
+    jest.spyOn(process, 'cwd').mockReturnValue(__dirname);
+
+    const paths = findPaths(__dirname);
+
+    expect(paths.targetDir).toBe(
+      resolvePath(__dirname, '../../cli-common/src'),
+    );
+    expect(paths.targetRoot).toBe(resolvePath(__dirname, '../../cli-common'));
   });
 });

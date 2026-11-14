@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,45 +14,49 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { CodeSnippet, EmptyState } from '@backstage/core';
-import { Button, Typography } from '@material-ui/core';
+import Button from '@material-ui/core/Button';
+import Typography from '@material-ui/core/Typography';
+import { CodeSnippet, EmptyState } from '@backstage/core-components';
+import { useTranslationRef } from '@backstage/frontend-plugin-api';
+import { userSettingsTranslationRef } from '../../translation';
 
-const EXAMPLE = `import { createPlugin } from '@backstage/core';
+const EXAMPLE = `import { createPlugin } from '@backstage/core-plugin-api';
 
 export default createPlugin({
-  id: 'welcome',
-  register({ router, featureFlags }) {
-    featureFlags.register('enable-example-feature');
-  },
+  id: 'plugin-name',
+  featureFlags: [{ name: 'enable-example-feature' }],
 });
 `;
 
-export const EmptyFlags = () => (
-  <EmptyState
-    missing="content"
-    title="No Feature Flags"
-    description="Feature Flags makes it possible for plugins to register features in Backstage for users to opt into. You      can use this to split out logic in your code for manual A/B testing, etc."
-    action={
-      <>
-        <Typography variant="body1">
-          An example how how to add a feature flags is highlighted below:
-        </Typography>
-        <CodeSnippet
-          text={EXAMPLE}
-          language="typescript"
-          showLineNumbers
-          highlightedNumbers={[6]}
-          customStyle={{ background: 'inherit', fontSize: '115%' }}
-        />
-        <Button
-          variant="contained"
-          color="primary"
-          href="https://backstage.io/docs/api/utility-apis"
-        >
-          Read More
-        </Button>
-      </>
-    }
-  />
-);
+export const EmptyFlags = () => {
+  const { t } = useTranslationRef(userSettingsTranslationRef);
+
+  return (
+    <EmptyState
+      missing="content"
+      title={t('featureFlags.emptyFlags.title')}
+      description={t('featureFlags.emptyFlags.description')}
+      action={
+        <>
+          <Typography variant="body1">
+            {t('featureFlags.emptyFlags.action.title')}
+          </Typography>
+          <CodeSnippet
+            text={EXAMPLE}
+            language="typescript"
+            showLineNumbers
+            highlightedNumbers={[6]}
+            customStyle={{ background: 'inherit', fontSize: '115%' }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            href="https://backstage.io/docs/api/utility-apis"
+          >
+            {t('featureFlags.emptyFlags.action.readMoreButtonTitle')}
+          </Button>
+        </>
+      }
+    />
+  );
+};

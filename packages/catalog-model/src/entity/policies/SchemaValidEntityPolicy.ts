@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,50 +14,47 @@
  * limitations under the License.
  */
 
-import * as yup from 'yup';
-import { EntityPolicy } from '../../types';
+import Ajv, { ValidateFunction } from 'ajv';
+import entitySchema from '../../schema/Entity.schema.json';
+import entityMetaSchema from '../../schema/EntityMeta.schema.json';
+import commonSchema from '../../schema/shared/common.schema.json';
 import { Entity } from '../Entity';
-
-const DEFAULT_ENTITY_SCHEMA = yup
-  .object({
-    apiVersion: yup.string().required(),
-    kind: yup.string().required(),
-    metadata: yup
-      .object({
-        uid: yup.string().notRequired().min(1),
-        etag: yup.string().notRequired().min(1),
-        generation: yup.number().notRequired().integer().min(1),
-        name: yup.string().required(),
-        namespace: yup.string().notRequired(),
-        description: yup.string().notRequired(),
-        labels: yup.object<Record<string, string>>().notRequired(),
-        annotations: yup.object<Record<string, string>>().notRequired(),
-        tags: yup.array<string>().notRequired(),
-      })
-      .required(),
-    spec: yup.object({}).notRequired(),
-  })
-  .required();
+import { EntityPolicy } from './types';
 
 /**
  * Ensures that the entity spec is valid according to a schema.
  *
+ * @remarks
+ *
  * This should be the first policy in the list, to ensure that other downstream
  * policies can work with a structure that is at least valid in therms of the
  * typescript type.
+ *
+ * @public
  */
 export class SchemaValidEntityPolicy implements EntityPolicy {
-  private readonly schema: yup.Schema<Entity>;
-
-  constructor(schema: yup.Schema<Entity> = DEFAULT_ENTITY_SCHEMA) {
-    this.schema = schema;
-  }
+  private validate: ValidateFunction<Entity> | undefined;
 
   async enforce(entity: Entity): Promise<Entity> {
-    try {
-      return await this.schema.validate(entity, { strict: true });
-    } catch (e) {
-      throw new Error(`Malformed envelope, ${e}`);
+    if (!this.validate) {
+      const ajv = new Ajv({ allowUnionTypes: true });
+      this.validate = ajv
+        .addSchema([commonSchema, entityMetaSchema], undefined, undefined, true)
+        .compile<Entity>(entitySchema);
     }
+
+    const result = this.validate(entity);
+    if (result === true) {
+      return entity;
+    }
+
+    const [error] = this.validate.errors || [];
+    if (!error) {
+      throw new Error(`Malformed envelope, Unknown error`);
+    }
+
+    throw new Error(
+      `Malformed envelope, ${error.instancePath || '<root>'} ${error.message}`,
+    );
   }
 }

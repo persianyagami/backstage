@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,25 +15,28 @@
  */
 
 import { ApiEntity } from '@backstage/catalog-model';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
-import { renderInTestApp } from '@backstage/test-utils';
+import { EntityProvider } from '@backstage/plugin-catalog-react';
+import { renderInTestApp, TestApiProvider } from '@backstage/test-utils';
 import { waitFor } from '@testing-library/react';
-import React from 'react';
+import { PropsWithChildren, ComponentType, ReactNode } from 'react';
 import { ApiDocsConfig, apiDocsConfigRef } from '../../config';
 import { OpenApiDefinitionWidget } from '../OpenApiDefinitionWidget';
 import { ApiDefinitionCard } from './ApiDefinitionCard';
+
+// Make sure this is in the require cache before the async rendering happens
+import '../OpenApiDefinitionWidget/OpenApiDefinition';
 
 describe('<ApiDefinitionCard />', () => {
   const apiDocsConfig: jest.Mocked<ApiDocsConfig> = {
     getApiDefinitionWidget: jest.fn(),
   } as any;
-  let Wrapper: React.ComponentType;
+  let Wrapper: ComponentType<PropsWithChildren<{}>>;
 
   beforeEach(() => {
-    const apis = ApiRegistry.with(apiDocsConfigRef, apiDocsConfig);
-
-    Wrapper = ({ children }: { children?: React.ReactNode }) => (
-      <ApiProvider apis={apis}>{children}</ApiProvider>
+    Wrapper = ({ children }: { children?: ReactNode }) => (
+      <TestApiProvider apis={[[apiDocsConfigRef, apiDocsConfig]]}>
+        {children}
+      </TestApiProvider>
     );
   });
 
@@ -54,7 +57,7 @@ paths:
     get:
       summary: List all artists
       responses:
-        "200": 
+        "200":
           description: Success
         `;
     const apiEntity: ApiEntity = {
@@ -62,6 +65,7 @@ paths:
       kind: 'API',
       metadata: {
         name: 'my-name',
+        title: 'My Name',
       },
       spec: {
         type: 'openapi',
@@ -74,19 +78,21 @@ paths:
       type: 'openapi',
       title: 'OpenAPI',
       rawLanguage: 'yaml',
-      component: definition => (
-        <OpenApiDefinitionWidget definition={definition} />
+      component: definitionString => (
+        <OpenApiDefinitionWidget definition={definitionString} />
       ),
     });
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ApiDefinitionCard apiEntity={apiEntity} />
+        <EntityProvider entity={apiEntity}>
+          <ApiDefinitionCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
     await waitFor(() => {
-      expect(getByText(/my-name/i)).toBeInTheDocument();
+      expect(getByText(/My Name/i)).toBeInTheDocument();
       expect(getByText(/OpenAPI/)).toBeInTheDocument();
       expect(getByText(/Raw/i)).toBeInTheDocument();
       expect(getByText(/List all artists/i)).toBeInTheDocument();
@@ -99,6 +105,7 @@ paths:
       kind: 'API',
       metadata: {
         name: 'my-name',
+        title: 'My Name',
       },
       spec: {
         type: 'custom-type',
@@ -108,14 +115,20 @@ paths:
       },
     };
 
-    const { getByText } = await renderInTestApp(
+    const { getByText, getAllByText } = await renderInTestApp(
       <Wrapper>
-        <ApiDefinitionCard apiEntity={apiEntity} />
+        <EntityProvider entity={apiEntity}>
+          <ApiDefinitionCard />
+        </EntityProvider>
       </Wrapper>,
     );
 
-    expect(getByText(/my-name/i)).toBeInTheDocument();
+    expect(getByText(/My Name/i)).toBeInTheDocument();
     expect(getByText(/custom-type/i)).toBeInTheDocument();
-    expect(getByText(/Custom Definition/i)).toBeInTheDocument();
+    expect(
+      getAllByText(
+        (_text, element) => element?.textContent === 'Custom Definition',
+      ).length,
+    ).toBeGreaterThan(0);
   });
 });

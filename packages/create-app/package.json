@@ -1,77 +1,66 @@
 {
   "name": "@backstage/create-app",
-  "description": "Create app package for Backstage",
-  "version": "0.2.4",
-  "private": false,
+  "version": "0.9.4-next.2",
+  "description": "A CLI that helps you create your own Backstage app",
+  "backstage": {
+    "role": "cli"
+  },
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "backstage"
+  ],
   "homepage": "https://backstage.io",
   "repository": {
     "type": "git",
     "url": "https://github.com/backstage/backstage",
     "directory": "packages/create-app"
   },
-  "keywords": [
-    "backstage"
-  ],
   "license": "Apache-2.0",
   "main": "dist/index.cjs.js",
   "bin": {
     "backstage-create-app": "bin/backstage-create-app"
   },
-  "scripts": {
-    "build": "backstage-cli build --outputs cjs",
-    "lint": "backstage-cli lint",
-    "clean": "backstage-cli clean",
-    "start": "nodemon --"
-  },
-  "dependencies": {
-    "@backstage/cli-common": "^0.1.1",
-    "chalk": "^4.0.0",
-    "commander": "^6.1.0",
-    "fs-extra": "^9.0.0",
-    "handlebars": "^4.7.3",
-    "inquirer": "^7.0.4",
-    "ora": "^4.0.3",
-    "recursive-readdir": "^2.2.2"
-  },
-  "devDependencies": {
-    "@backstage/backend-common": "^0.4.0",
-    "@backstage/catalog-model": "^0.5.0",
-    "@backstage/cli": "^0.4.1",
-    "@backstage/config": "^0.1.2",
-    "@backstage/core": "^0.4.0",
-    "@backstage/plugin-api-docs": "^0.4.0",
-    "@backstage/plugin-app-backend": "^0.3.3",
-    "@backstage/plugin-auth-backend": "^0.2.6",
-    "@backstage/plugin-catalog": "^0.2.6",
-    "@backstage/plugin-catalog-backend": "^0.4.0",
-    "@backstage/plugin-circleci": "^0.2.4",
-    "@backstage/plugin-explore": "^0.2.2",
-    "@backstage/plugin-github-actions": "^0.2.4",
-    "@backstage/plugin-lighthouse": "^0.2.5",
-    "@backstage/plugin-proxy-backend": "^0.2.3",
-    "@backstage/plugin-register-component": "^0.2.4",
-    "@backstage/plugin-rollbar-backend": "^0.1.5",
-    "@backstage/plugin-scaffolder": "^0.3.3",
-    "@backstage/plugin-scaffolder-backend": "^0.3.4",
-    "@backstage/plugin-tech-radar": "^0.3.1",
-    "@backstage/plugin-techdocs": "^0.4.0",
-    "@backstage/plugin-techdocs-backend": "^0.3.2",
-    "@backstage/plugin-user-settings": "^0.2.3",
-    "@backstage/test-utils": "^0.1.5",
-    "@backstage/theme": "^0.2.2",
-    "@types/fs-extra": "^9.0.1",
-    "@types/inquirer": "^7.3.1",
-    "@types/ora": "^3.2.0",
-    "@types/react-dev-utils": "^9.0.4",
-    "@types/recursive-readdir": "^2.2.0",
-    "ts-node": "^8.6.2"
-  },
   "files": [
     "bin",
     "dist",
     "templates"
-  ]
+  ],
+  "scripts": {
+    "add-lock-seed": "node scripts/add-lock-seed.js",
+    "build": "backstage-cli package build",
+    "clean": "backstage-cli package clean",
+    "lint": "backstage-cli package lint",
+    "prepack": "node scripts/prepack.js",
+    "postpack": "node scripts/postpack.js",
+    "start": "yarn nodemon --",
+    "test": "backstage-cli package test"
+  },
+  "nodemonConfig": {
+    "exec": "bin/backstage-create-app",
+    "ext": "ts",
+    "watch": "./src"
+  },
+  "dependencies": {
+    "@backstage/cli-common": "workspace:^",
+    "chalk": "^4.0.0",
+    "commander": "^14.0.3",
+    "fs-extra": "^11.2.0",
+    "handlebars": "^4.7.3",
+    "inquirer": "^8.2.0",
+    "ora": "^5.3.0",
+    "recursive-readdir": "^2.2.2"
+  },
+  "devDependencies": {
+    "@backstage/backend-test-utils": "workspace:^",
+    "@backstage/cli": "workspace:^",
+    "@types/command-exists": "^1.2.0",
+    "@types/fs-extra": "^11.0.0",
+    "@types/inquirer": "^8.1.3",
+    "@types/node": "^24.0.0",
+    "@types/recursive-readdir": "^2.2.0",
+    "msw": "^2.0.0",
+    "nodemon": "^3.0.1"
+  }
 }

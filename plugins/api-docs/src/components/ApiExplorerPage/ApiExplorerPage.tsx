@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2021 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,41 +14,18 @@
  * limitations under the License.
  */
 
-import { Content, ContentHeader, SupportButton, useApi } from '@backstage/core';
-import { catalogApiRef } from '@backstage/plugin-catalog';
-import { Button } from '@material-ui/core';
-import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import { useAsync } from 'react-use';
-import { ApiExplorerTable } from '../ApiExplorerTable';
-import { ApiExplorerLayout } from './ApiExplorerLayout';
+import { useOutlet } from 'react-router-dom';
+import {
+  DefaultApiExplorerPage,
+  DefaultApiExplorerPageProps,
+} from './DefaultApiExplorerPage';
 
-export const ApiExplorerPage = () => {
-  const catalogApi = useApi(catalogApiRef);
-  const { loading, error, value: catalogResponse } = useAsync(() => {
-    return catalogApi.getEntities({ filter: { kind: 'API' } });
-  }, [catalogApi]);
+/**
+ * ApiExplorerPage
+ * @public
+ */
+export const ApiExplorerPage = (props: DefaultApiExplorerPageProps) => {
+  const outlet = useOutlet();
 
-  return (
-    <ApiExplorerLayout>
-      <Content>
-        <ContentHeader title="">
-          <Button
-            variant="contained"
-            color="primary"
-            component={RouterLink}
-            to="/register-component"
-          >
-            Register Existing API
-          </Button>
-          <SupportButton>All your APIs</SupportButton>
-        </ContentHeader>
-        <ApiExplorerTable
-          entities={catalogResponse?.items ?? []}
-          loading={loading}
-          error={error}
-        />
-      </Content>
-    </ApiExplorerLayout>
-  );
+  return outlet || <DefaultApiExplorerPage {...props} />;
 };

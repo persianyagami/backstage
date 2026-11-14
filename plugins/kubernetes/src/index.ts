@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,5 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { plugin } from './plugin';
-export { Router } from './Router';
+
+/**
+ * A Backstage plugin that integrates towards Kubernetes
+ *
+ * @packageDocumentation
+ */
+
+export {
+  kubernetesPlugin,
+  kubernetesPlugin as plugin,
+  EntityKubernetesContent,
+} from './plugin';
+export type { EntityKubernetesContentProps } from './plugin';
+export { Router, isKubernetesAvailable } from './Router';
+// TODO remove this re-export as a breaking change after a couple of releases
+export * from '@backstage/plugin-kubernetes-react';
+export { kubernetesTranslationRef } from './alpha/translation';

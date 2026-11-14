@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +14,8 @@
  * limitations under the License.
  */
 
+import { ExitCodeError } from '@backstage/cli-common';
 import chalk from 'chalk';
-
-export class CustomError extends Error {
-  get name(): string {
-    return this.constructor.name;
-  }
-}
-
-export class ExitCodeError extends CustomError {
-  readonly code: number;
-
-  constructor(code: number, command?: string) {
-    if (command) {
-      super(`Command '${command}' exited with code ${code}`);
-    } else {
-      super(`Child exited with code ${code}`);
-    }
-    this.code = code;
-  }
-}
 
 export function exitWithError(error: Error): never {
   if (error instanceof ExitCodeError) {

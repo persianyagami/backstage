@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,73 +16,144 @@
 
 import {
   ComponentEntity,
-  Entity,
   RELATION_API_CONSUMED_BY,
 } from '@backstage/catalog-model';
-import { EmptyState, InfoCard, Progress } from '@backstage/core';
-import React, { PropsWithChildren } from 'react';
-import { MissingConsumesApisEmptyState } from '../EmptyState';
-import { useRelatedEntities } from '../useRelatedEntities';
-import { ComponentsTable } from './ComponentsTable';
+import Typography from '@material-ui/core/Typography';
+import {
+  EntityTable,
+  useEntity,
+  useRelatedEntities,
+} from '@backstage/plugin-catalog-react';
+import {
+  EntityRelationCard,
+  EntityColumnConfig,
+  entityColumnPresets,
+} from '@backstage/plugin-catalog-react/alpha';
+import {
+  CodeSnippet,
+  InfoCard,
+  InfoCardVariants,
+  Link,
+  Progress,
+  TableColumn,
+  TableOptions,
+  WarningPanel,
+} from '@backstage/core-components';
+import { useTranslationRef } from '@backstage/frontend-plugin-api';
+import { apiDocsTranslationRef } from '../../translation';
 
-const ComponentsCard = ({
-  children,
-  variant = 'gridItem',
-}: PropsWithChildren<{ variant?: string }>) => {
-  return (
-    <InfoCard variant={variant} title="Consumers">
-      {children}
-    </InfoCard>
-  );
-};
+/** @public */
+export interface ConsumingComponentsCardProps {
+  title?: string;
+  columnConfig?: EntityColumnConfig[];
+}
 
-type Props = {
-  entity: Entity;
-  variant?: string;
-};
+/**
+ * Props for the legacy MUI-based rendering.
+ * @deprecated Use {@link ConsumingComponentsCardProps} instead.
+ * @public
+ */
+export interface ConsumingComponentsCardLegacyProps {
+  title?: string;
+  /** @deprecated Use `columnConfig` instead. */
+  variant?: InfoCardVariants;
+  /** @deprecated Use `columnConfig` instead. */
+  columns?: TableColumn<ComponentEntity>[];
+  /** @deprecated Use `columnConfig` instead. */
+  tableOptions?: TableOptions;
+}
 
-export const ConsumingComponentsCard = ({
-  entity,
-  variant = 'gridItem',
-}: Props) => {
-  const { entities, loading, error } = useRelatedEntities(
-    entity,
-    RELATION_API_CONSUMED_BY,
-  );
+function isLegacyProps(
+  props: ConsumingComponentsCardProps | ConsumingComponentsCardLegacyProps,
+): props is ConsumingComponentsCardLegacyProps {
+  return 'variant' in props || 'columns' in props || 'tableOptions' in props;
+}
+
+function ConsumingComponentsCardLegacy(
+  props: ConsumingComponentsCardLegacyProps,
+) {
+  const { t } = useTranslationRef(apiDocsTranslationRef);
+  const {
+    variant = 'gridItem',
+    title = t('consumingComponentsCard.title'),
+    columns = EntityTable.componentEntityColumns,
+    tableOptions = {},
+  } = props;
+  const { entity } = useEntity();
+  const { entities, loading, error } = useRelatedEntities(entity, {
+    type: RELATION_API_CONSUMED_BY,
+  });
 
   if (loading) {
     return (
-      <ComponentsCard variant={variant}>
+      <InfoCard variant={variant} title={title}>
         <Progress />
-      </ComponentsCard>
+      </InfoCard>
     );
   }
 
-  if (error) {
+  if (error || !entities) {
     return (
-      <ComponentsCard variant={variant}>
-        <EmptyState
-          missing="info"
-          title="No information to display"
-          description="There was an error while loading the consumers."
+      <InfoCard variant={variant} title={title}>
+        <WarningPanel
+          severity="error"
+          title={t('consumingComponentsCard.error.title')}
+          message={<CodeSnippet text={`${error}`} language="text" />}
         />
-      </ComponentsCard>
-    );
-  }
-
-  if (!entities || entities.length === 0) {
-    return (
-      <ComponentsCard variant={variant}>
-        <MissingConsumesApisEmptyState />
-      </ComponentsCard>
+      </InfoCard>
     );
   }
 
   return (
-    <ComponentsTable
-      title="Consumers"
+    <EntityTable
+      title={title}
       variant={variant}
-      entities={entities as (ComponentEntity | undefined)[]}
+      emptyContent={
+        <div style={{ textAlign: 'center' }}>
+          <Typography variant="body1">
+            {t('consumingComponentsCard.emptyContent.title')}
+          </Typography>
+          <Typography variant="body2">
+            <Link to="https://backstage.io/docs/features/software-catalog/descriptor-format#specconsumesapis-optional">
+              {t('apisCardHelpLinkTitle')}
+            </Link>
+          </Typography>
+        </div>
+      }
+      columns={columns}
+      tableOptions={tableOptions}
+      entities={entities as ComponentEntity[]}
+    />
+  );
+}
+
+/**
+ * @public
+ */
+export const ConsumingComponentsCard = (
+  props: ConsumingComponentsCardProps | ConsumingComponentsCardLegacyProps,
+) => {
+  const { t } = useTranslationRef(apiDocsTranslationRef);
+
+  if (isLegacyProps(props)) {
+    return <ConsumingComponentsCardLegacy {...props} />;
+  }
+
+  const {
+    title = t('consumingComponentsCard.title'),
+    columnConfig = entityColumnPresets.component.columns,
+  } = props;
+
+  return (
+    <EntityRelationCard
+      title={title}
+      relationType={RELATION_API_CONSUMED_BY}
+      columnConfig={columnConfig}
+      emptyState={{
+        message: t('consumingComponentsCard.emptyContent.title'),
+        helpLink:
+          'https://backstage.io/docs/features/software-catalog/descriptor-format#specconsumesapis-optional',
+      }}
     />
   );
 };

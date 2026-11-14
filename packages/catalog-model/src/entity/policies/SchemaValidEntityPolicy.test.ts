@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ describe('SchemaValidEntityPolicy', () => {
       metadata:
         uid: e01199ab-08cc-44c2-8e19-5c29ded82521
         etag: lsndfkjsndfkjnsdfkjnsd==
-        generation: 13
         name: my-component-yay
         namespace: the-namespace
         labels:
@@ -39,6 +38,10 @@ describe('SchemaValidEntityPolicy', () => {
         tags:
           - java
           - data
+        links:
+          - url: https://example.com
+            title: Website
+            icon: website
       spec:
         custom: stuff
     `);
@@ -54,7 +57,7 @@ describe('SchemaValidEntityPolicy', () => {
   //
 
   it('rejects wrong root type', async () => {
-    await expect(policy.enforce((7 as unknown) as Entity)).rejects.toThrow(
+    await expect(policy.enforce(7 as unknown as Entity)).rejects.toThrow(
       /object/,
     );
   });
@@ -123,26 +126,6 @@ describe('SchemaValidEntityPolicy', () => {
     await expect(policy.enforce(data)).rejects.toThrow(/etag/);
   });
 
-  it('accepts missing generation', async () => {
-    delete data.metadata.generation;
-    await expect(policy.enforce(data)).resolves.toBe(data);
-  });
-
-  it('rejects bad generation type', async () => {
-    data.metadata.generation = 'a';
-    await expect(policy.enforce(data)).rejects.toThrow(/generation/);
-  });
-
-  it('rejects zero generation', async () => {
-    data.metadata.generation = 0;
-    await expect(policy.enforce(data)).rejects.toThrow(/generation/);
-  });
-
-  it('rejects non-integer generation', async () => {
-    data.metadata.generation = 1.5;
-    await expect(policy.enforce(data)).rejects.toThrow(/generation/);
-  });
-
   it('rejects missing name', async () => {
     delete data.metadata.name;
     await expect(policy.enforce(data)).rejects.toThrow(/name/);
@@ -197,6 +180,24 @@ describe('SchemaValidEntityPolicy', () => {
     data.metadata.tags = 7;
     await expect(policy.enforce(data)).rejects.toThrow(/tags/);
   });
+
+  it('accepts missing links', async () => {
+    delete data.metadata.links;
+    await expect(policy.enforce(data)).resolves.toBe(data);
+  });
+
+  it('accepts empty links array', async () => {
+    data.metadata.links = [];
+    await expect(policy.enforce(data)).resolves.toBe(data);
+  });
+
+  it.each([['invalid type'], [123], [{}], [{ url: 'https://foo' }]])(
+    'rejects bad links type %s',
+    async (val: unknown) => {
+      data.metadata.links = val;
+      await expect(policy.enforce(data)).rejects.toThrow(/links/);
+    },
+  );
 
   //
   // spec

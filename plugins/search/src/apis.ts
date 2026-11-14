@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,48 +14,38 @@
  * limitations under the License.
  */
 
-import { CatalogApi } from '@backstage/plugin-catalog';
-import { Entity, ENTITY_DEFAULT_NAMESPACE } from '@backstage/catalog-model';
+import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
+import { ResponseError } from '@backstage/errors';
+import { SearchApi } from '@backstage/plugin-search-react';
+import { SearchQuery, SearchResultSet } from '@backstage/plugin-search-common';
 
-export type Result = {
-  name: string;
-  description: string | undefined;
-  owner: string | undefined;
-  kind: string;
-  lifecycle: string | undefined;
-  url: string;
-};
+import qs from 'qs';
 
-export type SearchResults = Array<Result>;
+export class SearchClient implements SearchApi {
+  private readonly discoveryApi: DiscoveryApi;
+  private readonly fetchApi: FetchApi;
 
-class SearchApi {
-  private catalogApi: CatalogApi;
-
-  constructor(catalogApi: CatalogApi) {
-    this.catalogApi = catalogApi;
+  constructor(options: { discoveryApi: DiscoveryApi; fetchApi: FetchApi }) {
+    this.discoveryApi = options.discoveryApi;
+    this.fetchApi = options.fetchApi;
   }
 
-  private async entities() {
-    const entities = await this.catalogApi.getEntities();
-    return entities.items.map((entity: Entity) => ({
-      name: entity.metadata.name,
-      description: entity.metadata.description,
-      owner:
-        typeof entity.spec?.owner === 'string' ? entity.spec?.owner : undefined,
-      kind: entity.kind,
-      lifecycle:
-        typeof entity.spec?.lifecycle === 'string'
-          ? entity.spec?.lifecycle
-          : undefined,
-      url: `/catalog/${
-        entity.metadata.namespace?.toLowerCase() || ENTITY_DEFAULT_NAMESPACE
-      }/${entity.kind.toLowerCase()}/${entity.metadata.name}`,
-    }));
-  }
+  async query(
+    query: SearchQuery,
+    options?: { signal?: AbortSignal },
+  ): Promise<SearchResultSet> {
+    const queryString = qs.stringify(query);
+    const url = `${await this.discoveryApi.getBaseUrl(
+      'search',
+    )}/query?${queryString}`;
+    const response = await this.fetchApi.fetch(url, {
+      signal: options?.signal,
+    });
 
-  public getSearchResult(): Promise<SearchResults> {
-    return this.entities();
+    if (!response.ok) {
+      throw await ResponseError.fromResponse(response);
+    }
+
+    return response.json();
   }
 }
-
-export default SearchApi;

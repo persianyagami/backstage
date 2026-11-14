@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import {
-  createTestShadowDom,
-  mockStylesheetEventListener,
-  executeStylesheetEventListeners,
-  clearStylesheetEventListeners,
-} from '../../test-utils';
-import { onCssReady } from '../transformers';
+import { createTestShadowDom } from '../../test-utils';
+import { onCssReady } from './onCssReady';
 
 const docStorageUrl: string =
   'https://techdocs-mock-sites.storage.googleapis.com';
@@ -31,45 +26,27 @@ const fixture = `
 `;
 
 describe('onCssReady', () => {
-  beforeAll(() => {
-    jest.useFakeTimers();
-  });
-
-  afterAll(() => {
-    jest.useRealTimers();
-  });
-
-  beforeEach(() => {
-    mockStylesheetEventListener(100);
-  });
-
-  afterEach(() => {
-    clearStylesheetEventListeners();
-  });
-
-  it('does not call onLoading and onLoaded without the onCssReady transformer', () => {
+  it('does not call onLoading and onLoaded without the onCssReady transformer', async () => {
     const onLoading = jest.fn();
     const onLoaded = jest.fn();
 
-    createTestShadowDom(fixture, {
+    await createTestShadowDom(fixture, {
       preTransformers: [],
       postTransformers: [],
     });
 
     expect(onLoading).not.toHaveBeenCalled();
-    executeStylesheetEventListeners();
     expect(onLoaded).not.toHaveBeenCalled();
   });
 
-  it('calls the onLoading and onLoaded correctly', () => {
+  it('calls the onLoading and onLoaded correctly', async () => {
     const onLoading = jest.fn();
     const onLoaded = jest.fn();
 
-    createTestShadowDom(fixture, {
+    await createTestShadowDom(fixture, {
       preTransformers: [],
       postTransformers: [
         onCssReady({
-          docStorageUrl,
           onLoading,
           onLoaded,
         }),
@@ -77,12 +54,6 @@ describe('onCssReady', () => {
     });
 
     expect(onLoading).toHaveBeenCalledTimes(1);
-    expect(onLoading).toHaveBeenCalledWith(expect.any(Element));
-    expect(onLoaded).not.toHaveBeenCalled();
-
-    executeStylesheetEventListeners();
-
     expect(onLoaded).toHaveBeenCalledTimes(1);
-    expect(onLoaded).toHaveBeenCalledWith(expect.any(Element));
   });
 });

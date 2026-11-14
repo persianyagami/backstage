@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,34 +14,89 @@
  * limitations under the License.
  */
 
-import { Logger } from 'winston';
-import parseGitUri from 'git-url-parse';
+import parseGitUrl from 'git-url-parse';
+import { Entity } from '@backstage/catalog-model';
+import { ScmIntegrationRegistry } from '@backstage/integration';
 import {
   AnalyzeLocationRequest,
   AnalyzeLocationResponse,
+} from '@backstage/plugin-catalog-common';
+import {
   LocationAnalyzer,
-} from './types';
+  ScmLocationAnalyzer,
+} from '@backstage/plugin-catalog-node';
+import { LoggerService } from '@backstage/backend-plugin-api';
 
 export class RepoLocationAnalyzer implements LocationAnalyzer {
-  private readonly logger: Logger;
+  private readonly logger: LoggerService;
+  private readonly scmIntegrations: ScmIntegrationRegistry;
+  private readonly analyzers: ScmLocationAnalyzer[];
 
-  constructor(logger: Logger) {
+  constructor(
+    logger: LoggerService,
+    scmIntegrations: ScmIntegrationRegistry,
+    analyzers: ScmLocationAnalyzer[],
+  ) {
     this.logger = logger;
+    this.scmIntegrations = scmIntegrations;
+    this.analyzers = analyzers;
   }
   async analyzeLocation(
     request: AnalyzeLocationRequest,
   ): Promise<AnalyzeLocationResponse> {
-    const { owner, name, source } = parseGitUri(request.location.target);
-    const entity = {
+    const integration = this.scmIntegrations.byUrl(request.location.target);
+    const { owner, name } = parseGitUrl(request.location.target);
+
+    let annotationPrefix;
+    switch (integration?.type) {
+      case 'azure':
+        annotationPrefix = 'dev.azure.com';
+        break;
+      case 'bitbucket':
+        annotationPrefix = 'bitbucket.org';
+        break;
+      case 'github':
+        annotationPrefix = 'github.com';
+        break;
+      case 'gitlab':
+        annotationPrefix = 'gitlab.com';
+        break;
+      default:
+        break;
+    }
+
+    const analyzer = this.analyzers.find(a =>
+      a.supports(request.location.target),
+    );
+    if (analyzer) {
+      const analyzerResult = await analyzer.analyze({
+        url: request.location.target,
+      });
+      if (analyzerResult.existing.length > 0) {
+        this.logger.debug(
+          `entity for ${request.location.target} already exists.`,
+        );
+        return {
+          existingEntityFiles: analyzerResult.existing,
+          generateEntities: [],
+        };
+      }
+    }
+
+    const entity: Entity = {
       apiVersion: 'backstage.io/v1alpha1',
       kind: 'Component',
       metadata: {
         name: name,
-        // Probably won't handle properly self-hosted git providers with custom url
-        annotations: { [`${source}/project-slug`]: `${owner}/${name}` },
       },
       spec: { type: 'other', lifecycle: 'unknown' },
     };
+
+    if (annotationPrefix) {
+      entity.metadata.annotations = {
+        [`${annotationPrefix}/project-slug`]: `${owner}/${name}`,
+      };
+    }
 
     this.logger.debug(`entity created for ${request.location.target}`);
     return {

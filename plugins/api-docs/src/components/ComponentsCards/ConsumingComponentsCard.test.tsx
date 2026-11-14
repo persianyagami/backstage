@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,29 +15,26 @@
  */
 
 import { Entity, RELATION_API_CONSUMED_BY } from '@backstage/catalog-model';
-import { ApiProvider, ApiRegistry } from '@backstage/core';
-import { CatalogApi, catalogApiRef } from '@backstage/plugin-catalog';
-import { renderInTestApp } from '@backstage/test-utils';
+import {
+  catalogApiRef,
+  EntityProvider,
+  entityRouteRef,
+} from '@backstage/plugin-catalog-react';
+import { catalogApiMock } from '@backstage/plugin-catalog-react/testUtils';
+import { renderInTestApp, TestApiProvider } from '@backstage/test-utils';
 import { waitFor } from '@testing-library/react';
-import React from 'react';
+import { PropsWithChildren, ComponentType, ReactNode } from 'react';
 import { ConsumingComponentsCard } from './ConsumingComponentsCard';
 
 describe('<ConsumingComponentsCard />', () => {
-  const catalogApi: jest.Mocked<CatalogApi> = {
-    getLocationById: jest.fn(),
-    getEntityByName: jest.fn(),
-    getEntities: jest.fn(),
-    addLocation: jest.fn(),
-    getLocationByEntity: jest.fn(),
-    removeEntityByUid: jest.fn(),
-  } as any;
-  let Wrapper: React.ComponentType;
+  const catalogApi = catalogApiMock.mock();
+  let Wrapper: ComponentType<PropsWithChildren<{}>>;
 
   beforeEach(() => {
-    const apis = ApiRegistry.with(catalogApiRef, catalogApi);
-
-    Wrapper = ({ children }: { children?: React.ReactNode }) => (
-      <ApiProvider apis={apis}>{children}</ApiProvider>
+    Wrapper = ({ children }: { children?: ReactNode }) => (
+      <TestApiProvider apis={[[catalogApiRef, catalogApi]]}>
+        {children}
+      </TestApiProvider>
     );
   });
 
@@ -62,12 +59,19 @@ describe('<ConsumingComponentsCard />', () => {
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ConsumingComponentsCard entity={entity} />
+        <EntityProvider entity={entity}>
+          <ConsumingComponentsCard />
+        </EntityProvider>
       </Wrapper>,
+      {
+        mountedRoutes: {
+          '/catalog/:namespace/:kind/:name': entityRouteRef,
+        },
+      },
     );
 
-    expect(getByText(/Consumers/i)).toBeInTheDocument();
-    expect(getByText(/No APIs consumed by this entity/i)).toBeInTheDocument();
+    expect(getByText('Consumers')).toBeInTheDocument();
+    expect(getByText(/No component consumes this API/i)).toBeInTheDocument();
   });
 
   it('shows consuming components', async () => {
@@ -86,40 +90,41 @@ describe('<ConsumingComponentsCard />', () => {
       },
       relations: [
         {
-          target: {
-            kind: 'Component',
-            namespace: 'my-namespace',
-            name: 'target-name',
-          },
+          targetRef: 'component:my-namespace/target-name',
           type: RELATION_API_CONSUMED_BY,
         },
       ],
     };
-    catalogApi.getEntityByName.mockResolvedValue({
-      apiVersion: 'v1',
-      kind: 'Component',
-      metadata: {
-        name: 'target-name',
-        namespace: 'my-namespace',
-      },
-      spec: {
-        type: 'service',
-        owner: 'Test',
-        lifecycle: 'production',
-      },
+    catalogApi.getEntitiesByRefs.mockResolvedValue({
+      items: [
+        {
+          apiVersion: 'v1',
+          kind: 'Component',
+          metadata: {
+            name: 'target-name',
+            namespace: 'my-namespace',
+          },
+          spec: {},
+        },
+      ],
     });
 
     const { getByText } = await renderInTestApp(
       <Wrapper>
-        <ConsumingComponentsCard entity={entity} />
+        <EntityProvider entity={entity}>
+          <ConsumingComponentsCard />
+        </EntityProvider>
       </Wrapper>,
+      {
+        mountedRoutes: {
+          '/catalog/:namespace/:kind/:name': entityRouteRef,
+        },
+      },
     );
 
     await waitFor(() => {
-      expect(getByText(/Consumers/i)).toBeInTheDocument();
+      expect(getByText('Consumers')).toBeInTheDocument();
       expect(getByText(/target-name/i)).toBeInTheDocument();
-      expect(getByText(/Test/i)).toBeInTheDocument();
-      expect(getByText(/production/i)).toBeInTheDocument();
     });
   });
 });

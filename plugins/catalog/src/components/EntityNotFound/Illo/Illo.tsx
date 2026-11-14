@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +14,15 @@
  * limitations under the License.
  */
 
-import React from 'react';
-import { makeStyles } from '@material-ui/core';
 import IlloSvgUrl from './illo.svg';
+import styles from './Illo.module.css';
 
-const useStyles = makeStyles(theme => ({
-  illo: {
-    maxWidth: '60%',
-    top: 100,
-    right: 20,
-    position: 'absolute',
-    [theme.breakpoints.down('xs')]: {
-      maxWidth: '96%',
-      position: 'relative',
-      top: 'unset',
-      right: 'unset',
-      margin: `${theme.spacing(10)}px auto ${theme.spacing(4)}px`,
-    },
-  },
-}));
-
-export const Illo = () => {
-  const classes = useStyles();
+export function Illo() {
   return (
     <img
       src={IlloSvgUrl}
-      className={classes.illo}
+      className={styles.illo}
       alt="Illustration on entity not found page"
     />
   );
-};
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 import yaml from 'yaml';
-import { ENTITY_DEFAULT_NAMESPACE } from '../constants';
+import { DEFAULT_NAMESPACE } from '../constants';
 import { DefaultNamespaceEntityPolicy } from './DefaultNamespaceEntityPolicy';
 
 describe('DefaultNamespaceEntityPolicy', () => {
@@ -57,7 +57,7 @@ describe('DefaultNamespaceEntityPolicy', () => {
       expect.objectContaining({
         metadata: {
           name: 'my-component-yay',
-          namespace: ENTITY_DEFAULT_NAMESPACE,
+          namespace: DEFAULT_NAMESPACE,
         },
       }),
     );

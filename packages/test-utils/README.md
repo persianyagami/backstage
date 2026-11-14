@@ -4,19 +4,14 @@ This package provides utilities that can be used to test plugins and apps for Ba
 
 ## Installation
 
-Install the package via npm or Yarn:
+Install the package via Yarn:
 
 ```sh
-$ npm install --save-dev @backstage/test-utils
-```
-
-or
-
-```sh
-$ yarn add -D @backstage/test-utils
+cd <package-dir> # if within a monorepo
+yarn add -D @backstage/test-utils
 ```
 
 ## Documentation
 
 - [Backstage Readme](https://github.com/backstage/backstage/blob/master/README.md)
-- [Backstage Documentation](https://github.com/backstage/backstage/blob/master/docs/README.md)
+- [Backstage Documentation](https://backstage.io/docs)

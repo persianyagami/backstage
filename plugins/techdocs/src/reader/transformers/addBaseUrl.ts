@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EntityName } from '@backstage/catalog-model';
-import type { Transformer } from './index';
-import { TechDocsStorage } from '../../api';
+import { CompoundEntityRef } from '@backstage/catalog-model';
+import { TechDocsStorageApi } from '../../api';
+import type { Transformer } from './transformer';
 
 type AddBaseUrlOptions = {
-  techdocsStorageApi: TechDocsStorage;
-  entityId: EntityName;
+  techdocsStorageApi: TechDocsStorageApi;
+  entityId: CompoundEntityRef;
   path: string;
+};
+
+/**
+ * TechDocs backend serves SVGs with text/plain content-type for security. This
+ * helper determines if an SVG is being loaded from the backend, and thus needs
+ * inlining to be displayed properly.
+ */
+const isSvgNeedingInlining = (
+  attrName: string,
+  attrVal: string,
+  apiOrigin: string,
+) => {
+  // Let's let the URL object do automatic parsing of the pathname for us
+  const pathname = new URL(attrVal, 'https://ignored.com').pathname;
+  const isSrcToSvg = attrName === 'src' && pathname.endsWith('.svg');
+
+  const isRelativeUrl = !attrVal.match(/^([a-z]*:)?\/\//i);
+  const pointsToOurBackend = attrVal.startsWith(apiOrigin);
+  return isSrcToSvg && (isRelativeUrl || pointsToOurBackend);
 };
 
 export const addBaseUrl = ({
@@ -28,26 +47,52 @@ export const addBaseUrl = ({
   entityId,
   path,
 }: AddBaseUrlOptions): Transformer => {
-  return dom => {
-    const updateDom = <T extends Element>(
+  return async dom => {
+    const apiOrigin = await techdocsStorageApi.getApiOrigin();
+
+    const updateDom = async <T extends Element>(
       list: HTMLCollectionOf<T> | NodeListOf<T>,
       attributeName: string,
-    ): void => {
-      Array.from(list)
-        .filter(elem => !!elem.getAttribute(attributeName))
-        .forEach((elem: T) => {
+    ) => {
+      for (const elem of list) {
+        if (elem.hasAttribute(attributeName)) {
           const elemAttribute = elem.getAttribute(attributeName);
           if (!elemAttribute) return;
-          elem.setAttribute(
-            attributeName,
-            techdocsStorageApi.getBaseUrl(elemAttribute, entityId, path),
+
+          // Special handling for SVG images.
+          const newValue = await techdocsStorageApi.getBaseUrl(
+            elemAttribute,
+            entityId,
+            path,
           );
-        });
+
+          if (isSvgNeedingInlining(attributeName, elemAttribute, apiOrigin)) {
+            try {
+              const svg = await fetch(newValue, { credentials: 'include' });
+              const svgContent = await svg.text();
+              elem.setAttribute(
+                attributeName,
+                `data:image/svg+xml;base64,${btoa(
+                  unescape(encodeURIComponent(svgContent)),
+                )}`,
+              );
+            } catch (e) {
+              elem.setAttribute('alt', `Error: ${elemAttribute}`);
+            }
+          } else {
+            elem.setAttribute(attributeName, newValue);
+          }
+        }
+      }
     };
 
-    updateDom<HTMLImageElement>(dom.querySelectorAll('img'), 'src');
-    updateDom<HTMLScriptElement>(dom.querySelectorAll('script'), 'src');
-    updateDom<HTMLLinkElement>(dom.querySelectorAll('link'), 'href');
+    await Promise.all([
+      updateDom<HTMLImageElement>(dom.querySelectorAll('img'), 'src'),
+      updateDom<HTMLScriptElement>(dom.querySelectorAll('script'), 'src'),
+      updateDom<HTMLSourceElement>(dom.querySelectorAll('source'), 'src'),
+      updateDom<HTMLLinkElement>(dom.querySelectorAll('link'), 'href'),
+      updateDom<HTMLAnchorElement>(dom.querySelectorAll('a[download]'), 'href'),
+    ]);
 
     return dom;
   };

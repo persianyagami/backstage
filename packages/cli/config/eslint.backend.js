@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,85 +14,7 @@
  * limitations under the License.
  */
 
-module.exports = {
-  extends: [
-    '@spotify/eslint-config-base',
-    '@spotify/eslint-config-typescript',
-    'prettier',
-    'prettier/@typescript-eslint',
-    'plugin:jest/recommended',
-    'plugin:monorepo/recommended',
-  ],
-  parser: '@typescript-eslint/parser',
-  plugins: ['import'],
-  env: {
-    jest: true,
-  },
-  globals: {
-    __non_webpack_require__: 'readonly',
-  },
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-  },
-  ignorePatterns: ['.eslintrc.js', '**/dist/**', '**/dist-types/**'],
-  rules: {
-    // TODO(Rugvip): We need to bump @typescript-eslint to v4 to enable these
-    '@typescript-eslint/no-shadow': 0,
-    '@typescript-eslint/no-redeclare': 0,
-
-    'no-console': 0, // Permitted in console programs
-    'new-cap': ['error', { capIsNew: false }], // Because Express constructs things e.g. like 'const r = express.Router()'
-    'import/newline-after-import': 'error',
-    'import/no-duplicates': 'warn',
-    'import/no-extraneous-dependencies': [
-      'error',
-      {
-        devDependencies: false,
-        optionalDependencies: true,
-        peerDependencies: true,
-        bundledDependencies: true,
-      },
-    ],
-    'no-unused-expressions': 'off',
-    '@typescript-eslint/no-unused-expressions': 'error',
-    '@typescript-eslint/no-unused-vars': [
-      'warn',
-      { vars: 'all', args: 'after-used', ignoreRestSiblings: true },
-    ],
-    // Avoid cross-package imports
-    'no-restricted-imports': [2, { patterns: ['**/../../**/*/src/**'] }],
-    // Avoid default import from winston as it breaks at runtime
-    'no-restricted-syntax': [
-      'error',
-      {
-        message:
-          'Default import from winston is not allowed, import `* as winston` instead.',
-        selector:
-          'ImportDeclaration[source.value="winston"] ImportDefaultSpecifier',
-      },
-      {
-        message:
-          "`__dirname` doesn't refer to the same dir in production builds, try `resolvePackagePath()` from `@backstage/backend-common` instead.",
-        selector: 'Identifier[name="__dirname"]',
-      },
-    ],
-  },
-  overrides: [
-    {
-      files: ['*.test.*', 'src/setupTests.*', 'dev/**'],
-      rules: {
-        // Tests are allowed to import dev dependencies
-        'import/no-extraneous-dependencies': [
-          'error',
-          {
-            devDependencies: true,
-            optionalDependencies: true,
-            peerDependencies: true,
-            bundledDependencies: true,
-          },
-        ],
-      },
-    },
-  ],
-};
+module.exports = require('./eslint-factory').createConfigForRole(
+  undefined,
+  'node-library',
+);

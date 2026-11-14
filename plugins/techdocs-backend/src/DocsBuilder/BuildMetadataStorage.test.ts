@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ import { BuildMetadataStorage } from './BuildMetadataStorage';
 
 describe('BuildMetadataStorage', () => {
   it('should return build timestamp', () => {
-    const newMetadataStorage = new BuildMetadataStorage('123abc');
-    newMetadataStorage.storeBuildTimestamp();
+    const newMetadataStorage = new BuildMetadataStorage('entityID123abc');
+    newMetadataStorage.setLastUpdated();
 
-    const timestamp = newMetadataStorage.getTimestamp();
+    const timestamp = newMetadataStorage.getLastUpdated();
 
     expect(timestamp).toBeLessThanOrEqual(Date.now());
   });

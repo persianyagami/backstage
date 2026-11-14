@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,53 +14,71 @@
  * limitations under the License.
  */
 
-import * as yup from 'yup';
+import { createCatalogModelLayer } from '../model/createCatalogModelLayer';
 import type { Entity } from '../entity/Entity';
-import { schemaValidator } from './util';
+import jsonSchema from '../schema/kinds/User.v1alpha1.schema.json';
+import { ajvCompiledJsonSchemaValidator } from './util';
 
-const API_VERSION = ['backstage.io/v1alpha1', 'backstage.io/v1beta1'] as const;
-const KIND = 'User' as const;
-
-const schema = yup.object<Partial<UserEntityV1alpha1>>({
-  apiVersion: yup.string().required().oneOf(API_VERSION),
-  kind: yup.string().required().equals([KIND]),
-  spec: yup
-    .object({
-      profile: yup
-        .object({
-          displayName: yup.string().min(1).notRequired(),
-          email: yup.string().min(1).notRequired(),
-          picture: yup.string().min(1).notRequired(),
-        })
-        .notRequired(),
-      // Use this manual test because yup .required() requires at least one
-      // element and there is no simple workaround -_-
-      // the cast is there to convince typescript that the array itself is
-      // required without using .required()
-      memberOf: yup.array(yup.string().required()).test({
-        name: 'isDefined',
-        message: 'memberOf must be defined',
-        test: v => Boolean(v),
-      }) as yup.ArraySchema<string, object>,
-    })
-    .required(),
-});
-
+/**
+ * Backstage catalog User kind Entity.
+ *
+ * @public
+ */
 export interface UserEntityV1alpha1 extends Entity {
-  apiVersion: typeof API_VERSION[number];
-  kind: typeof KIND;
+  apiVersion: 'backstage.io/v1alpha1' | 'backstage.io/v1beta1';
+  kind: 'User';
   spec: {
     profile?: {
       displayName?: string;
       email?: string;
       picture?: string;
     };
-    memberOf: string[];
+    memberOf?: string[];
   };
 }
 
-export const userEntityV1alpha1Validator = schemaValidator(
-  KIND,
-  API_VERSION,
-  schema,
-);
+/**
+ * {@link KindValidator} for {@link UserEntityV1alpha1}.
+ *
+ * @public
+ */
+export const userEntityV1alpha1Validator =
+  ajvCompiledJsonSchemaValidator(jsonSchema);
+
+/**
+ * Extends the catalog model with the User kind.
+ *
+ * @alpha
+ */
+export const userEntityModel = createCatalogModelLayer({
+  layerId: 'catalog.backstage.io/kind-user',
+  builder: model => {
+    model.addKind({
+      group: 'backstage.io',
+      names: {
+        kind: 'User',
+        singular: 'user',
+        plural: 'users',
+      },
+      description:
+        'A User describes a person, such as an employee or a contractor.',
+      versions: [
+        {
+          name: ['v1alpha1', 'v1beta1'],
+          relationFields: [
+            {
+              selector: { path: 'spec.memberOf' },
+              relation: 'memberOf',
+              defaultKind: 'Group',
+              defaultNamespace: 'inherit',
+              allowedKinds: ['Group'],
+            },
+          ],
+          schema: {
+            jsonSchema,
+          },
+        },
+      ],
+    });
+  },
+});

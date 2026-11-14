@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,11 @@ export type {
   ComponentEntityV1alpha1 as ComponentEntity,
   ComponentEntityV1alpha1,
 } from './ComponentEntityV1alpha1';
+export { domainEntityV1alpha1Validator } from './DomainEntityV1alpha1';
+export type {
+  DomainEntityV1alpha1 as DomainEntity,
+  DomainEntityV1alpha1,
+} from './DomainEntityV1alpha1';
 export { groupEntityV1alpha1Validator } from './GroupEntityV1alpha1';
 export type {
   GroupEntityV1alpha1 as GroupEntity,
@@ -34,12 +39,32 @@ export type {
   LocationEntityV1alpha1 as LocationEntity,
   LocationEntityV1alpha1,
 } from './LocationEntityV1alpha1';
-export * from './relations';
-export { templateEntityV1alpha1Validator } from './TemplateEntityV1alpha1';
+export {
+  RELATION_API_CONSUMED_BY,
+  RELATION_API_PROVIDED_BY,
+  RELATION_CHILD_OF,
+  RELATION_CONSUMES_API,
+  RELATION_DEPENDENCY_OF,
+  RELATION_DEPENDS_ON,
+  RELATION_HAS_MEMBER,
+  RELATION_HAS_PART,
+  RELATION_MEMBER_OF,
+  RELATION_OWNED_BY,
+  RELATION_OWNER_OF,
+  RELATION_PARENT_OF,
+  RELATION_PART_OF,
+  RELATION_PROVIDES_API,
+} from './relations';
+export { resourceEntityV1alpha1Validator } from './ResourceEntityV1alpha1';
 export type {
-  TemplateEntityV1alpha1 as TemplateEntity,
-  TemplateEntityV1alpha1,
-} from './TemplateEntityV1alpha1';
+  ResourceEntityV1alpha1 as ResourceEntity,
+  ResourceEntityV1alpha1,
+} from './ResourceEntityV1alpha1';
+export { systemEntityV1alpha1Validator } from './SystemEntityV1alpha1';
+export type {
+  SystemEntityV1alpha1 as SystemEntity,
+  SystemEntityV1alpha1,
+} from './SystemEntityV1alpha1';
 export type { KindValidator } from './types';
 export { userEntityV1alpha1Validator } from './UserEntityV1alpha1';
 export type {

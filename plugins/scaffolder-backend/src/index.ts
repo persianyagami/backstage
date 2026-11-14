@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,17 @@
  * limitations under the License.
  */
 
-export * from './scaffolder';
-export * from './service/router';
-export * from './lib/catalog';
+/**
+ * The Backstage backend plugin that helps you create new things
+ *
+ * @packageDocumentation
+ */
+
+export { scaffolderPlugin as default } from './ScaffolderPlugin';
+
+export * from './scaffolder/actions/builtin';
+
+export {
+  type TemplatePermissionRuleInput,
+  type ActionPermissionRuleInput,
+} from './service/permissions';

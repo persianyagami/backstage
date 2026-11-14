@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 
 import { Config, ConfigReader } from '@backstage/config';
+import { loadConfigSchema } from '@backstage/config-loader';
 import {
   GitLabIntegrationConfig,
   readGitLabIntegrationConfig,
@@ -23,25 +24,86 @@ import {
 
 describe('readGitLabIntegrationConfig', () => {
   function buildConfig(data: Partial<GitLabIntegrationConfig>): Config {
-    return ConfigReader.fromConfigs([{ context: '', data }]);
+    return new ConfigReader(data);
+  }
+
+  async function buildFrontendConfig(
+    data: Partial<GitLabIntegrationConfig>,
+  ): Promise<Config> {
+    const fullSchema = await loadConfigSchema({
+      dependencies: ['@backstage/integration'],
+    });
+    const serializedSchema = fullSchema.serialize() as {
+      schemas: { value: { properties?: { integrations?: object } } }[];
+    };
+    const schema = await loadConfigSchema({
+      serialized: {
+        ...serializedSchema, // only include schemas that apply to integrations
+        schemas: serializedSchema.schemas.filter(
+          s => s.value?.properties?.integrations,
+        ),
+      },
+    });
+    const processed = schema.process(
+      [{ data: { integrations: { gitlab: [data] } }, context: 'app' }],
+      { visibility: ['frontend'] },
+    );
+    return new ConfigReader((processed[0].data as any).integrations.gitlab[0]);
   }
 
   it('reads all values', () => {
     const output = readGitLabIntegrationConfig(
       buildConfig({
         host: 'a.com',
-        token: 't',
+        token: ' t\n',
+        apiBaseUrl: 'https://a.com',
+        baseUrl: 'https://baseurl.for.me/gitlab',
+        retry: {
+          maxRetries: 3,
+          maxApiRequestsPerMinute: 1000,
+          retryStatusCodes: [429],
+        },
       }),
     );
+
     expect(output).toEqual({
       host: 'a.com',
       token: 't',
+      apiBaseUrl: 'https://a.com',
+      baseUrl: 'https://baseurl.for.me/gitlab',
+      commitSigningKey: undefined,
+      retry: {
+        maxRetries: 3,
+        maxApiRequestsPerMinute: 1000,
+        retryStatusCodes: [429],
+      },
     });
   });
 
   it('inserts the defaults if missing', () => {
-    const output = readGitLabIntegrationConfig(buildConfig({}));
-    expect(output).toEqual({ host: 'gitlab.com' });
+    const output = readGitLabIntegrationConfig(
+      buildConfig({ host: 'gitlab.com' }),
+    );
+    expect(output).toEqual({
+      host: 'gitlab.com',
+      apiBaseUrl: 'https://gitlab.com/api/v4',
+      baseUrl: 'https://gitlab.com',
+      commitSigningKey: undefined,
+      retry: undefined,
+    });
+  });
+
+  it('injects the correct GitLab API base URL when missing', () => {
+    const output = readGitLabIntegrationConfig(
+      buildConfig({ host: 'gitlab.com' }),
+    );
+
+    expect(output).toEqual({
+      host: 'gitlab.com',
+      baseUrl: 'https://gitlab.com',
+      apiBaseUrl: 'https://gitlab.com/api/v4',
+      retry: undefined,
+    });
   });
 
   it('rejects funky configs', () => {
@@ -56,13 +118,31 @@ describe('readGitLabIntegrationConfig', () => {
       readGitLabIntegrationConfig(buildConfig({ ...valid, token: 7 })),
     ).toThrow(/token/);
   });
+
+  it('works on the frontend', async () => {
+    expect(
+      readGitLabIntegrationConfig(
+        await buildFrontendConfig({
+          host: 'a.com',
+          apiBaseUrl: 'https://a.com/api',
+          token: 't',
+          baseUrl: 'https://a.com',
+        }),
+      ),
+    ).toEqual({
+      host: 'a.com',
+      apiBaseUrl: 'https://a.com/api',
+      baseUrl: 'https://a.com',
+      token: undefined, // token is filtered out on frontend
+      commitSigningKey: undefined,
+      retry: undefined,
+    });
+  });
 });
 
 describe('readGitLabIntegrationConfigs', () => {
   function buildConfig(data: Partial<GitLabIntegrationConfig>[]): Config[] {
-    return data.map(item =>
-      ConfigReader.fromConfigs([{ context: '', data: item }]),
-    );
+    return data.map(item => new ConfigReader(item));
   }
 
   it('reads all values', () => {
@@ -71,12 +151,17 @@ describe('readGitLabIntegrationConfigs', () => {
         {
           host: 'a.com',
           token: 't',
+          apiBaseUrl: 'https://a.com/api/v4',
+          baseUrl: 'https://a.com',
         },
       ]),
     );
     expect(output).toContainEqual({
       host: 'a.com',
       token: 't',
+      apiBaseUrl: 'https://a.com/api/v4',
+      baseUrl: 'https://a.com',
+      retry: undefined,
     });
   });
 
@@ -85,6 +170,8 @@ describe('readGitLabIntegrationConfigs', () => {
     expect(output).toEqual([
       {
         host: 'gitlab.com',
+        apiBaseUrl: 'https://gitlab.com/api/v4',
+        baseUrl: 'https://gitlab.com',
       },
     ]);
   });

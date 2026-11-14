@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,65 @@
  * limitations under the License.
  */
 
-import { useApi, identityApiRef } from '@backstage/core';
+import {
+  alertApiRef,
+  identityApiRef,
+  ProfileInfo,
+  useApi,
+} from '@backstage/core-plugin-api';
+import { useEffect } from 'react';
+import useAsync from 'react-use/esm/useAsync';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
+import { UserEntity } from '@backstage/catalog-model';
 
+/** @public */
 export const useUserProfile = () => {
   const identityApi = useApi(identityApiRef);
-  const userId = identityApi.getUserId();
-  const profile = identityApi.getProfile();
-  const displayName = profile.displayName ?? userId;
+  const alertApi = useApi(alertApiRef);
+  const catalogApi = useApi(catalogApiRef);
 
-  return { profile, displayName };
+  const { value, loading, error } = useAsync(async () => {
+    let identityProfile = await identityApi.getProfileInfo();
+    const backStageIdentity = await identityApi.getBackstageIdentity();
+    const catalogProfile = (await catalogApi.getEntityByRef(
+      backStageIdentity.userEntityRef,
+    )) as unknown as UserEntity;
+    if (
+      identityProfile.picture === undefined &&
+      catalogProfile?.spec?.profile?.picture
+    ) {
+      identityProfile = {
+        ...identityProfile,
+        picture: catalogProfile.spec.profile.picture,
+      };
+    }
+    return {
+      profile: identityProfile,
+      identity: backStageIdentity,
+    };
+  }, []);
+
+  useEffect(() => {
+    if (error) {
+      alertApi.post({
+        message: `Failed to load user identity: ${error}`,
+        severity: 'error',
+      });
+    }
+  }, [error, alertApi]);
+
+  if (loading || error) {
+    return {
+      profile: {} as ProfileInfo,
+      displayName: '',
+      loading,
+    };
+  }
+
+  return {
+    profile: value!.profile,
+    backstageIdentity: value!.identity,
+    displayName: value!.profile.displayName ?? value!.identity.userEntityRef,
+    loading,
+  };
 };

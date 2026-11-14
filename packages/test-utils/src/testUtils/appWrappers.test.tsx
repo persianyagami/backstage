@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-import React, { useEffect } from 'react';
-import { render } from '@testing-library/react';
-import { wrapInTestApp, renderInTestApp } from './appWrappers';
-import { Route, Routes } from 'react-router';
-import { withLogCollector } from '@backstage/test-utils-core';
 import {
-  useApi,
+  createExternalRouteRef,
+  createRouteRef,
+  createSubRouteRef,
   errorApiRef,
-  ApiProvider,
-  ApiRegistry,
-} from '@backstage/core-api';
+  useApi,
+  useApp,
+  useRouteRef,
+} from '@backstage/core-plugin-api';
+import { withLogCollector } from './logCollector';
+import { render } from '@testing-library/react';
+import { useEffect } from 'react';
+import { Route, Routes } from 'react-router-dom';
 import { MockErrorApi } from './apis';
+import { renderInTestApp, wrapInTestApp } from './appWrappers';
+import { TestApiProvider } from './TestApiProvider';
 
 describe('wrapInTestApp', () => {
   it('should provide routing and warn about missing act()', async () => {
@@ -45,11 +49,13 @@ describe('wrapInTestApp', () => {
       await Promise.resolve();
     });
 
-    expect(error).toEqual([
-      expect.stringMatching(
-        /^Warning: An update to %s inside a test was not wrapped in act\(...\)/,
+    expect(
+      error.some(e =>
+        e.includes(
+          'Warning: An update to %s inside a test was not wrapped in act(...)',
+        ),
       ),
-    ]);
+    ).toBeTruthy();
   });
 
   it('should render a component in a test app without warning about missing act()', async () => {
@@ -86,10 +92,15 @@ describe('wrapInTestApp', () => {
     });
 
     expect(error).toEqual([
-      expect.stringMatching(
-        /^Error: Uncaught \[Error: MockErrorApi received unexpected error, Error: NOPE\]/,
+      expect.stringContaining(
+        'Error: MockErrorApi received unexpected error, Error: NOPE',
       ),
-      expect.stringMatching(/^The above error occurred in the <A> component:/),
+      expect.objectContaining({ type: 'unhandled-exception' }),
+      expect.stringContaining(
+        'Error: MockErrorApi received unexpected error, Error: NOPE',
+      ),
+      expect.objectContaining({ type: 'unhandled-exception' }),
+      expect.stringContaining('The above error occurred in the <A> component:'),
     ]);
   });
 
@@ -105,12 +116,80 @@ describe('wrapInTestApp', () => {
     };
 
     const rendered = await renderInTestApp(
-      <ApiProvider apis={ApiRegistry.with(errorApiRef, mockErrorApi)}>
+      <TestApiProvider apis={[[errorApiRef, mockErrorApi]]}>
         <A />
-      </ApiProvider>,
+      </TestApiProvider>,
     );
 
     expect(rendered.getByText('foo')).toBeInTheDocument();
     expect(mockErrorApi.getErrors()).toEqual([{ error: new Error('NOPE') }]);
+  });
+
+  it('should allow route refs to be mounted on specific paths', async () => {
+    const aRouteRef = createRouteRef({ id: 'A' });
+    const bRouteRef = createRouteRef({ id: 'B', params: ['name'] });
+    const subRouteRef = createSubRouteRef({
+      id: 'S',
+      parent: bRouteRef,
+      path: '/:page',
+    });
+    const externalRouteRef = createExternalRouteRef({
+      id: 'E',
+      params: ['name'],
+    });
+
+    const MyComponent = () => {
+      const a = useRouteRef(aRouteRef);
+      const b = useRouteRef(bRouteRef);
+      const s = useRouteRef(subRouteRef);
+      const e = useRouteRef(externalRouteRef);
+      return (
+        <div>
+          <div>Link A: {a()}</div>
+          <div>Link B: {b({ name: 'x' })}</div>
+          <div>Link S: {s({ name: 'y', page: 'p' })}</div>
+          <div>Link E: {e({ name: 'z' })}</div>
+        </div>
+      );
+    };
+
+    const rendered = await renderInTestApp(<MyComponent />, {
+      mountedRoutes: {
+        '/my-a-path': aRouteRef,
+        '/my-b-path/:name': bRouteRef,
+        '/my-e-path/:name': externalRouteRef,
+      },
+    });
+    expect(rendered.getByText('Link A: /my-a-path')).toBeInTheDocument();
+    expect(rendered.getByText('Link B: /my-b-path/x')).toBeInTheDocument();
+    expect(rendered.getByText('Link S: /my-b-path/y/p')).toBeInTheDocument();
+    expect(rendered.getByText('Link E: /my-e-path/z')).toBeInTheDocument();
+  });
+
+  it('should not make route mounting elements visible during tests', async () => {
+    const routeRef = createRouteRef({ id: 'foo' });
+
+    const rendered = await renderInTestApp(<span>foo</span>, {
+      mountedRoutes: { '/foo': routeRef },
+    });
+
+    const [root] = rendered.baseElement.children;
+    expect(root).toBeInTheDocument();
+    expect(root.children.length).toBe(1);
+    expect(root.children[0].textContent).toBe('foo');
+  });
+
+  it('should support rerenders', async () => {
+    const MyComponent = () => {
+      const app = useApp();
+      const { Progress } = app.getComponents();
+      return <Progress />;
+    };
+
+    const rendered = await renderInTestApp(<MyComponent />);
+    expect(rendered.getByTestId('progress')).toBeInTheDocument();
+
+    rendered.rerender(<MyComponent />);
+    expect(rendered.getByTestId('progress')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Spotify AB
+ * Copyright 2020 The Backstage Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,118 @@
  * limitations under the License.
  */
 
-import { render, fireEvent } from '@testing-library/react';
-import * as React from 'react';
-import { act } from 'react-dom/test-utils';
+import { EntityProvider } from '@backstage/plugin-catalog-react';
+import { permissionApiRef } from '@backstage/plugin-permission-react';
+import {
+  mockApis,
+  renderInTestApp,
+  TestApiProvider,
+} from '@backstage/test-utils';
+import SearchIcon from '@material-ui/icons/Search';
+import { fireEvent, screen } from '@testing-library/react';
+import { ReactNode } from 'react';
 import { EntityContextMenu } from './EntityContextMenu';
+
+function render(children: ReactNode) {
+  return renderInTestApp(
+    <TestApiProvider apis={[[permissionApiRef, mockApis.permission()]]}>
+      <EntityProvider
+        entity={{ apiVersion: 'a', kind: 'b', metadata: { name: 'c' } }}
+        children={children}
+      />
+    </TestApiProvider>,
+  );
+}
 
 describe('ComponentContextMenu', () => {
   it('should call onUnregisterEntity on button click', async () => {
-    await act(async () => {
-      const mockCallback = jest.fn();
-      const menu = render(
-        <EntityContextMenu onUnregisterEntity={mockCallback} />,
-      );
-      const button = await menu.findByTestId('menu-button');
-      fireEvent.click(button);
-      const unregister = await menu.findByText('Unregister entity');
-      expect(unregister).toBeInTheDocument();
-    });
+    const mockCallback = jest.fn();
+    await render(
+      <EntityContextMenu
+        onUnregisterEntity={mockCallback}
+        onInspectEntity={() => {}}
+      />,
+    );
+
+    const button = await screen.findByTestId('menu-button');
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+
+    const unregister = await screen.findByText('Unregister entity');
+    expect(unregister).toBeInTheDocument();
+    fireEvent.click(unregister);
+
+    expect(mockCallback).toHaveBeenCalled();
+  });
+
+  it('check Unregister entity button is disabled', async () => {
+    const mockCallback = jest.fn();
+
+    await render(
+      <EntityContextMenu
+        UNSTABLE_contextMenuOptions={{ disableUnregister: 'disable' }}
+        onUnregisterEntity={mockCallback}
+        onInspectEntity={() => {}}
+      />,
+    );
+
+    const button = await screen.findByTestId('menu-button');
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+
+    const unregister = screen.getByText('Unregister entity');
+    expect(unregister).toBeInTheDocument();
+
+    const unregisterSpanItem = screen.getByText(/Unregister entity/);
+    const unregisterMenuListItem =
+      unregisterSpanItem?.parentElement?.parentElement;
+    expect(unregisterMenuListItem).toHaveAttribute('aria-disabled');
+  });
+
+  it('should call onInspectEntity on button click', async () => {
+    const mockCallback = jest.fn();
+
+    await render(
+      <EntityContextMenu
+        onUnregisterEntity={() => {}}
+        onInspectEntity={mockCallback}
+      />,
+    );
+
+    const button = await screen.findByTestId('menu-button');
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+
+    const unregister = await screen.findByText('Inspect entity');
+    expect(unregister).toBeInTheDocument();
+    fireEvent.click(unregister);
+
+    expect(mockCallback).toHaveBeenCalled();
+  });
+
+  it('supports extra items', async () => {
+    const extra = {
+      title: 'HELLO',
+      Icon: SearchIcon,
+      onClick: jest.fn(),
+    };
+
+    await render(
+      <EntityContextMenu
+        onUnregisterEntity={jest.fn()}
+        onInspectEntity={jest.fn()}
+        UNSTABLE_extraContextMenuItems={[extra]}
+      />,
+    );
+
+    const button = await screen.findByTestId('menu-button');
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+
+    const item = await screen.findByText('HELLO');
+    expect(item).toBeInTheDocument();
+    fireEvent.click(item);
+
+    expect(extra.onClick).toHaveBeenCalled();
   });
 });
